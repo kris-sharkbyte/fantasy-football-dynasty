@@ -1,0 +1,400 @@
+---
+alwaysApply: true
+---
+
+Dynasty Fantasy Roadmap
+
+Refer to PROJECT_CHECKLIST.md to see what we have left to do and the next thing we need to work on. As we complete the checklist update the checklist.
+
+Product pillars (what the game is)
+League lifecycle
+
+Offseason: re-signings → franchise/transition tags → free agency → trades → draft → rookie signing → cap compliance.
+
+In-season: weekly lineup locking (optional), waivers, trades, injuries (optional), cap checks, future-year planning.
+
+Multi-year progression: player aging, development/regression, contracts expiring, comp picks (optional).
+
+Team ops
+
+Salary cap & contracts (bonus proration, guarantees, dead money).
+
+Trades (players, picks, cap cash, retained salary rules if you want).
+
+Free agency & negotiations (human vs AI agents).
+
+Rookie classes with potentials and rookie scale deals or custom CBA.
+
+Scoring that maps real NFL results → fantasy points for your rosters.
+
+Fair play & governance
+
+League rulesets/templates, commissioner tools, trade review/veto, audit logs.
+
+Tech stack (recommended)
+Frontend
+Angular 20 (standalone APIs) + PrimeNG + Tailwind CSS
+
+State: Angular signals (optionally NGXS/NGRX later)
+
+Forms: Reactive Forms + Zod schema (for shared validation types)
+
+Auth client: Firebase Web SDK (Auth + App Check)
+
+Realtime UI: Firestore listeners (draft clock, FA board, trades)
+
+Backend / Compute
+Firebase Functions v2 (Node 20, TypeScript)
+
+HTTPS callable endpoints for all mutations (contracts, cuts, trades, bids, draft picks)
+
+Cloud Scheduler jobs (FA rounds, scoring imports)
+
+Pub/Sub for domain events; Cloud Tasks for serialized, idempotent workflows
+
+Cloud Run (Node 20, TypeScript)
+
+Optional WebSocket ticker for FA/Draft (if you want push beyond Firestore)
+
+Optional AI negotiation service (LLM-assisted counters)
+
+Any long/CPU-heavy jobs (bulk sims, backfills)
+
+Data & Realtime
+Firestore (Native mode) – primary operational store (leagues, teams, players, contracts, bids, trades, draft, ledger, weekly stats)
+
+Cloud Storage – exports, league backups, CSV imports
+
+BigQuery (optional) – analytics/BI and long-term stats
+
+Auth & Security
+Firebase Auth (email/password + OAuth providers)
+
+Firebase App Check (protect callables)
+
+Firestore Security Rules (deny-by-default; server-only writes for critical docs)
+
+Secret Manager (stat providers, LLM keys)
+
+IAM per-environment (dev/stage/prod projects)
+
+Validation & Shared Logic
+TypeScript everywhere; shared libs/domain for: cap math, contract validation, rookie scale, FA resolver
+
+Zod for runtime DTO validation on both client and server
+
+Integrations
+ScoringAdapter abstraction (e.g., Sleeper/ESPN/Yahoo/Stats API) – start with one provider, swap later
+
+Notifications: Firebase Cloud Messaging (optional web push), transactional email (e.g., SendGrid) via Functions
+
+Observability & Ops
+Cloud Logging, Error Reporting, Cloud Trace
+
+Optional Sentry frontend + backend SDKs
+
+Feature flags/experiments (optional): Firebase Remote Config
+
+Dev Experience / Tooling
+Nx monorepo
+
+apps/web (Angular 20)
+apps/functions (Firebase Functions v2)
+apps/run-services/{fa-ws, ai-agent} (Cloud Run)
+libs/{domain, types, adapters, testing}
+
+Firebase Emulator Suite (Auth, Firestore, Functions, Storage, Pub/Sub) for local dev
+
+GitHub Actions CI/CD
+
+Lint/test → deploy Hosting & Functions (Preview Channels for PRs)
+
+Build & deploy Cloud Run via Cloud Build/Artifact Registry
+
+Testing: Jest/Vitest (unit), Playwright (E2E), contract tests on callables
+
+Lint/format: ESLint + Prettier
+
+Hosting & Delivery
+Firebase Hosting (CDN, HTTP/2) for Angular app
+
+Rewrites to Functions (APIs) and to Cloud Run routes as needed
+
+Multi-site: dev / stage / prod
+
+Performance
+Functions v2 minInstances for hot paths (FA rounds, draft picks)
+
+Split function bundles (keep LLM & heavy deps in Cloud Run services)
+
+Firestore index design + denormalized read models for cap sheets and standings
+
+Core domain model (starter ERD)
+League(id, name, rules_json, current_year, phase)
+
+Team(id, league_id, name, owner_user_id, cap_space, ... )
+
+User(id, auth_provider_id, display_name, roles)
+
+Player(id, name, nfl_team, pos, age, dev_grade, overall, traits_json)
+
+Contract(id, player_id, team_id, start_year, end_year, base_by_year JSON, bonus_total, bonus_proration_by_year JSON, guarantees_json, no_trade_clause bool)
+
+CapLedger(id, team_id, league_year, cap_in, cap_out, reason, ref_type, ref_id)
+
+Pick(id, league_id, year, round, original_team_id, current_team_id)
+
+Trade(id, league_id, proposer_team_id, responder_team_id, status, payload_json, cap_impacts_json, created_at)
+
+FA_Bid(id, league_id, team_id, player_id, years, base_by_year JSON, bonus, guarantees_json, timestamp)
+
+DraftClass(id, league_id, year, generated_seed, config_json)
+
+DraftPickAssignment(id, pick_id, player_id, rookie_contract_id)
+
+RosterSlot(id, team_id, player_id, active_from, active_to, status)
+
+ScoreWeek(id, league_id, nfl_week, source, ingested_at)
+
+PlayerWeekStat(id, player_id, nfl_week, fantasy_points, stat_blob)
+
+Settings(id, league_id, scoring_json, cap_json, draft_json, contracts_json)
+
+AuditLog(id, league_id, actor_user_id, action, payload_json, created_at)
+
+(JSON fields keep flexibility while core relations stay normalized.)
+
+Salary cap & contract mechanics (clear formulas)
+Contract anatomy
+Base salary per year
+
+Signing bonus (prorated evenly over up to N years, e.g., max 5)
+
+Guarantees: full or injury-only (affects AI behavior & release risk)
+
+Options/void years (optional, advanced)
+
+Escalators/bonuses (optional later)
+Cap hit
+CapHit(year Y) = BaseSalary(Y) + ProratedSigningBonus(Y) + OtherBonusesEarned(Y)
+
+Dead money on release/trade (pre-June 1 vs post-June 1)
+Remaining unamortized signing bonus accelerates:
+
+Pre-June 1: all remaining bonus → current year dead cap.
+
+Post-June 1: current year’s proration stays; the rest accelerates to next year.
+
+Guarantees still owed become dead money if triggered.
+
+Trade
+Acquiring team takes base + future salary (and possibly option years).
+
+Sending team eats the remaining bonus acceleration as dead money.
+
+Rookie contracts
+Either:
+
+Simple rookie scale (round-based min/max, 4 years + 5th-year option for 1st-rounders), or
+
+Your own simple template: year 1 base + small signing bonus prorated.
+
+AI negotiation (player “agent” behavior)
+Start simple and get smarter:
+V1 (rules-based heuristic)
+Player utility = f(total_guarantees, APY, length fit, role fit, scheme fit, tax/city pref, contender score, NTC).
+
+BATNA = best competing offer; player counters by:
+
+Raising guarantees first (common in NFL).
+
+Adjusting length to desired range (e.g., 3–4 years for 26yo WR).
+
+Small APY bumps with diminishing returns.
+
+Negotiation loop: Team proposes → Agent evaluates → either accept, counter, or “wait” for market.
+
+Add “market window” free agency with bid rounds every N seconds (live FA room).
+
+V2 (ML/LLM-assisted)
+Feed market comps (position/age/overall) + league cap health + offer terms → counter template.
+
+Use an LLM to produce rationale/chat flavor, but the numbers still come from deterministic heuristics so it’s fair & testable.
+
+Trainable weights for each trait (e.g., “guarantee-weight” ↑ for injured players).
+
+Scoring integration (real NFL → fantasy)
+Define a ScoringAdapter with:
+
+fetchWeekStats(leagueId, season, week): PlayerWeekStat[]
+
+mapToFantasyPoints(stat, scoring_json): number
+
+Store raw stats and calculated fantasy points per player/week.
+
+Support PPR/Half/Standard, bonuses (100+ yds, 40+ TD, etc.), defense/special teams (optional later).
+
+Cron/queue: ingest every Tuesday AM ET (configurable), backfill late stat corrections if desired.
+
+Angular 20 app structure (feature modules)
+app/core (auth guard, interceptors, current league/team context)
+
+app/leagues (create/join league, settings wizard)
+
+app/teams (dashboard: cap table, contract explorer, depth chart)
+
+app/free-agency (FA board, bidding room w/ real-time clock)
+
+app/draft (draft room, pick timer, queue, trades during draft)
+
+app/trades (propose/review, cap impact preview)
+
+app/players (search, filters, comps)
+
+app/admin (commish tools, rule editor, audit)
+
+Shared UI: tables, dialogs, toasts (PrimeNG or Material), form schemas (ngx-formly optional)
+
+State: NGXS or NGRX (or standalone signals + query services), keep API contracts typed with zod or io-ts.
+
+Backend (NestJS) services & endpoints
+Auth: login, league membership, roles.
+
+LeagueService: lifecycle, phase transitions, schedule jobs.
+
+TeamService: cap sheet, sign/cut/extend, apply ledger entries (atomic).
+
+ContractService: validation, cap math, dead money calc, June 1 rules.
+
+FAService: bid rounds, tie-breakers, accept/commit flow.
+
+DraftService: draft order, on-the-clock, autopick, rookie deals.
+
+TradeService: proposal → cap validation → accept/queue → commit & ledger.
+
+StatsService: scoring ingestion, mapping.
+
+RulesService: load/update league settings, versioning.
+
+AuditService: append-only logs.
+
+Transactions
+Use DB transactions for any action that touches: contracts, roster, cap ledger.
+
+Emit domain events → queue → projections for summaries/cap tables.
+
+MVP scope (8–10 weeks if focused)
+Create league → invite teams → import initial player pool.
+
+Basic contracts & cap (no tags/void years yet): sign, cut, trade; dead money (single rule to start).
+
+Free agency room with timed rounds; simple agent counters.
+
+Draft room: snake order, rookie scale template.
+
+Weekly scoring import (one adapter) + team roster points aggregation.
+
+Team dashboard: cap this year/next year, top contracts, upcoming expirations.
+
+Commissioner tools: pause/advance phase, force action, review trades.
+
+Audit logs.
+
+Nice-to-haves after MVP
+Franchise/transition tags, June 1 vs pre-June 1 splits.
+
+Void years/options, incentives/escalators visualization.
+
+Injuries & player availability.
+
+Multi-adapter scoring; live scoreboards.
+
+AI GM for orphan teams.
+
+Mobile-friendly draft/FA experiences.
+
+Algorithmic details you’ll want early
+Dead money calculation
+const remainingBonus = totalBonus - sum(prorationPaidThroughYear(y-1));
+const preJune1 = true | false; // based on league rule and date
+if (preJune1) {
+deadMoney[y] += remainingBonus;
+} else {
+deadMoney[y] += currentYearProration;
+deadMoney[y+1] += remainingBonus - currentYearProration;
+}
+
+Trade validation (synchronous)
+Compute sender/receiver cap hits this year and next.
+
+Ensure both teams remain <= cap (or allow “temporarily over” rule in offseason).
+
+Compute dead money for any moved contracts if your league rules accelerate at trade (NFL: signing bonus stays with sender).
+
+FA round
+Collect bids → evaluate best per player with tie rules:
+
+Highest total guarantees
+
+Highest APY
+
+Shorter opt-out risk (player pref)
+
+Random small epsilon
+
+Commit winning contract atomically; losers get their cap space back.
+
+Draft class generation (repeatable & fair)
+Seeded RNG per league/year → reproducible classes.
+
+Position distributions, athletic traits, dev grades (A–D), scheme fits.
+
+Bust/boom probabilities tied to dev grade + age + traits.
+
+Security & fairness
+Server-side checks for all cap/contract/trade math (never trust client).
+
+Audit every league-affecting action.
+
+Rate-limit write endpoints during FA/draft.
+
+Deterministic contract math with shared library used by both API and (readonly) UI for previews.
+
+Testing strategy
+Cap/contract math: golden tests for 50–100 scenarios (cut/trade, pre/post June 1).
+
+FA engine: simulate markets with N teams, verify winners & cap.
+
+Draft: timers, autopick, trade-on-clock flows.
+
+E2E: Cypress/Playwright for critical flows.
+
+Project structure (monorepo)
+Nx workspace:
+
+apps/web (Angular 20)
+
+apps/api (NestJS)
+
+libs/domain (shared types, cap math)
+
+libs/ui (Angular components)
+
+libs/testing (fixtures & golden cases)
+
+Concrete next steps (Week 0–2)
+Scaffold Nx monorepo (Angular 20 + NestJS), Tailwind.
+
+Define league settings JSON schemas (zod) for scoring, cap, contracts.
+
+Implement Cap Math lib (pure TS):
+
+proration, dead money, trade outcomes; 30+ unit tests.
+
+Prisma schema with the entities above; run migrations.
+
+Auth (Firebase/Auth0) + basic RBAC (owner, GM, commish).
+
+API stubs for Teams, Players, Contracts, Trades; Postman collection.
+
+Angular: Team Cap Sheet, Player Finder, “Offer Contract” dialog with live cap preview.

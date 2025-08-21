@@ -1,0 +1,36 @@
+// Home component specific styles
+:host {
+  display: block;
+}
+
+// Hero section enhancements
+.text-gradient {
+  background: linear-gradient(135deg, var(--primary-600), var(--primary-800));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+// Feature card hover effects
+.card {
+  &:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease-in-out;
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .text-5xl {
+    font-size: 2.5rem;
+  }
+
+  .text-3xl {
+    font-size: 1.875rem;
+  }
+
+  .py-16 {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+}

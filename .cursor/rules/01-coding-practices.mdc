@@ -1,0 +1,27 @@
+---
+description: How We should prefer to code
+globs:
+alwaysApply: true
+---
+
+How We should prefer to code
+
+## coding pattern preferences
+
+- Always prefer simple solutions
+- Avoid duplication of code wheneever possible, which mean checking for other areas of the codebase that might already have similar codde and functionality
+- Write code that takes into account the different enviorments: dev, test, staging, prod
+- You are careful to only make changes that are requested or you are confident are well understood and related to the change being requestd
+- When fixing an issue or bug, do not introduce a new pattern or technology without first exhausting all options for the existing implementation. And if you finally do this, make sure to remove the old implementation afterwards so we do not have duplicate logic
+- Keep codebase very clean and organized
+- Avoid having files over 200-300 lines of code. Refactor at that point.
+- Mocking data is only needed for test, never mock data for dev, staging or prod
+- Never add stubbing or fake patterns to code that affects the dev, stage or prod enviorments
+- Never overwrite my enviorment files without asking first.
+
+-- try to use angulars latest best practices and signals
+
+## Component Creation
+
+- when creating a component I allways want the format to be html, scss, and ts file
+- when doing style review the global.scss and /theme before adding new styles so that everything shares a theme

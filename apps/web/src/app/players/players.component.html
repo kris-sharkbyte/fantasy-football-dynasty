@@ -1,0 +1,49 @@
+<div class="space-y-8">
+  <h1 class="text-3xl font-bold text-secondary-900">Player Database</h1>
+
+  <div class="card">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label class="label">Search Players</label>
+        <input
+          type="text"
+          class="input"
+          placeholder="Player name..."
+          [(ngModel)]="searchQuery"
+        />
+      </div>
+      <div>
+        <label class="label">Position</label>
+        <select class="input" [(ngModel)]="selectedPosition">
+          <option value="">All Positions</option>
+          <option value="QB">QB</option>
+          <option value="RB">RB</option>
+          <option value="WR">WR</option>
+          <option value="TE">TE</option>
+          <option value="K">K</option>
+          <option value="DEF">DEF</option>
+        </select>
+      </div>
+      <div>
+        <label class="label">NFL Team</label>
+        <select class="input" [(ngModel)]="selectedTeam">
+          <option value="">All Teams</option>
+          <option value="KC">Kansas City Chiefs</option>
+          <option value="BUF">Buffalo Bills</option>
+          <option value="CIN">Cincinnati Bengals</option>
+        </select>
+      </div>
+    </div>
+    <div class="mt-4">
+      <button class="btn-primary" (click)="searchPlayers()">
+        Search Players
+      </button>
+    </div>
+  </div>
+
+  <div class="text-center py-12">
+    <p class="text-lg text-secondary-600">
+      Player search functionality coming soon...
+    </p>
+  </div>
+</div>

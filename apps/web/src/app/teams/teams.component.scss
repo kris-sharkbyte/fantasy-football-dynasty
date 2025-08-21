@@ -1,0 +1,12 @@
+// Teams component specific styles
+:host {
+  display: block;
+}
+
+// Card hover effects
+.card {
+  &:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease-in-out;
+  }
+}

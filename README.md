@@ -1,96 +1,179 @@
-# FantasyFootballDynasty
+# Dynasty Fantasy Football Platform
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+A comprehensive dynasty fantasy football platform with advanced salary cap management, real-time features, and professional-grade tools.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+## 🚀 Features
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/getting-started/intro#learn-nx?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+### ✅ **Currently Implemented**
 
-## Run tasks
+- **Authentication System** - User registration, login, and role-based access control
+- **Firebase Integration** - Real-time database with Firestore
+- **Responsive UI** - Modern Angular 20 application with dark/light theme support
+- **Route Protection** - Auth guards for protected features
+- **Core Architecture** - Domain-driven design with shared libraries
 
-To run tasks with Nx use:
+### 🔄 **In Development**
 
-```sh
-npx nx <target> <project-name>
+- **User Profiles & Roles** - Admin, Commissioner, General Manager, Owner roles
+- **League Management** - Creation wizard, team invitations, settings
+- **Team Dashboard** - Cap sheets, roster management, contract overview
+
+### 📋 **Planned Features**
+
+- **Contract System** - Salary cap calculations, dead money, extensions
+- **Free Agency** - Real-time bidding with AI negotiation
+- **Draft Room** - Interactive draft with pick trading
+- **Trade System** - Multi-team trades with cap impact analysis
+- **Scoring Integration** - NFL stats to fantasy points
+- **Analytics** - Performance metrics and projections
+
+## 🏗️ Architecture
+
+### **Frontend**
+
+- **Angular 20** - Modern standalone components
+- **TypeScript** - Full type safety
+- **Responsive Design** - Mobile-first approach
+- **Theme System** - Dark/light mode with CSS custom properties
+
+### **Backend**
+
+- **Firebase Functions** - Serverless API endpoints
+- **Firestore** - Real-time NoSQL database
+- **Firebase Auth** - User authentication and management
+
+### **Domain Libraries**
+
+- **Types** - Complete TypeScript interfaces
+- **Domain** - Business logic (cap math, validators)
+- **Adapters** - External service integrations
+- **Testing** - Comprehensive test utilities
+
+## 🚀 Getting Started
+
+### **Prerequisites**
+
+- Node.js 18+ and npm
+- Firebase project with Authentication enabled
+
+### **Installation**
+
+```bash
+# Clone the repository
+git clone <your-repo-url>
+cd fantasy-football-dynasty
+
+# Install dependencies
+npm install
+
+# Configure Firebase
+# Update apps/web/src/environments/environment.ts with your Firebase config
+
+# Start development server
+npx nx serve web
 ```
 
-For example:
+### **Firebase Setup**
 
-```sh
-npx nx build myproject
+1. Create a Firebase project
+2. Enable Email/Password authentication
+3. Set up Firestore database
+4. Update environment files with your config
+5. See `FIREBASE_SETUP.md` for detailed instructions
+
+## 🎨 Theme System
+
+The application supports both dark and light themes:
+
+- **Automatic Detection** - Detects system preference
+- **Manual Toggle** - User can switch themes
+- **Persistence** - Theme choice is saved
+- **Smooth Transitions** - CSS animations between themes
+
+## 🔐 User Roles & Access Control
+
+### **Role Hierarchy**
+
+1. **Owner** - Full system access, can manage all leagues
+2. **Commissioner** - League management, rule changes, trade approval
+3. **General Manager** - Team management, contracts, trades
+4. **User** - Basic access, view-only for most features
+
+### **Admin vs User Interface**
+
+- **Main App** (`app.yourdomain.com`) - User interface for GMs and players
+- **Admin Panel** (`admin.yourdomain.com`) - Commissioner and owner tools
+
+## 🧪 Development
+
+### **Commands**
+
+```bash
+# Development
+npx nx serve web              # Start Angular app
+npx nx serve functions        # Start Firebase emulators
+
+# Building
+npx nx build web             # Build Angular app
+npx nx build functions       # Build Firebase Functions
+
+# Testing
+npx nx test web              # Run Angular tests
+npx nx test domain           # Run domain logic tests
+npx nx e2e web-e2e          # Run E2E tests
+
+# Linting & Formatting
+npx nx lint web             # Lint Angular app
+npx nx format               # Format all files
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+### **Project Structure**
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Add new projects
-
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
-
-To install a new plugin you can use the `nx add` command. Here's an example of adding the React plugin:
-```sh
-npx nx add @nx/react
+```
+fantasy-football-dynasty/
+├── apps/
+│   ├── web/                 # Angular frontend
+│   └── functions/           # Firebase Functions
+├── libs/
+│   ├── types/              # TypeScript interfaces
+│   ├── domain/             # Business logic
+│   ├── adapters/           # External integrations
+│   └── testing/            # Test utilities
+└── docs/                   # Documentation
 ```
 
-Use the plugin's generator to create new projects. For example, to create a new React app or library:
+## 🔒 Security
 
-```sh
-# Generate an app
-npx nx g @nx/react:app demo
+- **Authentication** - Firebase Auth with email/password
+- **Authorization** - Role-based access control
+- **Data Validation** - Zod schemas for all inputs
+- **HTTPS** - Secure connections everywhere
+- **Input Sanitization** - XSS and injection protection
 
-# Generate a library
-npx nx g @nx/react:lib some-lib
-```
+## 📱 Browser Support
 
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
+- **Modern Browsers** - Chrome 90+, Firefox 88+, Safari 14+
+- **Mobile** - Responsive design for all screen sizes
+- **Progressive Web App** - Offline capabilities (planned)
 
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## 🤝 Contributing
 
-## Set up CI!
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Submit a pull request
 
-### Step 1
+## 📄 License
 
-To connect to Nx Cloud, run the following command:
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-```sh
-npx nx connect
-```
+## 🆘 Support
 
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+- **Documentation** - Check `PROJECT_CHECKLIST.md` for current status
+- **Issues** - Report bugs via GitHub Issues
+- **Discussions** - Join the community for questions and ideas
 
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+---
 
-### Step 2
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
-```
-
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/getting-started/intro#learn-nx?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+_Built with ❤️ using Angular 20, Firebase, and modern web technologies_

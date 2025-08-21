@@ -1,0 +1,378 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+Project setup & tooling
+
+Use the new builder (@angular/build → esbuild + Vite) for faster builds/dev-server. New apps get it by default; migrate older ones.
+Angular
+Angular Blog
+
+Prefer Vitest/Jest over Karma. Angular 20 ships an experimental Vitest CLI builder you can enable in angular.json.
+Ninja Squad
+angular.schule
+
+Keep TypeScript strict and modern targets (ES2022+). Follow the official Style Guide for naming, folder structure, and DI conventions (e.g., inject() over constructor params).
+Angular
+
+Adopt ESLint (flat config) with angular-eslint presets; wire in Prettier + pre-commit hooks.
+npm
+GitHub
+
+Architecture & reactivity
+
+Standalone all the things (components, routes, pipes)—no new NgModules. Use inject() for DI.
+Angular
+
+Go signals-first for local state (signal, computed, effect), but keep RxJS for streams. Use toSignal()/toObservable() at the boundaries.
+Angular
++2
+Angular
++2
+
+Zoneless change detection is ready: add it once at bootstrap to cut change-detection overhead.
+Angular Blog
+
+// app.config.ts
+bootstrapApplication(AppComponent, {
+providers: [
+provideZonelessChangeDetection(), // v20+
+provideRouter(routes, withInMemoryScrolling()),
+provideClientHydration(
+withEventReplay(), // replays clicks before hydration
+withIncrementalHydration() // v20 stable
+),
+provideBrowserGlobalErrorListeners(), // client error listeners
+],
+});
+
+Angular Blog
+Angular
++1
+
+Templates & control flow
+
+Prefer built-in control flow (@if, @for, @switch) with proper track in @for; v20 deprecates *ngIf, *ngFor, \*ngSwitch. Run the schematic to migrate.
+
+Use @defer for deferrable views and to lazy-load heavy components/deps with fallbacks/skeletons.
+
+Prefer [class] / [style] bindings over NgClass/NgStyle for perf/readability.
+Angular
+
+Routing & data
+
+Use standalone lazy loading (loadComponent/loadChildren) and preloading where it helps. Read route state via ActivatedRoute only where needed.
+Angular
+
+Configure route-level render modes (CSR/SSR/SSG) to tune each page for SEO/perf. This is stable in v20.
+Angular
++1
+
+// app.routes.server.ts
+export const serverRoutes: ServerRoute[] = [
+{ path: '', renderMode: RenderMode.Client }, // SPA page
+{ path: 'about', renderMode: RenderMode.Prerender },
+{ path: 'dashboard', renderMode: RenderMode.Server },
+];
+
+Angular
+
+SSR, hydration & performance
+
+Prefer SSR + hydration for content/SEO; add Event Replay to capture user actions pre-hydrate. Use Incremental Hydration to hydrate only when needed (on-viewport, on-interaction, on-idle).
+Angular
++2
+Angular
++2
+
+Pair @defer with incremental hydration to keep JS smaller on first paint.
+Angular
+
+Image & asset hygiene, code-splitting, and route prefetching still matter—@defer and lazy routes make this straightforward.
+
+Forms & inputs
+
+Prefer typed Reactive Forms for complex flows; template-driven only for simple cases. Keep validation logic out of templates; expose computed read-only values for the view. (General Angular guidance; see style guide for keeping components presentational.)
+Angular
+
+Error handling & logging
+
+Add global error listeners in the browser, and rely on v20’s default SSR Node handlers for unhandledRejection/uncaughtException to avoid server crashes. Integrate real logging (Sentry, etc.).
+Angular
+Angular Blog
+
+Accessibility & security
+
+Bake in a11y checks (ARIA roles, focus order, keyboard traps). Lint a11y in templates and test with DevTools/axe.
+
+Follow Angular security guidance: trust boundaries, sanitize untrusted HTML, avoid bypasses, and use the HttpClient defaults.
+
+Styling & UI
+
+Prefer Tailwind for utilities; it has an official Angular guide and plays great with standalone components and Vite.
+Angular
+
+For Angular Material, keep to v20 and note that animations are changing: @angular/animations APIs are on a deprecation path; the team is pushing toward native/enter-leave events. Plan migrations accordingly.
+GitHub
+Angular
+
+Testing
+
+Use component test harnesses for Material/CDK; Vitest/Jest for unit tests; Playwright for e2e. Consider the v20 Vitest builder if you want tight Vite integration.
+Ninja Squad
+
+What to actively migrate in v20
+
+Control flow: move to @if/@for/@switch (structural directives are deprecated).
+
+Zoneless: opt in (provideZonelessChangeDetection) and remove zone-dependent hacks.
+
+SSR/hydration: adopt route-level render modes, Event Replay, and Incremental Hydration for perf.
+Angular
++2
+Angular
++2
+
+Animations: track the shift to native (animate.enter)/(animate.leave); provideAnimations(Async) is deprecated in v20.2.
+Angular
+
+If you want, tell me your current app’s shape (SSR? Material? NgRx? PrimeNG?) and I’ll turn this into a targeted migration plan with concrete diffs.
+
+You said:
+yes I am also using primeNg can you provide me a markdown file for all the best bractices?
+ChatGPT said:
+Thought for 1m 55s
+
+Here’s a ready-to-drop-in Markdown guide with Angular 20 + PrimeNG best practices. It’s organized as a checklist you can keep in your repo.
+
+Angular 20 + PrimeNG Best Practices
+
+A pragmatic checklist for modern Angular apps using PrimeNG. Updated for Angular 20 and PrimeNG 20.
+
+1. Project Setup & Tooling
+
+Use the modern build system (@angular/build with esbuild + Vite dev server). New projects get this by default; migrate older ones via Angular’s builder migration docs.
+Angular
+Angular
+
+Testing: Prefer Vitest (experimental CLI builder in v20) or Jest over Karma. Keep tests fast and isolated; don’t boot the whole app unless needed.
+Angular Blog
+Angular
+
+TypeScript & lint: Keep strict TS settings. Use ESLint with Angular rules; add Prettier and pre-commit hooks for consistency. (General practice)
+
+DX niceties: Alias paths in tsconfig, enable source-maps in dev only, and keep environment objects minimal.
+
+2. Architecture & Reactivity
+
+Standalone-first: Components, pipes, and routes as standalone; avoid new NgModules. (Angular style guide)
+
+Signals for local UI state, RxJS for async streams (HTTP, websockets, user events). Use toSignal()/toObservable() at boundaries. (Angular guidance)
+
+Zoneless change detection: opt-in once at bootstrap to cut overhead; remove zone.js from polyfills for true zoneless.
+
+// app.config.ts
+import { provideZonelessChangeDetection } from '@angular/core';
+
+export const appConfig: ApplicationConfig = {
+providers: [provideZonelessChangeDetection()],
+};
+
+Angular
++1
+
+3. Templates & Control Flow
+
+Use built-in control flow: @if, @for, @switch, @let.
+
+In Angular 20, *ngIf/*ngFor/\*ngSwitch are deprecated. Run the schematic to migrate and add track in @for loops.
+
+ng generate @angular/core:control-flow
+
+Angular Blog
+Angular
+
+Prefer attribute/class/style bindings over legacy NgClass/NgStyle where possible for clarity and perf.
+
+4. Routing, SSR & Hydration
+
+Route-level render modes: choose Server (SSR), Client (CSR), or Prerender (SSG) per route for the best trade-off per page.
+
+import { RenderMode, type ServerRoute } from '@angular/ssr';
+
+export const serverRoutes: ServerRoute[] = [
+{ path: '', renderMode: RenderMode.Prerender }, // marketing
+{ path: 'app', renderMode: RenderMode.Client }, // SPA area
+{ path: 'dashboard', renderMode: RenderMode.Server } // data-heavy + SEO
+];
+
+Angular
+
+Hydration: enable SSR + hydration; adopt incremental hydration for heavy areas, often paired with @defer. Event Replay comes with incremental hydration.
+Angular
++1
+ANGULARarchitects
+
+5. Performance Tactics
+
+Split code by routes and @defer blocks for non-critical UI; hydrate on viewport/interact/idle.
+Angular
+
+Audit bundle via ng build --configuration production and analyze 3P deps.
+
+Keep change-detection work small (signals + zoneless), and prefer immutable patterns.
+
+6. Forms
+
+Favor typed Reactive Forms for anything non-trivial.
+
+Keep validation logic in validators/services, not in templates.
+
+For PrimeNG form controls, prefer controlled inputs with explicit form bindings; avoid two-way binding except for simple cases.
+
+7. Error Handling & Logging
+
+Add global client listeners and a real error pipeline (e.g., Sentry).
+
+For SSR, rely on Angular’s built-in server error handling and make sure streams don’t crash the process (wrap awaitables, handle rejections). (Angular SSR guides)
+
+8. Accessibility & Security
+
+A11y: semantic HTML first, ARIA where needed, keyboard traps avoided, focus management for overlays and dialogs. PrimeNG has specific a11y guidance—use it.
+PrimeNG
+
+Security: sanitize any untrusted HTML, trust boundaries for DOM APIs, and use Angular HttpClient defaults (no manual string-built URLs).
+
+PrimeNG-Specific Practices (v20)
+
+Ensure PrimeNG 20 with Angular 20 for smoothest compatibility and migration path.
+PrimeNG
++1
+
+Theming & Styling
+
+Prefer the design tokens system (presets + component tokens) over ad-hoc CSS overrides. Create a custom preset for your brand and avoid deep CSS selectors.
+PrimeNG
+
+Tailwind integration: use tailwindcss-primeui to map Prime semantic colors to Tailwind utilities—works in styled and unstyled modes. Great with Standalone + Vite.
+PrimeNG
+
+If not using Tailwind, PrimeFlex v4 is the recommended utility library for PrimeNG 18+. (Migration notes)
+GitHub
+
+Components & Performance
+
+Tables (p-table):
+
+Use virtual scroll for large datasets and pair with lazy loading; set an accurate virtualScrollItemSize and keep row heights consistent.
+
+Avoid heavy per-cell templates and expensive pipes in hot paths; precompute on the component.
+
+Prefer server pagination/sorting/filtering beyond a few thousand rows.
+PrimeNG
++1
+
+Overlays (dialogs, menus, pickers):
+
+Use the Overlay API consistently; prefer appendTo="body" to avoid clipping by parent overflow. Mind SSR—do not open overlays during server render.
+PrimeNG
+
+Forms & pickers: keep form value transforms in services; rely on typed models; debounce expensive lookups.
+
+Accessibility
+
+Use PrimeNG’s a11y patterns (e.g., visually hidden labels with p-sr-only, proper roles, focus trapping in dialogs). Test with keyboard only and screen readers.
+PrimeNG
+
+Versioning & Support
+
+Track PrimeNG’s LTS/STS policy when you plan upgrades (e.g., when moving to Angular 20, previous majors enter LTS). Budget time for template/theme updates.
+PrimeNG
+
+Code Patterns (Drop-in Snippets)
+App bootstrap (SSR + incremental hydration + zoneless)
+// app.config.ts
+import { ApplicationConfig } from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { provideClientHydration, withIncrementalHydration } from '@angular/platform-browser';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { routes } from './app.routes';
+
+export const appConfig: ApplicationConfig = {
+providers: [
+provideZonelessChangeDetection(),
+provideRouter(routes),
+provideClientHydration(withIncrementalHydration()),
+],
+};
+
+Angular
++1
+
+Control flow migration example
+
+<!-- Before -->
+<div *ngIf="user; else loggedOut">{{ user.name }}</div>
+<ng-template #loggedOut>Guest</ng-template>
+
+<!-- After -->
+
+@if (user) { {{ user.name }} } @else { Guest }
+
+Run: ng generate @angular/core:control-flow to migrate safely.
+Angular
+
+Route-level render modes (server routes)
+// server.routes.ts
+import { RenderMode, type ServerRoute } from '@angular/ssr';
+
+export const serverRoutes: ServerRoute[] = [
+{ path: '', renderMode: RenderMode.Prerender },
+{ path: 'login', renderMode: RenderMode.Server },
+{ path: 'app', renderMode: RenderMode.Client },
+];
+
+Angular
+
+Team Conventions (Recommended)
+
+Directory layout: feature-first, co-locate components/services/tests.
+
+State: keep it simple—signals for local state, feature stores or lightweight services for cross-component state; bring in NgRx only when the shape clearly benefits.
+
+Inputs/outputs: prefer explicit @Input/@Output + signals over shared mutable services.
+
+CI: run type checks, lint, unit tests, and a minimal e2e smoke on each PR.
+
+Perf budgets: enforce bundleSize and maxInitialRequests in CI.
+
+Upgrade Watch-outs (Angular 20)
+
+Structural directives deprecated (*ngIf/*ngFor/\*ngSwitch) → migrate to control-flow blocks.
+Angular Blog
+
+Zoneless provider is the current API (provideZonelessChangeDetection). Test UI events and third-party libs under zoneless.
+Angular
+
+Testing: Vitest integration is experimental; keep configuration simple and watch the CLI issue tracker.
+Angular Blog
+
+PrimeNG Quick Checklist
+
+PrimeNG 20 installed and aligned with Angular 20.
+PrimeNG
+
+Choose styled (theme + tokens) or unstyled + Tailwind with tailwindcss-primeui.
+PrimeNG
++1
+
+Tables using virtual scroll + lazy for big data.
+PrimeNG
+
+Overlays configured via Overlay API; no SSR-time openings.
+PrimeNG
+
+A11y patterns applied (p-sr-only, roles, focus).
+PrimeNG

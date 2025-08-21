@@ -1,0 +1,102 @@
+<div class="space-y-12">
+  <!-- Hero Section -->
+  <section class="text-center py-16">
+    <div class="max-w-4xl mx-auto">
+      <h1 class="text-5xl font-bold text-gradient mb-6">
+        Dynasty Fantasy Football
+      </h1>
+      <p class="text-xl text-secondary-600 mb-8 max-w-2xl mx-auto">
+        The ultimate platform for dynasty fantasy football leagues. Manage
+        salary caps, negotiate contracts, and build your dynasty with advanced
+        tools and real-time features.
+      </p>
+
+      <!-- Quick Actions -->
+      <div class="flex flex-wrap justify-center gap-4">
+        <ng-container *ngFor="let action of quickActions">
+          <a
+            [routerLink]="action.route"
+            [class]="
+              action.variant === 'primary' ? 'btn-primary' : 'btn-secondary'
+            "
+          >
+            {{ action.label }}
+          </a>
+        </ng-container>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Grid -->
+  <section>
+    <div class="text-center mb-12">
+      <h2 class="text-3xl font-bold text-secondary-900 mb-4">
+        Everything You Need for Dynasty Success
+      </h2>
+      <p class="text-lg text-secondary-600 max-w-2xl mx-auto">
+        From league creation to championship celebrations, we've got you covered
+        with professional-grade tools and features.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div
+        *ngFor="let feature of features"
+        class="card hover:shadow-lg transition-shadow duration-300 cursor-pointer"
+        [routerLink]="feature.route"
+      >
+        <div class="text-center">
+          <div class="text-4xl mb-4">{{ feature.icon }}</div>
+          <h3 class="text-xl font-semibold text-secondary-900 mb-3">
+            {{ feature.title }}
+          </h3>
+          <p class="text-secondary-600">
+            {{ feature.description }}
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Section -->
+  <section class="bg-white py-16 rounded-lg shadow-sm">
+    <div class="max-w-4xl mx-auto text-center">
+      <h2 class="text-3xl font-bold text-secondary-900 mb-12">
+        Built for Serious Dynasty Players
+      </h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div>
+          <div class="text-4xl font-bold text-primary-600 mb-2">Advanced</div>
+          <div class="text-secondary-600">Salary Cap Management</div>
+        </div>
+        <div>
+          <div class="text-4xl font-bold text-primary-600 mb-2">Real-time</div>
+          <div class="text-secondary-600">Free Agency & Draft</div>
+        </div>
+        <div>
+          <div class="text-4xl font-bold text-primary-600 mb-2">
+            Professional
+          </div>
+          <div class="text-secondary-600">Trade & Contract Tools</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="text-center py-16">
+    <div class="max-w-2xl mx-auto">
+      <h2 class="text-3xl font-bold text-secondary-900 mb-4">
+        Ready to Build Your Dynasty?
+      </h2>
+      <p class="text-lg text-secondary-600 mb-8">
+        Join thousands of dynasty fantasy football players who are already using
+        our platform to dominate their leagues.
+      </p>
+      <a routerLink="/leagues" class="btn-primary text-lg px-8 py-3">
+        Get Started Today
+      </a>
+    </div>
+  </section>
+</div>

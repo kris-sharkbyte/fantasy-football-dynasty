@@ -1,0 +1,115 @@
+<div class="min-h-screen">
+  <!-- Header -->
+  <header class="header-theme shadow-sm border-b">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <!-- Logo -->
+        <div class="flex items-center">
+          <h1 class="text-2xl font-bold text-gradient">Dynasty Fantasy</h1>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="hidden md:flex space-x-8">
+          <a
+            routerLink="/leagues"
+            routerLinkActive="text-primary-600"
+            class="text-secondary-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors"
+          >
+            Leagues
+          </a>
+          <a
+            routerLink="/teams"
+            routerLinkActive="text-primary-600"
+            class="text-secondary-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors"
+          >
+            Teams
+          </a>
+          <a
+            routerLink="/players"
+            routerLinkActive="text-primary-600"
+            class="text-secondary-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors"
+          >
+            Players
+          </a>
+          <a
+            routerLink="/free-agency"
+            routerLinkActive="text-primary-600"
+            class="text-secondary-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors"
+          >
+            Free Agency
+          </a>
+          <a
+            routerLink="/draft"
+            routerLinkActive="text-primary-600"
+            class="text-secondary-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors"
+          >
+            Draft
+          </a>
+          <a
+            routerLink="/trades"
+            routerLinkActive="text-primary-600"
+            class="text-secondary-600 hover:text-primary-600 px-3 py-2 text-sm font-medium transition-colors"
+          >
+            Trades
+          </a>
+        </nav>
+
+        <!-- User Menu -->
+        <div class="flex items-center space-x-4">
+          <!-- Theme Toggle -->
+          <button
+            (click)="toggleTheme()"
+            class="theme-toggle-btn"
+            [attr.aria-label]="'Switch to ' + (themeService.isDarkMode() ? 'light' : 'dark') + ' mode'"
+          >
+            <span *ngIf="themeService.isLightMode()" class="theme-icon"
+              >🌙</span
+            >
+            <span *ngIf="themeService.isDarkMode()" class="theme-icon">☀️</span>
+          </button>
+
+          <!-- Show when user is not authenticated -->
+          <div *ngIf="!authService.isAuthenticated()">
+            <button (click)="openLoginModal()" class="btn-secondary">
+              Sign In
+            </button>
+            <button (click)="openRegisterModal()" class="btn-primary ml-2">
+              Sign Up
+            </button>
+          </div>
+
+          <!-- Show when user is authenticated -->
+          <div
+            *ngIf="authService.currentUser() as user"
+            class="flex items-center space-x-3"
+          >
+            <span class="text-sm text-secondary-600">{{ user.email }}</span>
+            <button (click)="signOut()" class="btn-secondary">Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <router-outlet></router-outlet>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer-theme border-t mt-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="text-center text-secondary-600">
+        <p>&copy; 2024 Dynasty Fantasy. Built with Angular and Firebase.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Modal Container -->
+  <div *ngFor="let modal of modals(); trackBy: trackModal">
+    <app-modal-container
+      [config]="modal"
+      (close)="closeModal(modal.id)"
+    ></app-modal-container>
+  </div>
+</div>
