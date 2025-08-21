@@ -71,9 +71,10 @@
     "@primeng/themes": "^20.0.1",
     "firebase": "^12.1.0",
     "firebase-admin": "^13.4.0",
-    "primeicons": "^6.0.1",
+    "primeicons": "^7.0.0",
     "primeng": "^20.0.1",
     "rxjs": "~7.8.0",
+    "tailwindcss-primeui": "^0.6.1",
     "zod": "^3.25.76",
     "zone.js": "~0.15.0"
   }

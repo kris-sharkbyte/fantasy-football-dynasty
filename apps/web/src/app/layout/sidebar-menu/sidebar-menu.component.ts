@@ -52,8 +52,8 @@ interface MenuItem {
         </div>
 
         <div class="leagues-list">
-          @for (league of userLeagues(); track league.name) {
           <div
+            *ngFor="let league of userLeagues()"
             class="league-item"
             [class.active]="league.isActive"
             (click)="selectLeague(league)"
@@ -71,18 +71,15 @@ interface MenuItem {
               </div>
             </div>
           </div>
-          }
 
           <!-- Empty State -->
-          @if (userLeagues().length === 0) {
-          <div class="empty-leagues">
+          <div *ngIf="userLeagues().length === 0" class="empty-leagues">
             <div class="empty-icon">🏈</div>
             <p class="empty-text">No leagues yet</p>
             <button class="create-first-league-btn" (click)="createNewLeague()">
               Create Your First League
             </button>
           </div>
-          }
         </div>
       </div>
 

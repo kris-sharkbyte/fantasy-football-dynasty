@@ -376,3 +376,5 @@ PrimeNG
 
 A11y patterns applied (p-sr-only, roles, focus).
 PrimeNG
+
+-- DeprecatedPrimeNG's p-dropdown component has been deprecated and should be replaced with p-select

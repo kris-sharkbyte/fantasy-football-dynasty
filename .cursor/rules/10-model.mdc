@@ -1,0 +1,175 @@
+---
+description: When ever we need to use a model
+alwaysApply: false
+---
+
+# PrimeNG Modal System
+
+## Components
+
+### ModalContainerComponent
+
+The main modal container that renders PrimeNG Dialog components based on the modal configuration.
+
+### ModalDemoComponent
+
+A demonstration component showing various modal configurations and features.
+
+## Usage
+
+### Basic Modal
+
+```typescript
+import { ModalService } from '../../services/modal.service';
+import { MyContentComponent } from './my-content.component';
+
+constructor(private modalService: ModalService) {}
+
+openModal(): void {
+  this.modalService.openModal({
+    id: 'my-modal',
+    title: 'My Modal',
+    component: MyContentComponent,
+    size: 'md',
+    closable: true
+  });
+}
+```
+
+### Advanced Modal with Footer
+
+```typescript
+this.modalService.openModal({
+  id: 'advanced-modal',
+  title: 'Advanced Modal',
+  component: AdvancedContentComponent,
+  size: 'lg',
+  footer: 'Custom footer text',
+  draggable: true,
+  resizable: true,
+  closeOnEscape: true,
+  dismissableMask: true,
+});
+```
+
+### Non-modal Dialog
+
+```typescript
+this.modalService.openModal({
+  id: 'non-modal',
+  title: 'Non-blocking Dialog',
+  component: NonModalContentComponent,
+  size: 'md',
+  modal: false, // Allows background interaction
+  closable: true,
+});
+```
+
+## Modal Configuration Options
+
+| Property          | Type                         | Default   | Description                                 |
+| ----------------- | ---------------------------- | --------- | ------------------------------------------- |
+| `id`              | string                       | required  | Unique identifier for the modal             |
+| `title`           | string                       | required  | Modal title (displayed in header)           |
+| `header`          | string                       | undefined | Custom header text (overrides title)        |
+| `component`       | any                          | required  | Component to render inside the modal        |
+| `data`            | any                          | undefined | Data to pass to the modal component         |
+| `size`            | 'sm' \| 'md' \| 'lg' \| 'xl' | 'md'      | Modal size                                  |
+| `closable`        | boolean                      | true      | Whether modal can be closed                 |
+| `footer`          | string                       | undefined | Footer text (enables footer with buttons)   |
+| `draggable`       | boolean                      | false     | Whether modal can be dragged                |
+| `resizable`       | boolean                      | false     | Whether modal can be resized                |
+| `modal`           | boolean                      | true      | Whether modal blocks background interaction |
+| `closeOnEscape`   | boolean                      | true      | Whether ESC key closes modal                |
+| `dismissableMask` | boolean                      | false     | Whether clicking outside closes modal       |
+
+## Size Mappings
+
+- `sm`: 400px width
+- `md`: 600px width
+- `lg`: 800px width
+- `xl`: 1000px width
+
+## Features
+
+### Draggable Modals
+
+Set `draggable: true` to allow users to drag the modal around the screen by clicking and dragging the header.
+
+### Resizable Modals
+
+Set `resizable: true` to allow users to resize the modal by dragging the bottom-right corner.
+
+### Custom Footers
+
+Set `footer: 'text'` to enable a footer with Cancel and Confirm buttons. The modal container will emit `close` and `confirm` events.
+
+### Non-modal Dialogs
+
+Set `modal: false` to create dialogs that don't block background interaction. Useful for tooltips, help panels, or non-critical information.
+
+### Responsive Design
+
+The modal system automatically adjusts for mobile devices with appropriate margins and sizing.
+
+## Styling
+
+The modal system integrates with your existing CSS custom properties:
+
+- `--bg-primary`: Modal background
+- `--text-primary`: Text color
+- `--border-primary`: Border color
+- `--shadow-xl`: Box shadow
+
+## Events
+
+The ModalContainerComponent emits two events:
+
+- `close`: When the modal is closed (ESC, close button, or outside click)
+- `confirm`: When the confirm button is clicked (only if footer is enabled)
+
+## Migration from Old System
+
+The existing modal service API remains the same, so no changes are needed in components that use the modal service. The main differences are:
+
+1. **Enhanced styling**: Better visual appearance with PrimeNG components
+2. **More features**: Draggable, resizable, non-modal options
+3. **Better accessibility**: Built-in ARIA support and keyboard navigation
+4. **Responsive design**: Automatic mobile optimization
+5. **Theme integration**: Seamless integration with your existing theme system
+
+## Example: Complete Modal with Data
+
+```typescript
+// Open modal with data
+this.modalService.openModal({
+  id: 'user-edit',
+  title: 'Edit User',
+  component: UserEditComponent,
+  data: { userId: 123, user: userData },
+  size: 'lg',
+  footer: 'Save changes',
+  closable: true,
+  closeOnEscape: true,
+  dismissableMask: true,
+});
+
+// In your modal content component, access the data
+export class UserEditComponent {
+  @Input() data: any;
+
+  ngOnInit() {
+    const { userId, user } = this.data;
+    // Use the data...
+  }
+}
+```
+
+## Best Practices
+
+1. **Always provide unique IDs**: Each modal should have a unique identifier
+2. **Use appropriate sizes**: Choose modal size based on content complexity
+3. **Enable accessibility features**: Use `closeOnEscape` and `dismissableMask` for better UX
+4. **Consider mobile**: Test modal behavior on different screen sizes
+5. **Use footers sparingly**: Only add footers when you need action buttons
+6. **Handle events**: Always listen for `close` events to clean up resources

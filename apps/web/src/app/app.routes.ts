@@ -1,12 +1,19 @@
 import { Routes } from '@angular/router';
 import { AuthGuard } from './guards/auth.guard';
 import { AppLayout } from './layout/component/app.layout';
+import { WebLayout } from './layout/component/web.layout';
 
 export const routes: Routes = [
   {
     path: '',
-    loadComponent: () =>
-      import('./home/home.component').then((m) => m.HomeComponent),
+    component: WebLayout,
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./home/home.component').then((m) => m.HomeComponent),
+      },
+    ],
   },
 
   {

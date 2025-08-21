@@ -127,3 +127,4 @@ After Firebase is configured:
 - [Firebase Documentation](https://firebase.google.com/docs)
 - [Angular Fire Guide](https://github.com/angular/angularfire)
 - [Firestore Security Rules](https://firebase.google.com/docs/firestore/security/get-started)
+
