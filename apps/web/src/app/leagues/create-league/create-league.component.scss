@@ -1,0 +1,119 @@
+.create-league-container {
+  padding: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.create-league-card {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.field {
+  margin-bottom: 1rem;
+}
+
+.form-section {
+  margin-bottom: 2rem;
+}
+
+.form-section h2 {
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+}
+
+.p-inputtext,
+.p-inputnumber,
+.p-select,
+.p-inputtextarea {
+  width: 100%;
+}
+
+.p-error {
+  color: var(--red-500);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-bottom: 1rem;
+}
+
+.review-section {
+  background: var(--surface-50);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--surface-200);
+}
+
+.review-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--surface-200);
+}
+
+.review-item:last-child {
+  border-bottom: none;
+}
+
+.review-item .label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.review-item .value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.step-content {
+  min-height: 400px;
+}
+
+// PrimeNG Steps customization
+::ng-deep .p-steps {
+  .p-steps-item {
+    .p-menuitem-link {
+      .p-steps-number {
+        background-color: var(--primary-color);
+        color: var(--primary-color-text);
+      }
+
+      &.p-highlight {
+        .p-steps-number {
+          background-color: var(--primary-color);
+          color: var(--primary-color-text);
+        }
+      }
+    }
+  }
+}
+
+// Form validation styles
+.field {
+  .p-error {
+    color: #dc2626;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: block;
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .create-league-container {
+    padding: 1rem;
+  }
+
+  .review-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .grid {
+    grid-template-columns: 1fr !important;
+  }
+}

@@ -140,13 +140,23 @@ Currently no tasks in progress.
 
 ### 🏆 Phase 2: Core League Features (Week 3-4)
 
-- [ ] **League Creation Wizard**
+- [x] **League Creation Wizard**
 
-  - [ ] Step-by-step league setup form
-  - [ ] Scoring rules configuration
-  - [ ] Salary cap settings
-  - [ ] Draft and contract rules
-  - [ ] Team invitation system
+  - [x] Step-by-step league setup form
+  - [x] Scoring rules configuration
+  - [x] Salary cap settings
+  - [x] Draft and contract rules
+  - [x] Team invitation system
+  - [x] Firebase integration for league creation
+  - [x] User profile service for league management
+
+- [ ] **User Profile Management**
+
+  - [ ] User profile creation and editing
+  - [ ] Profile preferences and settings
+  - [ ] League membership tracking
+  - [ ] User statistics and achievements
+  - [ ] Privacy and notification settings
 
 - [ ] **Team Management**
 

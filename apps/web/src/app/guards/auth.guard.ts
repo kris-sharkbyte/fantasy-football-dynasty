@@ -1,27 +1,25 @@
-import { Injectable } from '@angular/core';
-import { CanActivate, Router } from '@angular/router';
-import { Observable, map, take } from 'rxjs';
-import { AuthService } from '../services/auth.service';
+import { inject } from '@angular/core';
+import { CanActivateFn, Router, UrlTree } from '@angular/router';
+import { Auth } from '@angular/fire/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 
-@Injectable({
-  providedIn: 'root',
-})
-export class AuthGuard implements CanActivate {
-  constructor(private authService: AuthService, private router: Router) {}
+export const AuthGuard: CanActivateFn = (route, state) => {
+  const firebaseAuth = inject(Auth);
+  const router = inject(Router);
 
-  canActivate(): Observable<boolean> {
-    return this.authService.currentUser$.pipe(
-      take(1),
-      map((user) => {
-        if (user) {
-          return true;
-        } else {
-          // Redirect to login page
-          this.router.navigate(['/']);
-          return false;
-        }
-      })
-    );
-  }
-}
-
+  // Wrap the native Firebase callback in a Promise:
+  return new Promise<boolean | UrlTree>((resolve) => {
+    onAuthStateChanged(firebaseAuth, (user) => {
+      console.log('User changed:', user);
+      if (user) {
+        resolve(true);
+      } else {
+        resolve(
+          router.createUrlTree(['/'], {
+            queryParams: { returnUrl: state.url },
+          })
+        );
+      }
+    });
+  });
+};

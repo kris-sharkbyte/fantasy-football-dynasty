@@ -1,6 +1,6 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 import {
   ReactiveFormsModule,
   FormBuilder,
@@ -15,6 +15,10 @@ import { SelectModule } from 'primeng/select';
 import { TextareaModule } from 'primeng/textarea';
 import { DividerModule } from 'primeng/divider';
 import { MessageModule } from 'primeng/message';
+import { StepsModule } from 'primeng/steps';
+import { CheckboxModule } from 'primeng/checkbox';
+import { LeagueService, CreateLeagueData } from '../../services/league.service';
+import { MessageService } from 'primeng/api';
 
 @Component({
   selector: 'app-create-league',
@@ -31,258 +35,25 @@ import { MessageModule } from 'primeng/message';
     TextareaModule,
     DividerModule,
     MessageModule,
+    StepsModule,
+    CheckboxModule,
   ],
-  template: `
-    <div class="create-league-container">
-      <p-card styleClass="create-league-card">
-        <ng-template pTemplate="header">
-          <div class="text-center py-6">
-            <i class="pi pi-trophy text-6xl text-primary-500 mb-4"></i>
-            <h1 class="text-3xl font-bold text-secondary-900 mb-2">
-              Create New League
-            </h1>
-            <p class="text-lg text-secondary-600">
-              Set up your dynasty fantasy football league
-            </p>
-          </div>
-        </ng-template>
-
-        <form
-          [formGroup]="leagueForm"
-          (ngSubmit)="onSubmit()"
-          class="space-y-6"
-        >
-          <div class="form-section">
-            <h2 class="text-xl font-semibold text-secondary-800 mb-4">
-              League Information
-            </h2>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="field">
-                <label
-                  for="name"
-                  class="block text-sm font-medium text-secondary-700 mb-2"
-                >
-                  League Name *
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  pInputText
-                  formControlName="name"
-                  placeholder="Enter league name"
-                  class="w-full"
-                />
-                @if (leagueForm.get('name')?.invalid &&
-                leagueForm.get('name')?.touched) {
-                <small class="p-error">League name is required</small>
-                }
-              </div>
-
-              <div class="field">
-                <label
-                  for="teams"
-                  class="block text-sm font-medium text-secondary-700 mb-2"
-                >
-                  Number of Teams *
-                </label>
-                <p-inputNumber
-                  id="teams"
-                  formControlName="teams"
-                  [min]="8"
-                  [max]="16"
-                  [showButtons]="true"
-                  buttonLayout="horizontal"
-                  spinnerMode="horizontal"
-                  [step]="2"
-                  decrementButtonClass="p-button-secondary"
-                  incrementButtonClass="p-button-secondary"
-                  incrementButtonIcon="pi pi-plus"
-                  decrementButtonIcon="pi pi-minus"
-                  class="w-full"
-                ></p-inputNumber>
-                @if (leagueForm.get('teams')?.invalid &&
-                leagueForm.get('teams')?.touched) {
-                <small class="p-error"
-                  >Number of teams must be between 8 and 16</small
-                >
-                }
-              </div>
-            </div>
-
-            <div class="field mt-4">
-              <label
-                for="description"
-                class="block text-sm font-medium text-secondary-700 mb-2"
-              >
-                Description
-              </label>
-              <textarea
-                id="description"
-                pInputTextarea
-                formControlName="description"
-                rows="3"
-                placeholder="Describe your league (optional)"
-                class="w-full"
-              ></textarea>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div class="field">
-                <label
-                  for="type"
-                  class="block text-sm font-medium text-secondary-700 mb-2"
-                >
-                  League Type
-                </label>
-                <p-select
-                  id="type"
-                  formControlName="type"
-                  [options]="leagueTypes"
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="Select league type"
-                  class="w-full"
-                ></p-select>
-              </div>
-
-              <div class="field">
-                <label
-                  for="scoring"
-                  class="block text-sm font-medium text-secondary-700 mb-2"
-                >
-                  Scoring System
-                </label>
-                <p-select
-                  id="scoring"
-                  formControlName="scoring"
-                  [options]="scoringSystems"
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="Select scoring system"
-                  class="w-full"
-                ></p-select>
-              </div>
-            </div>
-          </div>
-
-          <p-divider></p-divider>
-
-          <div class="form-section">
-            <h2 class="text-xl font-semibold text-secondary-800 mb-4">
-              League Settings
-            </h2>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="field">
-                <label
-                  for="entryFee"
-                  class="block text-sm font-medium text-secondary-700 mb-2"
-                >
-                  Entry Fee ($)
-                </label>
-                <p-inputNumber
-                  id="entryFee"
-                  formControlName="entryFee"
-                  [min]="0"
-                  [max]="1000"
-                  [showButtons]="true"
-                  buttonLayout="horizontal"
-                  spinnerMode="horizontal"
-                  [step]="10"
-                  decrementButtonClass="p-button-secondary"
-                  incrementButtonClass="p-button-secondary"
-                  incrementButtonIcon="pi pi-plus"
-                  decrementButtonIcon="pi pi-minus"
-                  class="w-full"
-                ></p-inputNumber>
-              </div>
-
-              <div class="field">
-                <label
-                  for="draftDate"
-                  class="block text-sm font-medium text-secondary-700 mb-2"
-                >
-                  Draft Date
-                </label>
-                <input
-                  id="draftDate"
-                  type="date"
-                  pInputText
-                  formControlName="draftDate"
-                  class="w-full"
-                />
-              </div>
-            </div>
-          </div>
-        </form>
-
-        <ng-template pTemplate="footer">
-          <div class="flex gap-3 justify-end">
-            <p-button
-              label="Cancel"
-              icon="pi pi-times"
-              routerLink="/leagues"
-              severity="secondary"
-              outlined="true"
-            ></p-button>
-            <p-button
-              label="Create League"
-              icon="pi pi-check"
-              (onClick)="onSubmit()"
-              severity="primary"
-              [loading]="isSubmitting()"
-              [disabled]="leagueForm.invalid"
-            ></p-button>
-          </div>
-        </ng-template>
-      </p-card>
-    </div>
-  `,
-  styles: [
-    `
-      .create-league-container {
-        padding: 2rem;
-        max-width: 900px;
-        margin: 0 auto;
-      }
-
-      .create-league-card {
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-          0 2px 4px -1px rgba(0, 0, 0, 0.06);
-      }
-
-      .field {
-        margin-bottom: 1rem;
-      }
-
-      .form-section {
-        margin-bottom: 2rem;
-      }
-
-      .form-section h2 {
-        color: var(--text-primary);
-        margin: 0 0 1rem 0;
-      }
-
-      .p-inputtext,
-      .p-inputnumber,
-      .p-select,
-      .p-inputtextarea {
-        width: 100%;
-      }
-
-      .p-error {
-        color: var(--red-500);
-        font-size: 0.875rem;
-        margin-top: 0.25rem;
-      }
-    `,
-  ],
+  providers: [MessageService],
+  templateUrl: './create-league.component.html',
+  styleUrls: ['./create-league.component.scss'],
 })
 export class CreateLeagueComponent {
   leagueForm: FormGroup;
   isSubmitting = signal(false);
+  currentStepIndex = signal(0);
+
+  steps = [
+    { label: 'Basic Info', icon: 'pi pi-info-circle' },
+    { label: 'Salary Cap', icon: 'pi pi-dollar' },
+    { label: 'Draft & Roster', icon: 'pi pi-users' },
+    { label: 'Invitations', icon: 'pi pi-envelope' },
+    { label: 'Review', icon: 'pi pi-check-circle' },
+  ];
 
   leagueTypes = [
     { label: 'Dynasty', value: 'dynasty' },
@@ -297,6 +68,21 @@ export class CreateLeagueComponent {
     { label: 'Custom', value: 'custom' },
   ];
 
+  positions = [
+    { label: 'QB', value: 'QB' },
+    { label: 'RB', value: 'RB' },
+    { label: 'WR', value: 'WR' },
+    { label: 'TE', value: 'TE' },
+    { label: 'K', value: 'K' },
+    { label: 'DEF', value: 'DEF' },
+    { label: 'IDP', value: 'IDP' },
+    { label: 'FLEX', value: 'FLEX' },
+  ];
+
+  private leagueService = inject(LeagueService);
+  private messageService = inject(MessageService);
+  private router = inject(Router);
+
   constructor(private fb: FormBuilder) {
     this.leagueForm = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(3)]],
@@ -304,21 +90,155 @@ export class CreateLeagueComponent {
       description: [''],
       type: ['dynasty'],
       scoring: ['ppr'],
-      entryFee: [0],
+      salaryCap: [200000000, [Validators.required, Validators.min(100000000)]],
+      minSpend: [
+        85,
+        [Validators.required, Validators.min(70), Validators.max(95)],
+      ],
+      maxContractYears: [
+        5,
+        [Validators.required, Validators.min(1), Validators.max(7)],
+      ],
+      franchiseTagCost: [
+        15,
+        [Validators.required, Validators.min(10), Validators.max(25)],
+      ],
+      allowVoidYears: [false],
+      rosterSize: [
+        25,
+        [Validators.required, Validators.min(20), Validators.max(35)],
+      ],
+      taxiSquadSize: [
+        3,
+        [Validators.required, Validators.min(0), Validators.max(10)],
+      ],
       draftDate: [''],
+      draftTimeLimit: [
+        90,
+        [Validators.required, Validators.min(30), Validators.max(300)],
+      ],
+      requiredPositions: [['QB', 'RB', 'WR', 'TE', 'K', 'DEF']],
+      inviteEmails: [''],
+      entryFee: [0],
+      publicLeague: [false],
     });
   }
 
-  onSubmit(): void {
-    if (this.leagueForm.valid) {
-      this.isSubmitting.set(true);
-      console.log('League form submitted:', this.leagueForm.value);
+  nextStep(): void {
+    if (
+      this.isCurrentStepValid() &&
+      this.currentStepIndex() < this.steps.length - 1
+    ) {
+      this.currentStepIndex.set(this.currentStepIndex() + 1);
+    }
+  }
 
-      // Simulate API call
-      setTimeout(() => {
+  previousStep(): void {
+    if (this.currentStepIndex() > 0) {
+      this.currentStepIndex.set(this.currentStepIndex() - 1);
+    }
+  }
+
+  onStepChange(event: any): void {
+    this.currentStepIndex.set(event.index);
+  }
+
+  isCurrentStepValid(): boolean {
+    switch (this.currentStepIndex()) {
+      case 0: // Basic Info
+        return !!(
+          this.leagueForm.get('name')?.valid &&
+          this.leagueForm.get('teams')?.valid
+        );
+      case 1: // Salary Cap
+        return !!(
+          this.leagueForm.get('salaryCap')?.valid &&
+          this.leagueForm.get('minSpend')?.valid &&
+          this.leagueForm.get('maxContractYears')?.valid
+        );
+      case 2: // Draft & Roster
+        return !!(
+          this.leagueForm.get('rosterSize')?.valid &&
+          this.leagueForm.get('taxiSquadSize')?.valid &&
+          this.leagueForm.get('draftTimeLimit')?.valid
+        );
+      case 3: // Invitations
+        return true; // Optional step
+      case 4: // Review
+        return this.leagueForm.valid;
+      default:
+        return false;
+    }
+  }
+
+  getLeagueTypeLabel(value: string): string {
+    const type = this.leagueTypes.find((t) => t.value === value);
+    return type ? type.label : value;
+  }
+
+  getScoringLabel(value: string): string {
+    const scoring = this.scoringSystems.find((s) => s.value === value);
+    return scoring ? scoring.label : value;
+  }
+
+  getSalaryCapDisplay(): string {
+    const salaryCap = this.leagueForm.get('salaryCap')?.value;
+    if (salaryCap) {
+      return (salaryCap / 1000000).toFixed(1);
+    }
+    return '0.0';
+  }
+
+  async onSubmit(): Promise<void> {
+    if (this.leagueForm.valid) {
+      try {
+        this.isSubmitting.set(true);
+
+        const formData = this.leagueForm.value;
+        const leagueData: CreateLeagueData = {
+          name: formData.name,
+          description: formData.description,
+          type: formData.type,
+          scoring: formData.scoring,
+          teams: formData.teams,
+          salaryCap: formData.salaryCap,
+          minSpend: formData.minSpend,
+          maxContractYears: formData.maxContractYears,
+          franchiseTagCost: formData.franchiseTagCost,
+          allowVoidYears: formData.allowVoidYears,
+          rosterSize: formData.rosterSize,
+          taxiSquadSize: formData.taxiSquadSize,
+          draftDate: formData.draftDate,
+          draftTimeLimit: formData.draftTimeLimit,
+          requiredPositions: formData.requiredPositions,
+          inviteEmails: formData.inviteEmails,
+          entryFee: formData.entryFee,
+          publicLeague: formData.publicLeague,
+        };
+
+        const leagueId = await this.leagueService.createLeague(leagueData);
+
+        this.messageService.add({
+          severity: 'success',
+          summary: 'League Created!',
+          detail: `Your league "${formData.name}" has been created successfully.`,
+        });
+
+        // Navigate to the new league
+        this.router.navigate(['/leagues', leagueId]);
+      } catch (error) {
+        console.error('Error creating league:', error);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Creation Failed',
+          detail:
+            error instanceof Error
+              ? error.message
+              : 'Failed to create league. Please try again.',
+        });
+      } finally {
         this.isSubmitting.set(false);
-        // TODO: Navigate to new league or show success message
-      }, 2000);
+      }
     }
   }
 }

@@ -1,0 +1,591 @@
+<div class="create-league-container">
+  <p-card class="create-league-card">
+    <ng-template pTemplate="header">
+      <div class="text-center py-6">
+        <i class="pi pi-trophy text-6xl text-primary-500 mb-4"></i>
+        <h1 class="text-3xl font-bold text-secondary-900 mb-2">
+          Create New League
+        </h1>
+        <p class="text-lg text-secondary-600">
+          Set up your dynasty fantasy football league step by step
+        </p>
+      </div>
+    </ng-template>
+
+    <!-- Wizard Steps -->
+    <p-steps
+      [model]="steps"
+      [readonly]="false"
+      [activeIndex]="currentStepIndex()"
+      (activeIndexChange)="onStepChange($event)"
+      class="mb-6"
+    ></p-steps>
+
+    <!-- Step Content -->
+    <form [formGroup]="leagueForm" class="step-content">
+      @if (currentStepIndex() === 0) {
+      <!-- Step 1: Basic Information -->
+      <div class="form-section">
+        <h2 class="text-xl font-semibold text-secondary-800 mb-4">
+          League Information
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="field">
+            <label
+              for="name"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              League Name *
+            </label>
+            <input
+              id="name"
+              type="text"
+              pInputText
+              formControlName="name"
+              placeholder="Enter league name"
+              class="w-full"
+            />
+            @if (leagueForm.get('name')?.invalid &&
+            leagueForm.get('name')?.touched) {
+            <small class="p-error">League name is required</small>
+            }
+          </div>
+
+          <div class="field">
+            <label
+              for="teams"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              Number of Teams *
+            </label>
+            <p-inputNumber
+              id="teams"
+              formControlName="teams"
+              [min]="8"
+              [max]="16"
+              [showButtons]="true"
+              buttonLayout="horizontal"
+              spinnerMode="horizontal"
+              [step]="2"
+              decrementButtonClass="p-button-secondary"
+              incrementButtonClass="p-button-secondary"
+              incrementButtonIcon="pi pi-plus"
+              decrementButtonIcon="pi pi-minus"
+              class="w-full"
+            ></p-inputNumber>
+            @if (leagueForm.get('teams')?.invalid &&
+            leagueForm.get('teams')?.touched) {
+            <small class="p-error"
+              >Number of teams must be between 8 and 16</small
+            >
+            }
+          </div>
+        </div>
+
+        <div class="field mt-4">
+          <label
+            for="description"
+            class="block text-sm font-medium text-secondary-700 mb-2"
+          >
+            Description
+          </label>
+          <textarea
+            id="description"
+            pInputTextarea
+            formControlName="description"
+            rows="3"
+            placeholder="Describe your league (optional)"
+            class="w-full"
+          ></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div class="field">
+            <label
+              for="type"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              League Type
+            </label>
+            <p-select
+              id="type"
+              formControlName="type"
+              [options]="leagueTypes"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Select league type"
+              class="w-full"
+            ></p-select>
+          </div>
+
+          <div class="field">
+            <label
+              for="scoring"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              Scoring System
+            </label>
+            <p-select
+              id="scoring"
+              formControlName="scoring"
+              [options]="scoringSystems"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Select scoring system"
+              class="w-full"
+            ></p-select>
+          </div>
+        </div>
+      </div>
+      } @if (currentStepIndex() === 1) {
+      <!-- Step 2: Salary Cap & Contract Settings -->
+      <div class="form-section">
+        <h2 class="text-xl font-semibold text-secondary-800 mb-4">
+          Salary Cap & Contract Settings
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="field">
+            <label
+              for="salaryCap"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              Salary Cap ($) *
+            </label>
+            <p-inputNumber
+              id="salaryCap"
+              formControlName="salaryCap"
+              [min]="100000"
+              [max]="1000000"
+              [showButtons]="true"
+              buttonLayout="horizontal"
+              spinnerMode="horizontal"
+              [step]="10000"
+              suffix="M"
+              decrementButtonClass="p-button-secondary"
+              incrementButtonClass="p-button-secondary"
+              incrementButtonIcon="pi pi-plus"
+              decrementButtonIcon="pi pi-minus"
+              class="w-full"
+            ></p-inputNumber>
+          </div>
+
+          <div class="field">
+            <label
+              for="minSpend"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              Minimum Team Spend (%)
+            </label>
+            <p-inputNumber
+              id="minSpend"
+              formControlName="minSpend"
+              [min]="70"
+              [max]="95"
+              [showButtons]="true"
+              buttonLayout="horizontal"
+              spinnerMode="horizontal"
+              [step]="5"
+              suffix="%"
+              decrementButtonClass="p-button-secondary"
+              incrementButtonClass="p-button-secondary"
+              incrementButtonIcon="pi pi-plus"
+              decrementButtonIcon="pi pi-minus"
+              class="w-full"
+            ></p-inputNumber>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div class="field">
+            <label
+              for="maxContractYears"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              Maximum Contract Years
+            </label>
+            <p-inputNumber
+              id="maxContractYears"
+              formControlName="maxContractYears"
+              [min]="1"
+              [max]="7"
+              [showButtons]="true"
+              buttonLayout="horizontal"
+              spinnerMode="horizontal"
+              [step]="1"
+              decrementButtonClass="p-button-secondary"
+              incrementButtonClass="p-button-secondary"
+              incrementButtonIcon="pi pi-plus"
+              decrementButtonIcon="pi pi-minus"
+              class="w-full"
+            ></p-inputNumber>
+          </div>
+
+          <div class="field">
+            <label
+              for="franchiseTagCost"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              Franchise Tag Cost (% of Cap)
+            </label>
+            <p-inputNumber
+              id="franchiseTagCost"
+              formControlName="franchiseTagCost"
+              [min]="10"
+              [max]="25"
+              [showButtons]="true"
+              buttonLayout="horizontal"
+              spinnerMode="horizontal"
+              [step]="1"
+              suffix="%"
+              decrementButtonClass="p-button-secondary"
+              incrementButtonClass="p-button-secondary"
+              incrementButtonIcon="pi pi-plus"
+              decrementButtonIcon="pi pi-minus"
+              class="w-full"
+            ></p-inputNumber>
+          </div>
+        </div>
+
+        <div class="field mt-4">
+          <div class="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="allowVoidYears"
+              formControlName="allowVoidYears"
+              class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500"
+            />
+            <label
+              for="allowVoidYears"
+              class="text-sm font-medium text-secondary-700"
+            >
+              Allow Void Years (Advanced Contracts)
+            </label>
+          </div>
+        </div>
+      </div>
+      } @if (currentStepIndex() === 2) {
+      <!-- Step 3: Draft & Roster Settings -->
+      <div class="form-section">
+        <h2 class="text-xl font-semibold text-secondary-800 mb-4">
+          Draft & Roster Settings
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="field">
+            <label
+              for="rosterSize"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              Roster Size
+            </label>
+            <p-inputNumber
+              id="rosterSize"
+              formControlName="rosterSize"
+              [min]="20"
+              [max]="35"
+              [showButtons]="true"
+              buttonLayout="horizontal"
+              spinnerMode="horizontal"
+              [step]="1"
+              decrementButtonClass="p-button-secondary"
+              incrementButtonClass="p-button-secondary"
+              incrementButtonIcon="pi pi-plus"
+              decrementButtonIcon="pi pi-minus"
+              class="w-full"
+            ></p-inputNumber>
+          </div>
+
+          <div class="field">
+            <label
+              for="taxiSquadSize"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              Taxi Squad Size
+            </label>
+            <p-inputNumber
+              id="taxiSquadSize"
+              formControlName="taxiSquadSize"
+              [min]="0"
+              [max]="10"
+              [showButtons]="true"
+              buttonLayout="horizontal"
+              spinnerMode="horizontal"
+              [step]="1"
+              decrementButtonClass="p-button-secondary"
+              incrementButtonClass="p-button-secondary"
+              incrementButtonIcon="pi pi-plus"
+              decrementButtonIcon="pi pi-minus"
+              class="w-full"
+            ></p-inputNumber>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div class="field">
+            <label
+              for="draftDate"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              Draft Date
+            </label>
+            <input
+              id="draftDate"
+              type="date"
+              pInputText
+              formControlName="draftDate"
+              class="w-full"
+            />
+          </div>
+
+          <div class="field">
+            <label
+              for="draftTimeLimit"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              Draft Pick Time Limit (seconds)
+            </label>
+            <p-inputNumber
+              id="draftTimeLimit"
+              formControlName="draftTimeLimit"
+              [min]="30"
+              [max]="300"
+              [showButtons]="true"
+              buttonLayout="horizontal"
+              spinnerMode="horizontal"
+              [step]="15"
+              decrementButtonClass="p-button-secondary"
+              incrementButtonClass="p-button-secondary"
+              incrementButtonIcon="pi pi-plus"
+              decrementButtonIcon="pi pi-minus"
+              class="w-full"
+            ></p-inputNumber>
+          </div>
+        </div>
+
+        <div class="field mt-4">
+          <label class="block text-sm font-medium text-secondary-700 mb-2">
+            Position Requirements
+          </label>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            @for (position of positions; track position.value) {
+            <div class="flex items-center gap-2">
+              <p-checkbox
+                [inputId]="position.value"
+                [value]="position.value"
+                formControlName="requiredPositions"
+              ></p-checkbox>
+              <label [for]="position.value" class="text-sm text-secondary-700">
+                {{ position.label }}
+              </label>
+            </div>
+            }
+          </div>
+        </div>
+      </div>
+      } @if (currentStepIndex() === 3) {
+      <!-- Step 4: Team Invitations -->
+      <div class="form-section">
+        <h2 class="text-xl font-semibold text-secondary-800 mb-4">
+          Team Invitations
+        </h2>
+
+        <div class="field">
+          <label
+            for="inviteEmails"
+            class="block text-sm font-medium text-secondary-700 mb-2"
+          >
+            Invite Team Owners by Email
+          </label>
+          <textarea
+            id="inviteEmails"
+            pInputTextarea
+            formControlName="inviteEmails"
+            rows="4"
+            placeholder="Enter email addresses, one per line or separated by commas"
+            class="w-full"
+          ></textarea>
+          <small class="text-secondary-500">
+            You can invite owners now or add them later
+          </small>
+        </div>
+
+        <div class="field mt-4">
+          <label class="block text-sm font-medium text-secondary-700 mb-2">
+            League Entry Fee
+          </label>
+          <p-inputNumber
+            formControlName="entryFee"
+            [min]="0"
+            [max]="1000"
+            [showButtons]="true"
+            buttonLayout="horizontal"
+            spinnerMode="horizontal"
+            [step]="10"
+            prefix="$"
+            decrementButtonClass="p-button-secondary"
+            incrementButtonClass="p-button-secondary"
+            incrementButtonIcon="pi pi-plus"
+            decrementButtonIcon="pi pi-minus"
+            class="w-full"
+          ></p-inputNumber>
+        </div>
+
+        <div class="field mt-4">
+          <div class="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="publicLeague"
+              formControlName="publicLeague"
+              class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500"
+            />
+            <label
+              for="publicLeague"
+              class="text-sm font-medium text-secondary-700"
+            >
+              Make League Public (Others can join)
+            </label>
+          </div>
+        </div>
+      </div>
+      } @if (currentStepIndex() === 4) {
+      <!-- Step 5: Review & Create -->
+      <div class="form-section">
+        <h2 class="text-xl font-semibold text-secondary-800 mb-4">
+          Review League Settings
+        </h2>
+
+        <div class="review-grid">
+          <div class="review-section">
+            <h3 class="text-lg font-medium text-secondary-700 mb-3">
+              Basic Information
+            </h3>
+            <div class="review-item">
+              <span class="label">League Name:</span>
+              <span class="value">{{ leagueForm.get('name')?.value }}</span>
+            </div>
+            <div class="review-item">
+              <span class="label">Teams:</span>
+              <span class="value">{{ leagueForm.get('teams')?.value }}</span>
+            </div>
+            <div class="review-item">
+              <span class="label">Type:</span>
+              <span class="value">{{
+                getLeagueTypeLabel(leagueForm.get('type')?.value)
+              }}</span>
+            </div>
+            <div class="review-item">
+              <span class="label">Scoring:</span>
+              <span class="value">{{
+                getScoringLabel(leagueForm.get('scoring')?.value)
+              }}</span>
+            </div>
+          </div>
+
+          <div class="review-section">
+            <h3 class="text-lg font-medium text-secondary-700 mb-3">
+              Salary Cap Settings
+            </h3>
+            <div class="review-item">
+              <span class="label">Salary Cap:</span>
+              <span class="value">${{ getSalaryCapDisplay() }}M</span>
+            </div>
+            <div class="review-item">
+              <span class="label">Min Spend:</span>
+              <span class="value"
+                >{{ leagueForm.get('minSpend')?.value }}%</span
+              >
+            </div>
+            <div class="review-item">
+              <span class="label">Max Contract Years:</span>
+              <span class="value">{{
+                leagueForm.get('maxContractYears')?.value
+              }}</span>
+            </div>
+          </div>
+
+          <div class="review-section">
+            <h3 class="text-lg font-medium text-secondary-700 mb-3">
+              Roster & Draft
+            </h3>
+            <div class="review-item">
+              <span class="label">Roster Size:</span>
+              <span class="value">{{
+                leagueForm.get('rosterSize')?.value
+              }}</span>
+            </div>
+            <div class="review-item">
+              <span class="label">Taxi Squad:</span>
+              <span class="value">{{
+                leagueForm.get('taxiSquadSize')?.value
+              }}</span>
+            </div>
+            <div class="review-item">
+              <span class="label">Draft Time Limit:</span>
+              <span class="value"
+                >{{ leagueForm.get('draftTimeLimit')?.value }}s</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+          <p class="text-blue-800">
+            <i class="pi pi-info-circle mr-2"></i>
+            Review your settings carefully. You can modify most settings after
+            league creation, but some changes may require commissioner approval.
+          </p>
+        </div>
+      </div>
+      }
+    </form>
+
+    <!-- Navigation Buttons -->
+    <ng-template pTemplate="footer">
+      <div class="flex gap-3 justify-between">
+        <div>
+          @if (currentStepIndex() > 0) {
+          <p-button
+            label="Previous"
+            icon="pi pi-chevron-left"
+            (onClick)="previousStep()"
+            severity="secondary"
+            outlined="true"
+          ></p-button>
+          }
+        </div>
+
+        <div class="flex gap-3">
+          @if (currentStepIndex() < steps.length - 1) {
+          <p-button
+            label="Next"
+            icon="pi pi-chevron-right"
+            iconPos="right"
+            (onClick)="nextStep()"
+            severity="primary"
+            [disabled]="!isCurrentStepValid()"
+          ></p-button>
+          } @else {
+          <p-button
+            label="Create League"
+            icon="pi pi-check"
+            (onClick)="onSubmit()"
+            severity="success"
+            [loading]="isSubmitting()"
+            [disabled]="!leagueForm.valid"
+          ></p-button>
+          }
+
+          <p-button
+            label="Cancel"
+            icon="pi pi-times"
+            routerLink="/leagues"
+            severity="secondary"
+            outlined="true"
+          ></p-button>
+        </div>
+      </div>
+    </ng-template>
+  </p-card>
+</div>

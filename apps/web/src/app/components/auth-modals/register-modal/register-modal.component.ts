@@ -247,11 +247,7 @@ export class RegisterModalComponent {
     this.errorMessage = '';
 
     try {
-      await this.authService.signUp(
-        this.email,
-        this.password,
-        this.displayName
-      );
+      await this.authService.signUp(this.email, this.password);
       // Close modal and redirect to leagues (handled by auth service)
       this.modalService.closeAllModals();
     } catch (error: any) {

@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20.2.0",
+      "description": "Replaces usages of the deprecated Router.getCurrentNavigation method with the Router.currentNavigation signal",
+      "factory": "./bundles/router-current-navigation.cjs#migrate",
+      "optional": true,
+      "package": "@angular/core",
+      "name": "router-current-navigation"
+    }
+  ]
+}

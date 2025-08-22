@@ -127,6 +127,29 @@ npx nx lint web             # Lint Angular app
 npx nx format               # Format all files
 ```
 
+### **Updating Angular in Nx Workspaces**
+
+When updating Angular versions in an Nx workspace, use the following process to avoid dependency conflicts:
+
+```bash
+# 1. Check for available migrations
+npx nx migrate latest
+
+# 2. Update to a specific Angular version (e.g., 20.2.1)
+npx nx migrate @angular/core@20.2.1
+
+# 3. Install updated dependencies
+npm install
+
+# 4. Run any generated migrations
+npx nx migrate --run-migrations
+
+# 5. Install dependencies again to resolve conflicts
+npm install
+```
+
+**Note:** Always run migrations after updating dependencies to ensure compatibility and apply any necessary code changes.
+
 ### **Project Structure**
 
 ```

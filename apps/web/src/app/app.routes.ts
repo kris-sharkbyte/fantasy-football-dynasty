@@ -17,6 +17,21 @@ export const routes: Routes = [
   },
 
   {
+    path: 'account',
+    component: AppLayout,
+    canActivate: [AuthGuard],
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./account/accountSettings.component').then(
+            (m) => m.AccountSettingsComponent
+          ),
+      },
+    ],
+  },
+
+  {
     path: 'leagues',
     component: AppLayout,
     canActivate: [AuthGuard],
@@ -74,6 +89,7 @@ export const routes: Routes = [
       import('./trades/trades.component').then((m) => m.TradesComponent),
     canActivate: [AuthGuard],
   },
+
   {
     path: '**',
     redirectTo: '',
