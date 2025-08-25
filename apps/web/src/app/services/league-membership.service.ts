@@ -1,4 +1,4 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import {
   collection,
   doc,
@@ -12,14 +12,14 @@ import {
   Timestamp,
   getFirestore,
   Firestore,
-} from 'firebase/firestore';
+} from '@angular/fire/firestore';
 import { AuthService } from './auth.service';
 
 export interface LeagueMember {
   userId: string;
   leagueId: string;
   role: LeagueRole;
-  teamId?: string;
+  teamId: string;
   joinedAt: Date;
   isActive: boolean;
   permissions: LeaguePermissions;
@@ -50,6 +50,9 @@ export interface FirestoreLeagueMember extends Omit<LeagueMember, 'joinedAt'> {
   providedIn: 'root',
 })
 export class LeagueMembershipService {
+  private readonly db = inject(Firestore);
+  private readonly authService = inject(AuthService);
+
   private _userMemberships = signal<LeagueMember[]>([]);
   private _isLoading = signal(false);
   private _error = signal<string | null>(null);
@@ -59,25 +62,6 @@ export class LeagueMembershipService {
   public isLoading = this._isLoading.asReadonly();
   public error = this._error.asReadonly();
   public hasMemberships = computed(() => this._userMemberships().length > 0);
-
-  private _db: Firestore | null = null;
-
-  constructor(private authService: AuthService) {}
-
-  /**
-   * Get Firestore instance (lazy initialization)
-   */
-  private get db(): Firestore {
-    if (!this._db) {
-      try {
-        this._db = getFirestore();
-      } catch (error) {
-        console.error('Firebase not initialized yet:', error);
-        throw new Error('Firebase not initialized. Please wait for the app to load.');
-      }
-    }
-    return this._db;
-  }
 
   /**
    * Get league role permissions
@@ -149,7 +133,7 @@ export class LeagueMembershipService {
     leagueId: string,
     userId: string,
     role: LeagueRole,
-    teamId?: string
+    teamId: string
   ): Promise<void> {
     try {
       const member: Omit<FirestoreLeagueMember, 'joinedAt'> = {

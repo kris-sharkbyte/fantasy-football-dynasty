@@ -86,6 +86,10 @@ export class CreateLeagueComponent {
   constructor(private fb: FormBuilder) {
     this.leagueForm = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(3)]],
+      teamName: [
+        'My Dynasty Team',
+        [Validators.required, Validators.minLength(2)],
+      ],
       teams: [12, [Validators.required, Validators.min(8), Validators.max(16)]],
       description: [''],
       type: ['dynasty'],
@@ -148,6 +152,7 @@ export class CreateLeagueComponent {
       case 0: // Basic Info
         return !!(
           this.leagueForm.get('name')?.valid &&
+          this.leagueForm.get('teamName')?.valid &&
           this.leagueForm.get('teams')?.valid
         );
       case 1: // Salary Cap
@@ -197,6 +202,7 @@ export class CreateLeagueComponent {
         const formData = this.leagueForm.value;
         const leagueData: CreateLeagueData = {
           name: formData.name,
+          teamName: formData.teamName,
           description: formData.description,
           type: formData.type,
           scoring: formData.scoring,

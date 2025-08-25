@@ -1,4 +1,4 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import {
   collection,
   doc,
@@ -12,11 +12,12 @@ import {
   Timestamp,
   DocumentData,
   QueryDocumentSnapshot,
-  getFirestore,
   Firestore,
-} from 'firebase/firestore';
+} from '@angular/fire/firestore';
 import { AuthService } from './auth.service';
 import { LeagueMembershipService } from './league-membership.service';
+import { TeamService } from './team.service';
+import { UserProfileService } from './user-profile.service';
 import {
   League,
   LeagueRules,
@@ -29,6 +30,7 @@ import {
 
 export interface CreateLeagueData {
   name: string;
+  teamName: string;
   description?: string;
   type: string;
   scoring: string;
@@ -61,6 +63,12 @@ export interface FirestoreLeague
   providedIn: 'root',
 })
 export class LeagueService {
+  private readonly db = inject(Firestore);
+  private readonly authService = inject(AuthService);
+  private readonly leagueMembershipService = inject(LeagueMembershipService);
+  private readonly teamService = inject(TeamService);
+  private readonly userProfileService = inject(UserProfileService);
+
   private _userLeagues = signal<League[]>([]);
   private _isLoading = signal(false);
   private _error = signal<string | null>(null);
@@ -70,28 +78,6 @@ export class LeagueService {
   public isLoading = this._isLoading.asReadonly();
   public error = this._error.asReadonly();
   public hasLeagues = computed(() => this._userLeagues().length > 0);
-
-  private _db: Firestore | null = null;
-
-  constructor(
-    private authService: AuthService,
-    private leagueMembershipService: LeagueMembershipService
-  ) {}
-
-  /**
-   * Get Firestore instance (lazy initialization)
-   */
-  private get db(): Firestore {
-    if (!this._db) {
-      try {
-        this._db = getFirestore();
-      } catch (error) {
-        console.error('Firebase not initialized yet:', error);
-        throw new Error('Firebase not initialized. Please wait for the app to load.');
-      }
-    }
-    return this._db;
-  }
 
   /**
    * Create a new league and associate it with the current user
@@ -151,11 +137,20 @@ export class LeagueService {
         firestoreLeague
       );
 
-      // Add user as owner to the league
+      // Create a default team for the league owner using the provided team name
+      const teamId = await this.teamService.createTeam({
+        leagueId: docRef.id,
+        name: leagueData.teamName,
+        ownerUserId: currentUser.uid,
+        capSpace: leagueData.salaryCap,
+      });
+
+      // Add user as owner to the league with the team ID
       await this.leagueMembershipService.addMemberToLeague(
         docRef.id,
         currentUser.uid,
-        'owner'
+        'owner',
+        teamId
       );
 
       // Refresh user's leagues

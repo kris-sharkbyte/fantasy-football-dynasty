@@ -54,6 +54,27 @@
 
           <div class="field">
             <label
+              for="teamName"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              Your Team Name *
+            </label>
+            <input
+              id="teamName"
+              type="text"
+              pInputText
+              formControlName="teamName"
+              placeholder="Enter your team name"
+              class="w-full"
+            />
+            @if (leagueForm.get('teamName')?.invalid &&
+            leagueForm.get('teamName')?.touched) {
+            <small class="p-error">Team name is required</small>
+            }
+          </div>
+
+          <div class="field">
+            <label
               for="teams"
               class="block text-sm font-medium text-secondary-700 mb-2"
             >
@@ -464,6 +485,10 @@
             <div class="review-item">
               <span class="label">League Name:</span>
               <span class="value">{{ leagueForm.get('name')?.value }}</span>
+            </div>
+            <div class="review-item">
+              <span class="label">Your Team Name:</span>
+              <span class="value">{{ leagueForm.get('teamName')?.value }}</span>
             </div>
             <div class="review-item">
               <span class="label">Teams:</span>

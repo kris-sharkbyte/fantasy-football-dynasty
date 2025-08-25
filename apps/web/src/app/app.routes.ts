@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { AuthGuard } from './guards/auth.guard';
+import { GuestGuard } from './guards/guest.guard';
 import { AppLayout } from './layout/component/app.layout';
 import { WebLayout } from './layout/component/web.layout';
 
@@ -7,6 +8,7 @@ export const routes: Routes = [
   {
     path: '',
     component: WebLayout,
+    canActivate: [GuestGuard],
     children: [
       {
         path: '',

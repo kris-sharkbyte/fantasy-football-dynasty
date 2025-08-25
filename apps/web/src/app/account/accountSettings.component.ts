@@ -1,6 +1,6 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 import {
   FormBuilder,
@@ -302,6 +302,7 @@ import {
 export class AccountSettingsComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly fb = inject(FormBuilder);
+  private readonly router = inject(Router);
 
   user = this.authService.currentUser;
 
@@ -331,7 +332,13 @@ export class AccountSettingsComponent implements OnInit {
     console.log('Change password clicked');
   }
 
-  signOut() {
-    this.authService.signOut();
+  async signOut() {
+    try {
+      await this.authService.signOut();
+      // Navigate to root after successful logout
+      this.router.navigate(['/']);
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
   }
 }

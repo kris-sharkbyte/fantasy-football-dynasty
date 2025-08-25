@@ -1,92 +1,111 @@
 import { Injectable, signal, computed } from '@angular/core';
 
+export interface ModalState {
+  modalId: string;
+  isOpen: boolean;
+  data?: any;
+}
+
+// Legacy interface for backward compatibility
 export interface ModalConfig {
   id: string;
   title: string;
   component: any;
+  size: string;
   data?: any;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
-  closable?: boolean;
-  header?: string;
-  footer?: string;
-  draggable?: boolean;
-  resizable?: boolean;
-  modal?: boolean;
-  closeOnEscape?: boolean;
-  dismissableMask?: boolean;
 }
 
 @Injectable({
   providedIn: 'root',
 })
 export class ModalService {
-  // Angular signals for modal state
-  private modalsSignal = signal<ModalConfig[]>([]);
-  private visibleModalsSignal = signal<Set<string>>(new Set());
+  private _modalState = signal<ModalState | null>(null);
+  
+  // Legacy support - keep the old API working
+  private _modals = signal<ModalConfig[]>([]);
+  private _visibleModals = signal<ModalConfig[]>([]);
 
   // Public readonly signals
-  public modals = this.modalsSignal.asReadonly();
-  public visibleModals = this.visibleModalsSignal.asReadonly();
-  public modalCount = computed(() => this.modalsSignal().length);
+  public modalState = this._modalState.asReadonly();
+  public currentModalId = computed(() => this._modalState()?.modalId);
+  public isModalOpen = computed(() => this._modalState()?.isOpen ?? false);
+  public modalData = computed(() => this._modalState()?.data);
+
+  // Legacy public properties for backward compatibility
+  public modals = this._modals.asReadonly();
+  public visibleModals = this._visibleModals.asReadonly();
 
   constructor() {}
 
-  openModal(config: ModalConfig): void {
-    const currentModals = this.modalsSignal();
-    const newModals = [...currentModals, config];
-    this.modalsSignal.set(newModals);
-
-    // Mark modal as visible
-    const currentVisible = this.visibleModalsSignal();
-    const newVisible = new Set(currentVisible);
-    newVisible.add(config.id);
-    this.visibleModalsSignal.set(newVisible);
+  // New signal-based API
+  openModal(modalId: string, data?: any): void {
+    this._modalState.set({
+      modalId,
+      isOpen: true,
+      data,
+    });
   }
 
   closeModal(modalId: string): void {
-    // Mark modal as not visible
-    const currentVisible = this.visibleModalsSignal();
-    const newVisible = new Set(currentVisible);
-    newVisible.delete(modalId);
-    this.visibleModalsSignal.set(newVisible);
-
-    // Remove modal from list after a short delay to allow animation
-    setTimeout(() => {
-      const currentModals = this.modalsSignal();
-      const newModals = currentModals.filter((modal) => modal.id !== modalId);
-      this.modalsSignal.set(newModals);
-    }, 150);
+    this._modalState.set({
+      modalId,
+      isOpen: false,
+    });
   }
 
   closeAllModals(): void {
-    this.visibleModalsSignal.set(new Set());
-    setTimeout(() => {
-      this.modalsSignal.set([]);
-    }, 150);
+    this._modalState.set(null);
   }
 
-  isModalOpen(modalId: string): boolean {
-    return this.visibleModalsSignal().has(modalId);
+  isSpecificModalOpen(modalId: string): boolean {
+    const currentState = this._modalState();
+    return currentState?.modalId === modalId && currentState?.isOpen === true;
   }
 
-  getModalCount(): number {
-    return this.modalsSignal().length;
+  // Legacy API methods for backward compatibility
+  openModalLegacy(config: ModalConfig): void {
+    const existingIndex = this._modals().findIndex(m => m.id === config.id);
+    
+    if (existingIndex >= 0) {
+      // Update existing modal
+      const updatedModals = [...this._modals()];
+      updatedModals[existingIndex] = { ...config };
+      this._modals.set(updatedModals);
+    } else {
+      // Add new modal
+      this._modals.set([...this._modals(), config]);
+    }
+
+    // Add to visible modals
+    this._visibleModals.set([...this._visibleModals(), config]);
   }
 
-  // Helper method to get modal config by ID
+  closeModalLegacy(modalId: string): void {
+    // Remove from visible modals
+    this._visibleModals.set(
+      this._visibleModals().filter(m => m.id !== modalId)
+    );
+  }
+
   getModalConfig(modalId: string): ModalConfig | undefined {
-    return this.modalsSignal().find((modal) => modal.id === modalId);
+    return this._modals().find(m => m.id === modalId);
   }
 
-  // Method to update modal data
   updateModalData(modalId: string, data: any): void {
-    const currentModals = this.modalsSignal();
-    const modalIndex = currentModals.findIndex((modal) => modal.id === modalId);
+    const updatedModals = this._modals().map(m => 
+      m.id === modalId ? { ...m, data } : m
+    );
+    this._modals.set(updatedModals);
+  }
 
-    if (modalIndex !== -1) {
-      const updatedModals = [...currentModals];
-      updatedModals[modalIndex] = { ...updatedModals[modalIndex], data };
-      this.modalsSignal.set(updatedModals);
+  // Overload to support both APIs
+  openModalOverloaded(modalIdOrConfig: string | ModalConfig, data?: any): void {
+    if (typeof modalIdOrConfig === 'string') {
+      // New API
+      this.openModal(modalIdOrConfig, data);
+    } else {
+      // Legacy API
+      this.openModalLegacy(modalIdOrConfig);
     }
   }
 }

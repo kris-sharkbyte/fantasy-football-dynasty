@@ -1,0 +1,126 @@
+<p-toast></p-toast>
+
+<p-dialog
+  header="Customize Your Team"
+  [(visible)]="visible"
+  [modal]="true"
+  [style]="{ width: '80vw', maxWidth: '900px' }"
+  [draggable]="false"
+  [resizable]="false"
+  (onShow)="onShow()"
+  (onHide)="closeModal()"
+>
+  <div class="edit-team-container">
+    <div class="sidebar">
+      <div class="menu-section">
+        <h3>Team Settings</h3>
+        <ul class="menu-list">
+          @for (item of menuItems; track item.id) {
+          <li
+            class="menu-item"
+            [class.active]="activeMenuItem() === item.id"
+            (click)="setActiveMenuItem(item.id)"
+          >
+            <i [class]="item.icon"></i>
+            <span>{{ item.label }}</span>
+          </li>
+          }
+        </ul>
+      </div>
+    </div>
+
+    <div class="content">
+      @if (activeMenuItem() === 'team-settings') {
+      <div class="team-settings">
+        <h2>Team Settings</h2>
+
+        <form [formGroup]="teamForm" (ngSubmit)="onSubmit()" class="team-form">
+          <div class="avatar-section">
+            <h3>Team Avatar</h3>
+            <div class="avatar-upload">
+              <div class="current-avatar">
+                <img
+                  [src]="avatarPreview() || 'assets/no-image.svg'"
+                  alt="Team Avatar"
+                  class="avatar-image"
+                />
+              </div>
+
+              <div class="upload-controls">
+                <p-fileUpload
+                  #fileUpload
+                  [customUpload]="true"
+                  [auto]="true"
+                  [showCancelButton]="false"
+                  [showUploadButton]="false"
+                  [multiple]="false"
+                  accept="image/*"
+                  [maxFileSize]="2097152"
+                  (uploadHandler)="onFileUpload($event)"
+                  chooseLabel="Choose Image"
+                  [style]="{ width: '100%' }"
+                ></p-fileUpload>
+
+                <small class="upload-hint">
+                  Upload a JPG, PNG or GIF file (max 2MB)
+                </small>
+              </div>
+            </div>
+          </div>
+
+          <div class="team-info-section">
+            <h3>Team Information</h3>
+
+            <div class="form-group">
+              <label for="teamName" class="form-label">Team Name *</label>
+              <input
+                id="teamName"
+                type="text"
+                pInputText
+                formControlName="teamName"
+                placeholder="Enter your team name"
+                class="form-input"
+              />
+              @if (teamForm.get('teamName')?.invalid &&
+              teamForm.get('teamName')?.touched) {
+              <small class="error-message">Team name is required</small>
+              }
+            </div>
+
+            <div class="form-group">
+              <label for="teamMotto" class="form-label">Team Motto</label>
+              <input
+                id="teamMotto"
+                type="text"
+                pInputText
+                formControlName="teamMotto"
+                placeholder="Enter your team motto (optional)"
+                class="form-input"
+              />
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button
+              type="button"
+              pButton
+              label="Cancel"
+              class="p-button-secondary"
+              (click)="closeModal()"
+            ></button>
+
+            <button
+              type="submit"
+              pButton
+              label="Save Changes"
+              class="p-button-primary"
+              [disabled]="!teamForm.valid || isSubmitting()"
+              [loading]="isSubmitting()"
+            ></button>
+          </div>
+        </form>
+      </div>
+      }
+    </div>
+  </div>
+</p-dialog>

@@ -1,225 +1,184 @@
-import { Component } from '@angular/core';
+import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
-import { ModalService } from '../../../services/modal.service';
-import { LoginModalComponent } from '../login-modal/login-modal.component';
 
 @Component({
   selector: 'app-register-modal',
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="auth-modal">
-      <div class="auth-header">
-        <h2 class="auth-title">Create Account</h2>
-        <p class="auth-subtitle">
+    <div class="p-6">
+      <!-- Header -->
+      <div class="text-center mb-8">
+        <h2
+          class="text-3xl font-bold text-surface-900 dark:text-surface-0 mb-2"
+        >
+          Create your account
+        </h2>
+        <p class="text-surface-600 dark:text-surface-400">
           Already have an account?
-          <button class="auth-link" (click)="switchToLogin()" type="button">
-            SIGN IN
+          <button
+            class="text-primary-600 hover:text-primary-700 font-semibold underline ml-1 transition-colors"
+            (click)="onSwitchToLogin()"
+            type="button"
+          >
+            Sign in
           </button>
         </p>
       </div>
 
-      <form (ngSubmit)="onSubmit()" class="auth-form">
-        <div class="form-group">
-          <label for="displayName" class="form-label">Display Name</label>
+      <!-- Form -->
+      <form (ngSubmit)="onSubmit()" class="space-y-6">
+        <!-- Display Name Field -->
+        <div class="space-y-2">
+          <label
+            for="displayName"
+            class="block text-sm font-medium text-surface-900 dark:text-surface-0"
+          >
+            Display Name
+          </label>
           <input
             id="displayName"
             type="text"
             [(ngModel)]="displayName"
             name="displayName"
-            class="form-input"
-            [class.error]="showDisplayNameError"
+            class="w-full px-4 py-3 border rounded-lg text-surface-900 dark:text-surface-0 bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-600 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-800 transition-all outline-none"
+            [class.border-red-500]="showDisplayNameError"
+            [class.focus:border-red-500]="showDisplayNameError"
+            [class.focus:ring-red-200]="showDisplayNameError"
             placeholder="Enter your display name"
             required
           />
-          <div *ngIf="showDisplayNameError" class="error-message">
+          <div
+            *ngIf="showDisplayNameError"
+            class="text-red-600 text-sm flex items-center gap-1"
+          >
+            <i class="pi pi-exclamation-triangle text-xs"></i>
             Please enter a display name
           </div>
         </div>
 
-        <div class="form-group">
-          <label for="email" class="form-label">Email</label>
+        <!-- Email Field -->
+        <div class="space-y-2">
+          <label
+            for="email"
+            class="block text-sm font-medium text-surface-900 dark:text-surface-0"
+          >
+            Email address
+          </label>
           <input
             id="email"
             type="email"
             [(ngModel)]="email"
             name="email"
-            class="form-input"
-            [class.error]="showEmailError"
-            placeholder="Enter your email"
+            class="w-full px-4 py-3 border rounded-lg text-surface-900 dark:text-surface-0 bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-600 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-800 transition-all outline-none"
+            [class.border-red-500]="showEmailError"
+            [class.focus:border-red-500]="showEmailError"
+            [class.focus:ring-red-200]="showEmailError"
+            placeholder="Enter your email address"
             required
           />
-          <div *ngIf="showEmailError" class="error-message">
+          <div
+            *ngIf="showEmailError"
+            class="text-red-600 text-sm flex items-center gap-1"
+          >
+            <i class="pi pi-exclamation-triangle text-xs"></i>
             Please enter a valid email address
           </div>
         </div>
 
-        <div class="form-group">
-          <label for="password" class="form-label">Password</label>
+        <!-- Password Field -->
+        <div class="space-y-2">
+          <label
+            for="password"
+            class="block text-sm font-medium text-surface-900 dark:text-surface-0"
+          >
+            Password
+          </label>
           <input
             id="password"
             type="password"
             [(ngModel)]="password"
             name="password"
-            class="form-input"
-            [class.error]="showPasswordError"
-            placeholder="Create a password"
+            class="w-full px-4 py-3 border rounded-lg text-surface-900 dark:text-surface-0 bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-600 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-800 transition-all outline-none"
+            [class.border-red-500]="showPasswordError"
+            [class.focus:border-red-500]="showPasswordError"
+            [class.focus:ring-red-200]="showPasswordError"
+            placeholder="Create a strong password"
             required
           />
-          <div *ngIf="showPasswordError" class="error-message">
+          <div
+            *ngIf="showPasswordError"
+            class="text-red-600 text-sm flex items-center gap-1"
+          >
+            <i class="pi pi-exclamation-triangle text-xs"></i>
             Password must be at least 6 characters
           </div>
         </div>
 
-        <div class="form-group">
-          <label for="confirmPassword" class="form-label"
-            >Confirm Password</label
+        <!-- Confirm Password Field -->
+        <div class="space-y-2">
+          <label
+            for="confirmPassword"
+            class="block text-sm font-medium text-surface-900 dark:text-surface-0"
           >
+            Confirm Password
+          </label>
           <input
             id="confirmPassword"
             type="password"
             [(ngModel)]="confirmPassword"
             name="confirmPassword"
-            class="form-input"
-            [class.error]="showConfirmPasswordError"
+            class="w-full px-4 py-3 border rounded-lg text-surface-900 dark:text-surface-0 bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-600 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-800 transition-all outline-none"
+            [class.border-red-500]="showConfirmPasswordError"
+            [class.focus:border-red-500]="showConfirmPasswordError"
+            [class.focus:ring-red-200]="showConfirmPasswordError"
             placeholder="Confirm your password"
             required
           />
-          <div *ngIf="showConfirmPasswordError" class="error-message">
+          <div
+            *ngIf="showConfirmPasswordError"
+            class="text-red-600 text-sm flex items-center gap-1"
+          >
+            <i class="pi pi-exclamation-triangle text-xs"></i>
             Passwords do not match
           </div>
         </div>
 
-        <button type="submit" class="auth-button" [disabled]="isLoading">
-          <span *ngIf="!isLoading">CREATE ACCOUNT</span>
-          <span *ngIf="isLoading">Creating account...</span>
+        <!-- Submit Button -->
+        <button
+          type="submit"
+          class="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-surface-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+          [disabled]="isLoading"
+        >
+          <i *ngIf="isLoading" class="pi pi-spinner pi-spin"></i>
+          <span>{{
+            isLoading ? 'Creating account...' : 'Create account'
+          }}</span>
         </button>
 
-        <div *ngIf="errorMessage" class="error-message auth-error">
-          {{ errorMessage }}
+        <!-- Error Message -->
+        <div
+          *ngIf="errorMessage"
+          class="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-4"
+        >
+          <div class="flex items-center gap-2 text-red-800 dark:text-red-200">
+            <i class="pi pi-exclamation-circle"></i>
+            <span class="text-sm">{{ errorMessage }}</span>
+          </div>
         </div>
       </form>
     </div>
   `,
-  styles: [
-    `
-      .auth-modal {
-        padding: 0;
-      }
-
-      .auth-header {
-        text-align: center;
-        margin-bottom: 2rem;
-      }
-
-      .auth-title {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin: 0 0 0.5rem 0;
-      }
-
-      .auth-subtitle {
-        color: var(--text-secondary);
-        margin: 0;
-        font-size: 0.9rem;
-      }
-
-      .auth-link {
-        background: none;
-        border: none;
-        color: var(--primary-500);
-        font-weight: 600;
-        cursor: pointer;
-        text-decoration: underline;
-        padding: 0;
-        font-size: inherit;
-      }
-
-      .auth-link:hover {
-        color: var(--primary-600);
-      }
-
-      .auth-form {
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
-      }
-
-      .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-
-      .form-label {
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: var(--text-secondary);
-      }
-
-      .form-input {
-        padding: 0.75rem;
-        border: 1px solid var(--border-primary);
-        border-radius: 8px;
-        background: var(--bg-primary);
-        color: var(--text-primary);
-        font-size: 1rem;
-        transition: all 0.2s ease;
-      }
-
-      .form-input:focus {
-        outline: none;
-        border-color: var(--primary-500);
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-      }
-
-      .form-input.error {
-        border-color: var(--error-500);
-      }
-
-      .form-input::placeholder {
-        color: var(--text-tertiary);
-      }
-
-      .auth-button {
-        background: var(--primary-600);
-        color: white;
-        border: none;
-        padding: 0.875rem;
-        border-radius: 8px;
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        margin-top: 0.5rem;
-      }
-
-      .auth-button:hover:not(:disabled) {
-        background: var(--primary-700);
-      }
-
-      .auth-button:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-
-      .error-message {
-        color: var(--error-500);
-        font-size: 0.875rem;
-        margin-top: 0.25rem;
-      }
-
-      .auth-error {
-        text-align: center;
-        margin-top: 1rem;
-      }
-    `,
-  ],
+  styles: [],
 })
 export class RegisterModalComponent {
+  private readonly authService = inject(AuthService);
+
+  @Output() registerSuccess = new EventEmitter<void>();
+  @Output() switchToLogin = new EventEmitter<void>();
+
   displayName: string = '';
   email: string = '';
   password: string = '';
@@ -230,11 +189,6 @@ export class RegisterModalComponent {
   showEmailError: boolean = false;
   showPasswordError: boolean = false;
   showConfirmPasswordError: boolean = false;
-
-  constructor(
-    private authService: AuthService,
-    private modalService: ModalService
-  ) {}
 
   async onSubmit(): Promise<void> {
     this.clearErrors();
@@ -248,8 +202,8 @@ export class RegisterModalComponent {
 
     try {
       await this.authService.signUp(this.email, this.password);
-      // Close modal and redirect to leagues (handled by auth service)
-      this.modalService.closeAllModals();
+      // Emit success event to close modal
+      this.registerSuccess.emit();
     } catch (error: any) {
       this.errorMessage = this.getErrorMessage(error.code);
     } finally {
@@ -311,13 +265,7 @@ export class RegisterModalComponent {
     }
   }
 
-  switchToLogin(): void {
-    this.modalService.closeModal('register');
-    this.modalService.openModal({
-      id: 'login',
-      title: 'Log in',
-      component: LoginModalComponent,
-      size: 'md',
-    });
+  onSwitchToLogin(): void {
+    this.switchToLogin.emit();
   }
 }

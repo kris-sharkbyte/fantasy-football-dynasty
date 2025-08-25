@@ -308,6 +308,14 @@ export class UserProfileService {
   }
 
   /**
+   * Clear user profile (called during logout)
+   */
+  clearUserProfile(): void {
+    this._currentProfile.set(null);
+    this._error.set(null);
+  }
+
+  /**
    * Clear error state
    */
   clearError(): void {

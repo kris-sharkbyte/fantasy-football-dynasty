@@ -1,51 +1,86 @@
 <div class="space-y-8">
   <div class="flex justify-between items-center">
     <h1 class="text-3xl font-bold text-secondary-900">My Leagues</h1>
-    <p-button
-      label="Create League"
-      icon="pi pi-plus"
-      routerLink="/leagues/create"
-      severity="primary"
-      size="large"
-    ></p-button>
+    <div class="flex gap-2">
+      <p-button
+        label="Refresh"
+        icon="pi pi-refresh"
+        severity="secondary"
+        [loading]="isLoading()"
+        (click)="refreshLeagues()"
+      ></p-button>
+      <p-button
+        label="Create League"
+        icon="pi pi-plus"
+        routerLink="/leagues/create"
+        severity="primary"
+        size="large"
+      ></p-button>
+    </div>
   </div>
 
+  @if (error()) {
+  <p-message
+    severity="error"
+    [text]="error()!"
+    [closable]="true"
+    (onClose)="clearError()"
+  ></p-message>
+  } @if (isLoading()) {
+  <div class="flex justify-center py-12">
+    <p-progressSpinner></p-progressSpinner>
+  </div>
+  } @if (!isLoading()) {
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     @for (league of leagues(); track league.id) {
     <p-card
       [header]="league.name"
-      [subheader]="league.description"
       styleClass="league-card cursor-pointer hover:shadow-lg transition-shadow duration-300"
       (click)="navigateToLeague(league.id)"
     >
       <div class="space-y-3">
         <div class="flex items-center justify-between">
-          <p-chip [label]="league.teams + ' teams'" icon="pi pi-users"></p-chip>
+          <p-chip
+            [label]="league.rules.draft.rounds + ' roster spots'"
+            icon="pi pi-users"
+          ></p-chip>
           <p-badge
-            [value]="league.status || 'unknown'"
-            [severity]="getStatusSeverity(league.status || '')"
+            [value]="league.phase"
+            [severity]="getStatusSeverity(league.phase)"
           ></p-badge>
         </div>
 
         <div class="space-y-2 text-secondary-600">
           <div class="flex items-center gap-2">
             <i class="pi pi-calendar text-primary-500"></i>
-            <span>Phase: {{ league.phase }}</span>
+            <span>Phase: {{ league.phase | titlecase }}</span>
           </div>
           <div class="flex items-center gap-2">
             <i class="pi pi-calendar-plus text-primary-500"></i>
             <span>Year: {{ league.currentYear }}</span>
           </div>
-          @if (league.owner) {
           <div class="flex items-center gap-2">
-            <i class="pi pi-user text-primary-500"></i>
-            <span>Owner: {{ league.owner }}</span>
+            <i class="pi pi-dollar text-primary-500"></i>
+            <span
+              >Salary Cap: ${{
+                league.rules.cap.salaryCap | number : '1.0-0'
+              }}M</span
+            >
           </div>
-          }
+          <div class="flex items-center gap-2">
+            <i class="pi pi-star text-primary-500"></i>
+            <span>{{
+              league.rules.scoring.ppr === 1
+                ? 'PPR'
+                : league.rules.scoring.ppr === 0.5
+                ? 'Half PPR'
+                : 'Standard'
+            }}</span>
+          </div>
         </div>
 
         <div class="flex items-center gap-2">
-          <p-chip [label]="league.phase" icon="pi pi-flag"></p-chip>
+          <p-chip [label]="league.phase | titlecase" icon="pi pi-flag"></p-chip>
         </div>
       </div>
 
@@ -72,8 +107,7 @@
     </p-card>
     }
   </div>
-
-  @if (leagues().length === 0) {
+  } @if (!isLoading() && leagues().length === 0) {
   <div class="text-center py-12">
     <div class="mb-6">
       <i class="pi pi-trophy text-6xl text-secondary-400"></i>

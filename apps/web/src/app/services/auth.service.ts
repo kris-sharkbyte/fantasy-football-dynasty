@@ -17,6 +17,7 @@ import { UserProfileService } from './user-profile.service';
 export class AuthService {
   private readonly userProfileService = inject(UserProfileService);
   private readonly firebaseAuth = inject(Auth);
+
   private _currentUser = signal<FirebaseUser | null>(null);
   private _isLoading = signal(false);
   private _error = signal<string | null>(null);
@@ -141,10 +142,24 @@ export class AuthService {
    */
   async signOut(): Promise<void> {
     try {
+      this._isLoading.set(true);
+      this._error.set(null);
+
       await signOut(this.firebaseAuth);
+
+      // Clear user state immediately
+      this._currentUser.set(null);
+
+      // Clear user profile service state
+      this.userProfileService.clearUserProfile();
     } catch (error) {
       console.error('Error signing out:', error);
+      this._error.set(
+        error instanceof Error ? error.message : 'Failed to sign out'
+      );
       throw error;
+    } finally {
+      this._isLoading.set(false);
     }
   }
 

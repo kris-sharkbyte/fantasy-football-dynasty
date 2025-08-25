@@ -1,17 +1,25 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { LeagueHeaderComponent } from './league-header.component';
+import { EditTeamModalComponent } from './edit-team-modal';
 
 @Component({
   selector: 'app-league-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [
+    CommonModule,
+    RouterLink,
+    LeagueHeaderComponent,
+    EditTeamModalComponent,
+  ],
   template: `
     <div class="league-detail-container">
-      <div class="league-header">
-        <h1>League Detail</h1>
-        <p>Individual league view will go here...</p>
-      </div>
+      <app-league-header
+        [leagueName]="'My Dynasty League'"
+        [leagueSubtitle]="'12 Teams • Dynasty • PPR Scoring'"
+        (openEditTeam)="openEditTeamModal()"
+      ></app-league-header>
 
       <div class="league-content">
         <div class="info-section">
@@ -26,6 +34,11 @@ import { RouterLink } from '@angular/router';
         </div>
       </div>
     </div>
+
+         <app-edit-team-modal
+       [visible]="editTeamModalVisible"
+       (visibleChange)="onEditTeamModalVisibleChange($event)"
+     ></app-edit-team-modal>
   `,
   styles: [
     `
@@ -33,24 +46,6 @@ import { RouterLink } from '@angular/router';
         padding: 2rem;
         max-width: 800px;
         margin: 0 auto;
-      }
-
-      .league-header {
-        text-align: center;
-        margin-bottom: 3rem;
-      }
-
-      .league-header h1 {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin: 0 0 0.5rem 0;
-      }
-
-      .league-header p {
-        color: var(--text-secondary);
-        font-size: 1.125rem;
-        margin: 0;
       }
 
       .league-content {
@@ -102,6 +97,13 @@ import { RouterLink } from '@angular/router';
   ],
 })
 export class LeagueDetailComponent {
-  // TODO: Implement league detail view
-}
+  editTeamModalVisible = false;
 
+  openEditTeamModal(): void {
+    this.editTeamModalVisible = true;
+  }
+
+  onEditTeamModalVisibleChange(visible: boolean): void {
+    this.editTeamModalVisible = visible;
+  }
+}
