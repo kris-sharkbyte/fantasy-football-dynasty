@@ -9,5 +9,12 @@ export const environment = {
     appId: '1:692555960291:web:78700db2bfa217afbbdad6',
     measurementId: 'G-TS5VHTHG6D',
   },
+  // Local Firebase emulator configuration
+  useEmulators: true,
+  emulators: {
+    functions: 'localhost:5001',
+    firestore: 'localhost:8080',
+    auth: 'localhost:9099',
+    storage: 'localhost:9199',
+  },
 };
-

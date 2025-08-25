@@ -4,15 +4,9 @@ import {
   onDocumentUpdated,
 } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { initializeApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
+import { admin } from './utils/admin';
 
-// Initialize Firebase Admin
-initializeApp();
-
-const db = getFirestore();
-const auth = getAuth();
+const { db } = admin();
 
 // League Management Functions
 export const createLeague = onCall(async (request) => {
@@ -118,8 +112,8 @@ export const getTeamCapSheet = onCall(async (request) => {
 
     // Calculate cap hits
     const capHits = contracts.map((contract) => ({
-      contractId: contract.id,
-      playerId: contract.playerId,
+      contractId: contract['id'],
+      playerId: contract['playerId'],
       capHit: calculateCapHit(contract, year),
     }));
 
@@ -176,7 +170,7 @@ export const createContract = onCall(async (request) => {
     if (team) {
       const capHit = calculateCapHit(contract, startYear);
       await teamRef.update({
-        capSpace: team.capSpace - capHit,
+        capSpace: team['capSpace'] - capHit,
         updatedAt: new Date(),
       });
     }
@@ -192,7 +186,7 @@ export const searchPlayers = onCall(async (request) => {
   try {
     const { query, position, nflTeam, limit = 50 } = request.data;
 
-    let playersQuery = db.collection('players');
+    let playersQuery: any = db.collection('players');
 
     if (position) {
       playersQuery = playersQuery.where('position', '==', position);
@@ -210,7 +204,7 @@ export const searchPlayers = onCall(async (request) => {
     }
 
     const snapshot = await playersQuery.limit(limit).get();
-    const players = snapshot.docs.map((doc) => doc.data());
+    const players = snapshot.docs.map((doc: any) => doc.data());
 
     return { players };
   } catch (error) {
@@ -230,7 +224,7 @@ export const processWeeklyScoring = onSchedule('0 6 * * 2', async (event) => {
     for (const leagueDoc of leaguesSnapshot.docs) {
       const league = leagueDoc.data();
       // Process scoring for each league
-      await processLeagueScoring(league.id);
+      await processLeagueScoring(league['id']);
     }
 
     console.log('Weekly scoring processing complete');
@@ -265,7 +259,7 @@ export const onLeagueCreated = onDocumentCreated(
   'leagues/{leagueId}',
   async (event) => {
     const league = event.data?.data();
-    console.log(`New league created: ${league?.name}`);
+    console.log(`New league created: ${league?.['name']}`);
 
     // Set up initial league structure
     // Create default settings, etc.
@@ -279,7 +273,7 @@ export const onContractUpdated = onDocumentUpdated(
     const after = event.data?.after.data();
 
     if (before && after) {
-      console.log(`Contract updated: ${after.id}`);
+      console.log(`Contract updated: ${after['id']}`);
       // Handle contract updates, cap recalculations, etc.
     }
   }

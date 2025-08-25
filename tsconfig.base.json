@@ -19,7 +19,7 @@
       "@fantasy-football-dynasty/domain": ["libs/domain/src/index.ts"],
       "@fantasy-football-dynasty/functions": ["apps/functions/src/index.ts"],
       "@fantasy-football-dynasty/testing": ["libs/testing/src/index.ts"],
-      "@fantasy-football-dynasty/types": ["libs/types/src/index.ts"]
+      "@fantasy-football-dynasty/types": ["libs/types/src/index.ts"],
     }
   },
   "exclude": ["node_modules", "tmp"]

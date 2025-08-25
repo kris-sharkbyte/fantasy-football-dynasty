@@ -217,17 +217,34 @@ Currently no tasks in progress.
 
 ### 📋 Phase 5: Draft System (Week 9-10)
 
-- [ ] **Draft Room Interface**
+- [x] **Draft System Foundation**
 
-  - [ ] Real-time draft board
-  - [ ] Pick timer functionality
-  - [ ] Draft order management
+  - [x] Enhanced type definitions for draft system
+  - [x] Firebase Functions for draft management
+  - [x] Draft state management and real-time updates
+  - [x] Player rights and acquisition system
+  - [x] Snake draft implementation
+
+- [x] **Draft Room Interface**
+
+  - [x] Real-time draft board with pick tracking
+  - [x] Pick timer functionality with countdown
+  - [x] Draft order management (snake draft)
+  - [x] Player search and filtering
+  - [x] Auto-pick functionality (backend ready)
+  - [x] Draft progress tracking and statistics
+
+- [ ] **Advanced Draft Features**
+
   - [ ] Pick trading during draft
-  - [ ] Auto-pick functionality
+  - [ ] Draft chat system
+  - [ ] Autodraft queue management UI
+  - [ ] Commissioner draft controls
+  - [ ] Draft history and analytics
 
 - [ ] **Rookie Management**
+  - [x] Rookie contract scales (basic implementation)
   - [ ] Rookie class generation
-  - [ ] Rookie contract scales
   - [ ] Draft pick valuation
   - [ ] Future pick trading
   - [ ] Compensatory pick logic

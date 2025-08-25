@@ -3,6 +3,7 @@ import { AuthGuard } from './guards/auth.guard';
 import { GuestGuard } from './guards/guest.guard';
 import { AppLayout } from './layout/component/app.layout';
 import { WebLayout } from './layout/component/web.layout';
+import { DraftLayout } from './layout/component/draft.layout';
 
 export const routes: Routes = [
   {
@@ -80,10 +81,16 @@ export const routes: Routes = [
     canActivate: [AuthGuard],
   },
   {
-    path: 'draft',
-    loadComponent: () =>
-      import('./draft/draft.component').then((m) => m.DraftComponent),
+    path: 'draft/:leagueId',
+    component: DraftLayout,
     canActivate: [AuthGuard],
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./draft/draft.component').then((m) => m.DraftComponent),
+      },
+    ],
   },
   {
     path: 'trades',

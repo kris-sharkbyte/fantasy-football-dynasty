@@ -4,6 +4,27 @@
   "sourceRoot": "apps/functions/src",
   "projectType": "library",
   "tags": [],
-  "// targets": "to see all targets run: nx show project functions --web",
-  "targets": {}
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "dependsOn": ["^build"],
+      "options": {
+        "outputPath": "dist/apps/functions",
+        "main": "apps/functions/src/index.ts",
+        "tsConfig": "apps/functions/tsconfig.json",
+        "outDir": "dist/apps/functions",
+        "rootDir": "apps/functions/src",
+        "assets": [
+          {
+            "input": "apps/functions",
+            "glob": "package.json",
+            "output": "."
+          }
+        ]
+      },
+      "configurations": {
+        "production": {}
+      }    
+    }
+  }
 }

@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { LeagueHeaderComponent } from './league-header.component';
 import { EditTeamModalComponent } from './edit-team-modal';
 
@@ -28,6 +28,9 @@ import { EditTeamModalComponent } from './edit-team-modal';
         </div>
 
         <div class="actions">
+          <button class="btn-primary" (click)="goToDraft()">
+            🏈 Enter Draft Room
+          </button>
           <button class="btn-secondary" routerLink="/leagues">
             Back to Leagues
           </button>
@@ -35,10 +38,10 @@ import { EditTeamModalComponent } from './edit-team-modal';
       </div>
     </div>
 
-         <app-edit-team-modal
-       [visible]="editTeamModalVisible"
-       (visibleChange)="onEditTeamModalVisibleChange($event)"
-     ></app-edit-team-modal>
+    <app-edit-team-modal
+      [visible]="editTeamModalVisible"
+      (visibleChange)="onEditTeamModalVisibleChange($event)"
+    ></app-edit-team-modal>
   `,
   styles: [
     `
@@ -89,6 +92,22 @@ import { EditTeamModalComponent } from './edit-team-modal';
         font-size: 1rem;
       }
 
+      .btn-primary {
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        background: #3b82f6;
+        color: white;
+        font-size: 1rem;
+      }
+
+      .btn-primary:hover {
+        background: #2563eb;
+      }
+
       .btn-secondary:hover {
         background: var(--bg-primary);
         color: var(--text-primary);
@@ -98,6 +117,11 @@ import { EditTeamModalComponent } from './edit-team-modal';
 })
 export class LeagueDetailComponent {
   editTeamModalVisible = false;
+  leagueId: string = '';
+
+  constructor(private route: ActivatedRoute, private router: Router) {
+    this.leagueId = this.route.snapshot.params['id'];
+  }
 
   openEditTeamModal(): void {
     this.editTeamModalVisible = true;
@@ -105,5 +129,10 @@ export class LeagueDetailComponent {
 
   onEditTeamModalVisibleChange(visible: boolean): void {
     this.editTeamModalVisible = visible;
+  }
+
+  goToDraft(): void {
+    // Navigate to the draft room for this league
+    this.router.navigate(['/draft', this.leagueId]);
   }
 }

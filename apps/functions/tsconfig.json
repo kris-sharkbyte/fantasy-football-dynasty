@@ -8,16 +8,9 @@
     "noImplicitOverride": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noPropertyAccessFromIndexSignature": true
+    "noPropertyAccessFromIndexSignature": true,
   },
-  "files": [],
-  "include": [],
-  "references": [
-    {
-      "path": "./tsconfig.lib.json"
-    },
-    {
-      "path": "./tsconfig.spec.json"
-    }
-  ]
+  "files": ["src/index.ts"],
+  "include": ["src/index.ts", "src/config.ts", "src/lib/utils/admin.ts", "src/simple-functions.ts"],
+  "exclude": ["src/lib/**/*", "src/types.ts"]
 }

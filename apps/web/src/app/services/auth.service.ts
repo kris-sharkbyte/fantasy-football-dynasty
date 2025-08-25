@@ -21,6 +21,7 @@ export class AuthService {
   private _currentUser = signal<FirebaseUser | null>(null);
   private _isLoading = signal(false);
   private _error = signal<string | null>(null);
+  private _pendingDisplayName = signal<string | null>(null);
 
   // Public readonly signals
   public currentUser = this._currentUser.asReadonly();
@@ -66,11 +67,19 @@ export class AuthService {
         // Profile doesn't exist, create one
         const user = this._currentUser();
         if (user) {
+          // Use pending display name from signup, fallback to Firebase user display name
+          const displayName =
+            this._pendingDisplayName() || user.displayName || null;
+
           await this.userProfileService.createUserProfile(
             uid,
             user.email || '',
-            user.displayName || undefined
+            displayName
           );
+
+          // Clear pending display name after profile creation
+          this._pendingDisplayName.set(null);
+
           profile = await this.userProfileService.loadUserProfile(uid);
         }
       }
@@ -80,12 +89,21 @@ export class AuthService {
   }
 
   /**
-   * Sign up with email and password
+   * Sign up with email, password, and display name
    */
-  async signUp(email: string, password: string): Promise<UserCredential> {
+  async signUp(
+    email: string,
+    password: string,
+    displayName?: string
+  ): Promise<UserCredential> {
     try {
       this._isLoading.set(true);
       this._error.set(null);
+
+      // Store display name for profile creation
+      if (displayName) {
+        this._pendingDisplayName.set(displayName);
+      }
 
       const result = await createUserWithEmailAndPassword(
         this.firebaseAuth,

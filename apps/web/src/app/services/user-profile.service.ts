@@ -11,13 +11,13 @@ import {
 export interface UserProfile {
   uid: string;
   email: string;
-  displayName?: string;
-  firstName?: string;
-  lastName?: string;
-  avatar?: string;
-  bio?: string;
-  location?: string;
-  timezone?: string;
+  displayName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  avatar?: string | null;
+  bio?: string | null;
+  location?: string | null;
+  timezone?: string | null;
   preferences: UserPreferences;
   systemRoles: SystemRole[]; // System-level roles
   stats: UserStats;
@@ -92,7 +92,7 @@ export class UserProfileService {
   async createUserProfile(
     uid: string,
     email: string,
-    displayName?: string
+    displayName?: string | null
   ): Promise<void> {
     try {
       this._isLoading.set(true);
@@ -101,7 +101,7 @@ export class UserProfileService {
       const defaultProfile = {
         uid,
         email,
-        displayName,
+        displayName: displayName || null, // Convert undefined to null for Firestore
         preferences: {
           theme: 'auto',
           notifications: {
@@ -142,6 +142,7 @@ export class UserProfileService {
       // Update local state
       this._currentProfile.set({
         ...defaultProfile,
+        displayName: defaultProfile.displayName || undefined, // Convert null back to undefined for local state
         preferences: {
           ...defaultProfile.preferences,
           theme: defaultProfile.preferences.theme as 'light' | 'dark' | 'auto',

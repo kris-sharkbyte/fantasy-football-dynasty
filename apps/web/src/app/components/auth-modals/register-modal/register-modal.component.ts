@@ -201,7 +201,11 @@ export class RegisterModalComponent {
     this.errorMessage = '';
 
     try {
-      await this.authService.signUp(this.email, this.password);
+      await this.authService.signUp(
+        this.email,
+        this.password,
+        this.displayName
+      );
       // Emit success event to close modal
       this.registerSuccess.emit();
     } catch (error: any) {

@@ -26,7 +26,7 @@ import {
   ContractRules,
   DraftRules,
   FreeAgencyRules,
-} from '@fantasy-football-dynasty/types';
+} from '../../../../../libs/types/src/lib/types';
 
 export interface CreateLeagueData {
   name: string;
@@ -72,16 +72,25 @@ export class LeagueService {
   private _userLeagues = signal<League[]>([]);
   private _isLoading = signal(false);
   private _error = signal<string | null>(null);
+  private _selectedLeagueId = signal<string | null>(null);
 
   // Public readonly signals
   public userLeagues = this._userLeagues.asReadonly();
   public isLoading = this._isLoading.asReadonly();
   public error = this._error.asReadonly();
   public hasLeagues = computed(() => this._userLeagues().length > 0);
+  public selectedLeagueId = this._selectedLeagueId.asReadonly();
 
   /**
    * Create a new league and associate it with the current user
    */
+  /**
+   * Set the selected league ID
+   */
+  setSelectedLeagueId(leagueId: string | null) {
+    this._selectedLeagueId.set(leagueId);
+  }
+
   async createLeague(leagueData: CreateLeagueData): Promise<string> {
     try {
       this._isLoading.set(true);
@@ -109,9 +118,13 @@ export class LeagueService {
           rookieScale: true,
         },
         draft: {
+          mode: 'snake',
           rounds: leagueData.rosterSize,
           timeLimit: leagueData.draftTimeLimit,
           snakeOrder: true,
+          autodraftDelay: 30, // 30 seconds before autodraft
+          rookieAutoContracts: true,
+          veteranNegotiationWindow: 72, // 72 hours
         },
         freeAgency: {
           bidRounds: 30, // 30 seconds between rounds
@@ -220,17 +233,50 @@ export class LeagueService {
   /**
    * Get a specific league by ID
    */
-  async getLeague(leagueId: string): Promise<League | null> {
+  async getLeague(leagueId: string): Promise<{ league: League } | null> {
     try {
       // This would need to be implemented with a getDoc call
       // For now, return from local state
-      return (
-        this._userLeagues().find((league) => league.id === leagueId) || null
-      );
+      const league =
+        this._userLeagues().find((league) => league.id === leagueId) || null;
+      return league ? { league } : null;
     } catch (error) {
       console.error('Error getting league:', error);
       return null;
     }
+  }
+
+  /**
+   * Get teams for a league (temporary mock implementation)
+   * TODO: Implement proper team fetching
+   */
+  async getLeagueTeams(leagueId: string): Promise<{ teams: any[] }> {
+    // For now, return mock data
+    // In a real implementation, this would fetch from a teams collection
+    return {
+      teams: [
+        {
+          id: 'team1',
+          leagueId,
+          name: 'Team 1',
+          ownerUserId: 'user1',
+          capSpace: 100000000,
+          roster: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 'team2',
+          leagueId,
+          name: 'Team 2',
+          ownerUserId: 'user2',
+          capSpace: 100000000,
+          roster: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
+    };
   }
 
   /**

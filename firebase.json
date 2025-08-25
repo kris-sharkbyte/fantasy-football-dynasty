@@ -1,0 +1,35 @@
+{
+    "functions": [
+      {
+        "source": "dist/apps/functions",
+        "codebase": "default",
+        "runtime": "nodejs20",
+        "predeploy": [
+          "npm --prefix \"$PROJECT_DIR\" run build:functions"
+        ]
+      }
+    ],
+    "hosting": {
+      "public": "dist/apps/web/browser",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{ "source": "**", "destination": "/index.html" }]
+    },
+    "storage": {
+      "rules": "storage.rules"
+    },
+    "emulators": {
+      "auth": { "port": 9099 },
+      "functions": { "port": 5001 },
+      "firestore": { 
+        "port": 8080,
+        "persistence": {
+            "storagePath": "./.firebase/emulator-data/firestore"
+        } 
+      },
+      "hosting": { "port": 5000 },
+      "storage": { "port": 9199 },
+      "ui": { "enabled": true, "port": 4000 },
+      "singleProjectMode": true
+    }
+  }
+  

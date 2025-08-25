@@ -30,7 +30,11 @@ export class RegisterComponent {
     this.errorMessage = '';
 
     try {
-      await this.authService.signUp(this.email, this.password);
+      await this.authService.signUp(
+        this.email,
+        this.password,
+        this.displayName
+      );
       // Redirect to home page after successful registration
       this.router.navigate(['/']);
     } catch (error: any) {
