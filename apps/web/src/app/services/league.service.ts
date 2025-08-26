@@ -189,20 +189,11 @@ export class LeagueService {
         firestoreLeague
       );
 
-      // Create a default team for the league owner using the provided team name
-      const teamId = await this.teamService.createTeam({
-        leagueId: docRef.id,
-        name: leagueData.name, // Assuming team name is the same as league name for now
-        ownerUserId: currentUser.uid,
-        capSpace: leagueData.rules.cap.salaryCap,
-      });
-
-      // Add user as owner to the league with the team ID
+      // Add user as owner to the league (auto-creates team)
       await this.leagueMembershipService.addMemberToLeague(
         docRef.id,
         currentUser.uid,
-        'owner',
-        teamId
+        'owner'
       );
 
       // Refresh user's leagues
@@ -306,36 +297,33 @@ export class LeagueService {
   }
 
   /**
-   * Get teams for a league (temporary mock implementation)
-   * TODO: Implement proper team fetching
+   * Get teams for a league (now reads from unified members structure)
    */
   async getLeagueTeams(leagueId: string): Promise<{ teams: any[] }> {
-    // For now, return mock data
-    // In a real implementation, this would fetch from a teams collection
-    return {
-      teams: [
-        {
-          id: 'team1',
-          leagueId,
-          name: 'Team 1',
-          ownerUserId: 'user1',
-          capSpace: 100000000,
-          roster: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: 'team2',
-          leagueId,
-          name: 'Team 2',
-          ownerUserId: 'user2',
-          capSpace: 100000000,
-          roster: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ],
-    };
+    try {
+      // Get league members which now contain team data
+      const members = await this.leagueMembershipService.getLeagueMembers(
+        leagueId
+      );
+
+      // Transform members to team format for compatibility
+      const teams = members.map((member) => ({
+        id: member.teamId,
+        leagueId: member.leagueId,
+        name: member.teamName,
+        ownerUserId: member.userId,
+        capSpace: member.capSpace,
+        roster: member.roster,
+        createdAt: member.joinedAt,
+        updatedAt: member.joinedAt,
+      }));
+
+      return { teams };
+    } catch (error) {
+      console.error('Error fetching league teams:', error);
+      // Return empty array if there's an error
+      return { teams: [] };
+    }
   }
 
   /**
@@ -571,12 +559,11 @@ export class LeagueService {
       const leagueDoc = querySnapshot.docs[0];
       const leagueData = leagueDoc.data() as FirestoreLeague;
 
-      // Add user to league
+      // Add user to league (auto-creates team with their display name)
       await this.leagueMembershipService.addMemberToLeague(
         leagueDoc.id,
         currentUser.uid,
-        'member', // Assign lowest role type
-        '' // Empty string for now - they'll need to create a team later
+        'member' // Assign lowest role type
       );
 
       // Refresh user's leagues

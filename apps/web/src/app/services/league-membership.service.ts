@@ -14,12 +14,16 @@ import {
   Firestore,
 } from '@angular/fire/firestore';
 import { AuthService } from './auth.service';
+import { RosterSlot } from '@fantasy-football-dynasty/types';
 
 export interface LeagueMember {
   userId: string;
   leagueId: string;
   role: LeagueRole;
-  teamId: string;
+  teamName: string;
+  teamId: string; // Auto-generated unique ID
+  capSpace: number;
+  roster: RosterSlot[]; // Updated to proper type
   joinedAt: Date;
   isActive: boolean;
   permissions: LeaguePermissions;
@@ -167,14 +171,28 @@ export class LeagueMembershipService {
     leagueId: string,
     userId: string,
     role: LeagueRole,
-    teamId: string
+    teamName?: string
   ): Promise<void> {
     try {
+      // Get user's display name for default team name
+      const currentUser = this.authService.currentUser();
+      const defaultTeamName =
+        teamName || currentUser?.displayName || `Team ${userId.slice(-4)}`;
+
+      // Generate unique team ID
+      const teamId = `team_${leagueId}_${userId}_${Date.now()}`;
+
+      // Default cap space (200M as per your league rules)
+      const defaultCapSpace = 200000000;
+
       const member: Omit<FirestoreLeagueMember, 'joinedAt'> = {
         userId,
         leagueId,
         role,
+        teamName: defaultTeamName,
         teamId,
+        capSpace: defaultCapSpace,
+        roster: [],
         isActive: true,
         permissions: this.getRolePermissions(role),
       };
@@ -361,42 +379,55 @@ export class LeagueMembershipService {
         return;
       }
 
+      console.log('Loading user memberships for user:', currentUser.uid);
+
       // Query all leagues where user is a member
       const memberships: LeagueMember[] = [];
 
-      // This is a simplified approach - in production you'd want to use a composite index
-      // or store user memberships in a separate collection for better querying
+      // Get all leagues and check if user has a membership document
       const leaguesRef = collection(this.db, 'leagues');
       const leaguesSnapshot = await getDocs(leaguesRef);
 
-      for (const leagueDoc of leaguesSnapshot.docs) {
-        const leagueData = leagueDoc.data();
-        if (leagueData['memberUserIds']?.includes(currentUser.uid)) {
-          // Get the specific member document
-          const memberRef = doc(
-            this.db,
-            'leagues',
-            leagueDoc.id,
-            'members',
-            currentUser.uid
-          );
-          const memberSnap = await getDoc(memberRef);
+      console.log(
+        'Found leagues:',
+        leaguesSnapshot.docs.map((doc) => ({ id: doc.id, data: doc.data() }))
+      );
 
-          if (memberSnap.exists()) {
-            const memberData = memberSnap.data() as FirestoreLeagueMember;
-            memberships.push({
-              userId: memberData.userId,
-              leagueId: memberData.leagueId,
-              role: memberData.role,
-              teamId: memberData.teamId,
-              joinedAt: memberData.joinedAt.toDate(),
-              isActive: memberData.isActive,
-              permissions: memberData.permissions,
-            });
-          }
+      for (const leagueDoc of leaguesSnapshot.docs) {
+        const leagueId = leagueDoc.id;
+
+        // Check if user has a membership document in this league
+        const memberRef = doc(
+          this.db,
+          'leagues',
+          leagueId,
+          'members',
+          currentUser.uid
+        );
+        const memberSnap = await getDoc(memberRef);
+
+        if (memberSnap.exists()) {
+          const memberData = memberSnap.data() as FirestoreLeagueMember;
+          console.log('Found membership for league:', leagueId, memberData);
+
+          memberships.push({
+            userId: memberData.userId,
+            leagueId: memberData.leagueId,
+            role: memberData.role,
+            teamName: memberData.teamName,
+            teamId: memberData.teamId,
+            capSpace: memberData.capSpace,
+            roster: memberData.roster,
+            joinedAt: memberData.joinedAt.toDate(),
+            isActive: memberData.isActive,
+            permissions: memberData.permissions,
+          });
+        } else {
+          console.log('No membership found for user in league:', leagueId);
         }
       }
 
+      console.log('Total memberships found:', memberships.length);
       this._userMemberships.set(memberships);
     } catch (error) {
       console.error('Error loading user memberships:', error);
@@ -405,6 +436,62 @@ export class LeagueMembershipService {
       );
     } finally {
       this._isLoading.set(false);
+    }
+  }
+
+  /**
+   * Get the current user's membership for a specific league
+   */
+  async getCurrentUserMembership(
+    leagueId: string
+  ): Promise<LeagueMember | null> {
+    try {
+      const currentUser = this.authService.currentUser();
+      if (!currentUser) {
+        return null;
+      }
+
+      // Check if user memberships are already loaded
+      if (this._userMemberships().length === 0) {
+        await this.loadUserMemberships();
+      }
+
+      // Find the membership for this league
+      const membership = this._userMemberships().find(
+        (m) => m.leagueId === leagueId && m.isActive
+      );
+
+      return membership || null;
+    } catch (error) {
+      console.error('Error getting current user membership:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if the current user is a member of a specific league
+   */
+  async isUserLeagueMember(leagueId: string): Promise<boolean> {
+    try {
+      const currentUser = this.authService.currentUser();
+      if (!currentUser) {
+        return false;
+      }
+
+      // Check if user memberships are already loaded
+      if (this._userMemberships().length === 0) {
+        await this.loadUserMemberships();
+      }
+
+      // Check if user is a member of this league
+      const isMember = this._userMemberships().some(
+        (membership) => membership.leagueId === leagueId && membership.isActive
+      );
+
+      return isMember;
+    } catch (error) {
+      console.error('Error checking if user is league member:', error);
+      return false;
     }
   }
 
@@ -423,7 +510,10 @@ export class LeagueMembershipService {
           userId: data.userId,
           leagueId: data.leagueId,
           role: data.role,
+          teamName: data.teamName,
           teamId: data.teamId,
+          capSpace: data.capSpace,
+          roster: data.roster,
           joinedAt: data.joinedAt.toDate(),
           isActive: data.isActive,
           permissions: data.permissions,

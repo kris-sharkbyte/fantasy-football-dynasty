@@ -118,7 +118,7 @@
       </div>
 
       <!-- Roster Settings -->
-      <div class="settings-section">
+      <div class="settings-section" formGroupName="roster">
         <h3 class="text-lg font-semibold text-secondary-800 mb-4">
           Roster Requirements
         </h3>
@@ -133,7 +133,7 @@
             </label>
             <p-inputNumber
               id="minPlayers"
-              formControlName="roster.minPlayers"
+              formControlName="minPlayers"
               [min]="10"
               [max]="20"
               placeholder="15"
@@ -156,7 +156,7 @@
             </label>
             <p-inputNumber
               id="maxPlayers"
-              formControlName="roster.maxPlayers"
+              formControlName="maxPlayers"
               [min]="20"
               [max]="35"
               placeholder="25"
@@ -172,7 +172,7 @@
         </div>
 
         <!-- Position Requirements -->
-        <div class="mt-6">
+        <div class="mt-6" formGroupName="positionRequirements">
           <h4 class="text-md font-medium text-secondary-700 mb-3">
             Position Requirements
           </h4>
@@ -185,7 +185,7 @@
               >
               <p-inputNumber
                 id="qb"
-                formControlName="roster.positionRequirements.QB"
+                formControlName="QB"
                 [min]="1"
                 [max]="5"
                 placeholder="2"
@@ -201,7 +201,7 @@
               >
               <p-inputNumber
                 id="rb"
-                formControlName="roster.positionRequirements.RB"
+                formControlName="RB"
                 [min]="2"
                 [max]="8"
                 placeholder="4"
@@ -217,7 +217,7 @@
               >
               <p-inputNumber
                 id="wr"
-                formControlName="roster.positionRequirements.WR"
+                formControlName="WR"
                 [min]="2"
                 [max]="10"
                 placeholder="6"
@@ -233,7 +233,7 @@
               >
               <p-inputNumber
                 id="te"
-                formControlName="roster.positionRequirements.TE"
+                formControlName="TE"
                 [min]="1"
                 [max]="4"
                 placeholder="2"
@@ -249,7 +249,7 @@
               >
               <p-inputNumber
                 id="k"
-                formControlName="roster.positionRequirements.K"
+                formControlName="K"
                 [min]="1"
                 [max]="2"
                 placeholder="1"
@@ -265,7 +265,7 @@
               >
               <p-inputNumber
                 id="def"
-                formControlName="roster.positionRequirements.DEF"
+                formControlName="DEF"
                 [min]="1"
                 [max]="2"
                 placeholder="1"
@@ -282,7 +282,7 @@
               <input
                 type="checkbox"
                 id="allowIR"
-                formControlName="roster.allowIR"
+                formControlName="allowIR"
                 class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500"
               />
               <label
@@ -302,7 +302,7 @@
               </label>
               <p-inputNumber
                 id="maxIR"
-                formControlName="roster.maxIR"
+                formControlName="maxIR"
                 [min]="0"
                 [max]="10"
                 placeholder="3"
@@ -317,7 +317,7 @@
               <input
                 type="checkbox"
                 id="allowTaxi"
-                formControlName="roster.allowTaxi"
+                formControlName="allowTaxi"
                 class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500"
               />
               <label
@@ -337,7 +337,7 @@
               </label>
               <p-inputNumber
                 id="maxTaxi"
-                formControlName="roster.maxTaxi"
+                formControlName="maxTaxi"
                 [min]="0"
                 [max]="8"
                 placeholder="4"
@@ -401,7 +401,39 @@
                 (onClick)="clearDraftOrder()"
                 [disabled]="draftOrder.length === 0"
               ></p-button>
+
+              <p-button
+                label="Simulate Draft"
+                icon="pi pi-play"
+                severity="success"
+                (onClick)="simulateDraft()"
+                [disabled]="draftOrder.length === 0"
+              ></p-button>
             </div>
+
+            <!-- Draft Simulation Progress -->
+            @if (draftSimulationService.isSimulating()) {
+            <div class="draft-progress mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="text-sm font-medium text-blue-800">
+                  Draft Simulation in Progress...
+                </h4>
+                <span class="text-sm text-blue-600">
+                  {{ draftSimulationService.progress().current }} / {{ draftSimulationService.progress().total }} picks
+                </span>
+              </div>
+              
+              <p-progressBar 
+                [value]="draftSimulationService.progress().percentage"
+                [showValue]="false"
+                styleClass="h-2"
+              ></p-progressBar>
+              
+              <p class="text-xs text-blue-600 mt-2">
+                {{ draftSimulationService.progress().percentage }}% Complete
+              </p>
+            </div>
+            }
           </div>
         </div>
       </div>
@@ -456,4 +488,7 @@
       </div>
     </ng-template>
   </p-card>
+
+  <!-- Confirm Dialog for Draft Simulation -->
+  <p-confirmDialog></p-confirmDialog>
 </div>

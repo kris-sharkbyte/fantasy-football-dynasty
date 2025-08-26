@@ -15,9 +15,13 @@ import { TextareaModule } from 'primeng/textarea';
 import { CheckboxModule } from 'primeng/checkbox';
 import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { ProgressBarModule } from 'primeng/progressbar';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ConfirmationService } from 'primeng/api';
 import { LeagueService } from '../../services/league.service';
 import { League } from '@fantasy-football-dynasty/types';
 import { MessageService } from 'primeng/api';
+import { DraftSimulationService } from '../../services/draft-simulation.service';
 
 @Component({
   selector: 'app-league-settings',
@@ -34,8 +38,10 @@ import { MessageService } from 'primeng/api';
     CheckboxModule,
     MessageModule,
     ProgressSpinnerModule,
+    ProgressBarModule,
+    ConfirmDialogModule,
   ],
-  providers: [MessageService],
+  providers: [MessageService, ConfirmationService],
   templateUrl: './league-settings.component.html',
   styleUrls: ['./league-settings.component.scss'],
 })
@@ -51,7 +57,9 @@ export class LeagueSettingsComponent implements OnInit {
 
   private readonly leagueService = inject(LeagueService);
   private readonly messageService = inject(MessageService);
+  private readonly confirmationService = inject(ConfirmationService);
   private readonly fb = inject(FormBuilder);
+  public readonly draftSimulationService = inject(DraftSimulationService);
 
   constructor() {
     this.settingsForm = this.fb.group({
@@ -276,6 +284,62 @@ export class LeagueSettingsComponent implements OnInit {
         severity: 'error',
         summary: 'Clear Failed',
         detail: 'Failed to clear draft order. Please try again.',
+      });
+    }
+  }
+
+  /**
+   * Simulate draft with confirmation
+   */
+  simulateDraft(): void {
+    this.confirmationService.confirm({
+      message:
+        'Are you sure you want to simulate the draft? This will automatically fill all team rosters based on league rules and available players.',
+      header: 'Confirm Draft Simulation',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        this.executeDraftSimulation();
+      },
+      reject: () => {
+        this.messageService.add({
+          severity: 'info',
+          summary: 'Simulation Cancelled',
+          detail: 'Draft simulation was cancelled.',
+        });
+      },
+    });
+  }
+
+  /**
+   * Execute the draft simulation
+   */
+  private async executeDraftSimulation(): Promise<void> {
+    try {
+      this.messageService.add({
+        severity: 'info',
+        summary: 'Draft Simulation',
+        detail: 'Starting draft simulation...',
+      });
+
+      // Call the actual draft simulation service
+      await this.draftSimulationService.simulateDraft(this.league().id);
+
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Draft Simulation',
+        detail:
+          'Draft simulation completed successfully! Teams now have players.',
+      });
+
+      // Refresh the league data to show updated rosters
+      // TODO: Add method to refresh league data
+    } catch (error) {
+      console.error('Draft simulation failed:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Draft Simulation Failed',
+        detail:
+          error instanceof Error ? error.message : 'Unknown error occurred',
       });
     }
   }

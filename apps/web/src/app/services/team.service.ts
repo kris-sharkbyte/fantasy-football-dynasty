@@ -373,12 +373,15 @@ export class TeamService {
       DEF: 0,
     };
 
-    team.roster.forEach((slot) => {
-      playersByPosition[slot.position]++;
-    });
+    // Handle case where roster might be undefined (during draft)
+    if (team.roster && Array.isArray(team.roster)) {
+      team.roster.forEach((slot) => {
+        playersByPosition[slot.position]++;
+      });
+    }
 
     return {
-      totalPlayers: team.roster.length,
+      totalPlayers: team.roster?.length || 0,
       playersByPosition,
       capSpace: team.capSpace,
       totalCapHit: 0, // TODO: Calculate from contracts

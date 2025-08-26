@@ -60,6 +60,14 @@ export const routes: Routes = [
           ),
         canActivate: [selectedLeagueGuard],
       },
+      {
+        path: ':id/roster',
+        loadComponent: () =>
+          import('./leagues/my-roster/my-roster.component').then(
+            (m) => m.MyRosterComponent
+          ),
+        canActivate: [selectedLeagueGuard],
+      },
     ],
   },
   {

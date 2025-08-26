@@ -15,6 +15,9 @@
       <button class="btn-primary" (click)="goToDraft()">
         🏈 Enter Draft Room
       </button>
+      <button class="btn-secondary" (click)="goToMyRoster()">
+        👥 View My Roster
+      </button>
       @if (canManageLeague()) {
       <button class="btn-secondary" (click)="showSettings()">
         ⚙️ League Settings
@@ -32,6 +35,6 @@
   (visibleChange)="onEditTeamModalVisibleChange($event)"
 ></app-edit-team-modal>
 
-@if (showSettingsView) {
-<app-league-settings [league]="mockLeague"></app-league-settings>
-}
+@if (showSettingsView) { @if (league()) {
+<app-league-settings [league]="league()!"></app-league-settings>
+} }

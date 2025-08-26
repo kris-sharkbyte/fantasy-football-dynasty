@@ -18,30 +18,61 @@ export const selectedLeagueGuard: CanActivateFn = async (route, state) => {
   }
 
   try {
-    // Verify the user has access to this league
-    const canViewAllTeams = await leagueMembershipService.hasLeaguePermission(
-      leagueId,
-      'canViewAllTeams'
-    );
-    if (!canViewAllTeams) {
-      console.error('User does not have access to league:', leagueId);
-      router.navigate(['/leagues']);
-      return false;
+    // Set the selected league ID if not already set
+    const selectedLeagueId = leagueService.selectedLeagueId();
+    if (selectedLeagueId !== leagueId) {
+      console.log('Setting selected league ID in guard:', leagueId);
+      leagueService.setSelectedLeagueId(leagueId);
     }
 
-    // Check if the selected league matches the route league ID
-    const selectedLeagueId = leagueService.selectedLeagueId();
-    console.log('Selected league guard: Selected league ID:', selectedLeagueId);
-    if (selectedLeagueId !== leagueId) {
+    console.log('Selected league guard: Selected league ID:', leagueId);
+
+    // Check route-specific permissions
+    const isRosterRoute = state.url.includes('/roster');
+
+    if (isRosterRoute) {
+      // For roster route, check if user is a member using existing data
+      let existingMemberships = leagueMembershipService.userMemberships();
+
       console.log(
-        'Selected league guard: Route league ID does not match selected league:',
-        {
-          routeLeagueId: leagueId,
-          selectedLeagueId,
-        }
+        'Roster route check - Initial memberships:',
+        existingMemberships
       );
-      router.navigate(['/leagues']);
-      return false;
+
+      // If no memberships loaded yet, load them first
+      if (existingMemberships.length === 0) {
+        console.log('No memberships loaded yet, loading now...');
+        await leagueMembershipService.loadUserMemberships();
+        existingMemberships = leagueMembershipService.userMemberships();
+        console.log('Memberships after loading:', existingMemberships);
+      }
+
+      const isMember = existingMemberships.some(
+        (m) => m.leagueId === leagueId && m.isActive
+      );
+      console.log('Membership check result:', {
+        leagueId,
+        isMember,
+        memberships: existingMemberships,
+      });
+
+      if (!isMember) {
+        console.error('User is not a member of league:', leagueId);
+        console.log('Existing memberships:', existingMemberships);
+        router.navigate(['/leagues']);
+        return false;
+      }
+    } else {
+      // For other routes, user needs canViewAllTeams permission
+      const canViewAllTeams = await leagueMembershipService.hasLeaguePermission(
+        leagueId,
+        'canViewAllTeams'
+      );
+      if (!canViewAllTeams) {
+        console.error('User does not have access to league:', leagueId);
+        router.navigate(['/leagues']);
+        return false;
+      }
     }
 
     console.log('Selected league guard: Access granted for league:', leagueId);

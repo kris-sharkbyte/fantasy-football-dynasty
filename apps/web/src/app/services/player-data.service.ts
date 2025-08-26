@@ -66,19 +66,45 @@ export class PlayerDataService {
       this._isLoading.set(true);
       this._error.set(null);
 
+      console.log(
+        'PlayerDataService: Starting to load players from /players-nfl.json'
+      );
+
       // Load the players JSON file
       const response = await fetch('/players-nfl.json');
+      console.log(
+        'PlayerDataService: Fetch response status:',
+        response.status,
+        response.statusText
+      );
+
       if (!response.ok) {
-        throw new Error('Failed to load players data');
+        throw new Error(
+          `Failed to load players data: ${response.status} ${response.statusText}`
+        );
       }
 
+      console.log('PlayerDataService: Parsing JSON response...');
       const playersData: Record<string, SleeperPlayer> = await response.json();
+
+      console.log('PlayerDataService: JSON parsed successfully');
+      console.log(
+        'PlayerDataService: Player count:',
+        Object.keys(playersData).length
+      );
+      console.log(
+        'PlayerDataService: Sample player keys:',
+        Object.keys(playersData).slice(0, 5)
+      );
+
       this._players.set(playersData);
+      console.log('PlayerDataService: Players loaded into signal successfully');
     } catch (error) {
-      console.error('Error loading players:', error);
+      console.error('PlayerDataService: Error loading players:', error);
       this._error.set(
         error instanceof Error ? error.message : 'Failed to load players'
       );
+      throw error; // Re-throw to let caller handle
     } finally {
       this._isLoading.set(false);
     }
@@ -96,10 +122,13 @@ export class PlayerDataService {
    */
   searchPlayers(filters: PlayerSearchFilters = {}): SleeperPlayer[] {
     const allPlayers = Object.values(this._players());
-    
-    return allPlayers.filter(player => {
+
+    return allPlayers.filter((player) => {
       // Position filter
-      if (filters.position && !player.fantasy_positions.includes(filters.position)) {
+      if (
+        filters.position &&
+        !player.fantasy_positions.includes(filters.position)
+      ) {
         return false;
       }
 
@@ -120,10 +149,16 @@ export class PlayerDataService {
 
       // Years experience filter
       if (filters.yearsExp) {
-        if (filters.yearsExp.min !== undefined && player.years_exp < filters.yearsExp.min) {
+        if (
+          filters.yearsExp.min !== undefined &&
+          player.years_exp < filters.yearsExp.min
+        ) {
           return false;
         }
-        if (filters.yearsExp.max !== undefined && player.years_exp > filters.yearsExp.max) {
+        if (
+          filters.yearsExp.max !== undefined &&
+          player.years_exp > filters.yearsExp.max
+        ) {
           return false;
         }
       }
