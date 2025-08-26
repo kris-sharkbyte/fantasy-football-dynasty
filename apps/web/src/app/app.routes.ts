@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { AuthGuard } from './guards/auth.guard';
 import { GuestGuard } from './guards/guest.guard';
+import { selectedLeagueGuard } from './guards/selected-league.guard';
 import { AppLayout } from './layout/component/app.layout';
 import { WebLayout } from './layout/component/web.layout';
 import { DraftLayout } from './layout/component/draft.layout';
@@ -57,6 +58,7 @@ export const routes: Routes = [
           import('./leagues/league-detail/league-detail.component').then(
             (m) => m.LeagueDetailComponent
           ),
+        canActivate: [selectedLeagueGuard],
       },
     ],
   },
@@ -83,7 +85,7 @@ export const routes: Routes = [
   {
     path: 'draft/:leagueId',
     component: DraftLayout,
-    canActivate: [AuthGuard],
+    canActivate: [AuthGuard, selectedLeagueGuard],
     children: [
       {
         path: '',

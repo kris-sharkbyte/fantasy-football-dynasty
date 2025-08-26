@@ -33,6 +33,7 @@ export interface LeagueRules {
   contracts: ContractRules;
   draft: DraftRules;
   freeAgency: FreeAgencyRules;
+  roster: RosterRules;
 }
 
 export interface ScoringRules {
@@ -79,6 +80,16 @@ export interface DraftRules {
   bidIncrement?: number;
   bidTimeLimit?: number; // seconds per bid
   capHoldMultiplier?: number; // auction price * multiplier = cap hold
+}
+
+export interface RosterRules {
+  minPlayers: number;
+  maxPlayers: number;
+  positionRequirements: Record<Position, number>;
+  allowIR: boolean;
+  allowTaxi: boolean;
+  maxIR: number;
+  maxTaxi: number;
 }
 
 export type DraftMode = 'snake' | 'auction' | 'linear';

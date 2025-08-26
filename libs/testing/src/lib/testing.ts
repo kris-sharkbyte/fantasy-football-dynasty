@@ -43,6 +43,22 @@ export class TestFixtures {
         bidRounds: 30,
         tieBreakers: ['guarantees', 'apy', 'length', 'random'],
       },
+      roster: {
+        minPlayers: 15,
+        maxPlayers: 25,
+        positionRequirements: {
+          QB: 2,
+          RB: 4,
+          WR: 6,
+          TE: 2,
+          K: 1,
+          DEF: 1,
+        },
+        allowIR: true,
+        allowTaxi: true,
+        maxIR: 3,
+        maxTaxi: 4,
+      },
       ...overrides,
     };
   }

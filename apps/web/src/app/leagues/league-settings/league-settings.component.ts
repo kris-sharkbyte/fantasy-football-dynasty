@@ -1,6 +1,11 @@
 import { Component, input, signal, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import {
+  ReactiveFormsModule,
+  FormBuilder,
+  FormGroup,
+  Validators,
+} from '@angular/forms';
 import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -36,7 +41,7 @@ import { MessageService } from 'primeng/api';
 })
 export class LeagueSettingsComponent implements OnInit {
   league = input.required<League>();
-  
+
   settingsForm: FormGroup;
   isSaving = signal(false);
   isPrivate = signal(false);
@@ -53,6 +58,34 @@ export class LeagueSettingsComponent implements OnInit {
       name: ['', [Validators.required, Validators.minLength(3)]],
       description: [''],
       isPrivate: [false],
+      roster: this.fb.group({
+        minPlayers: [
+          15,
+          [Validators.required, Validators.min(10), Validators.max(20)],
+        ],
+        maxPlayers: [
+          25,
+          [Validators.required, Validators.min(20), Validators.max(35)],
+        ],
+        positionRequirements: this.fb.group({
+          QB: [2, [Validators.required, Validators.min(1), Validators.max(5)]],
+          RB: [4, [Validators.required, Validators.min(2), Validators.max(8)]],
+          WR: [6, [Validators.required, Validators.min(2), Validators.max(10)]],
+          TE: [2, [Validators.required, Validators.min(1), Validators.max(4)]],
+          K: [1, [Validators.required, Validators.min(1), Validators.max(2)]],
+          DEF: [1, [Validators.required, Validators.min(1), Validators.max(2)]],
+        }),
+        allowIR: [true],
+        allowTaxi: [true],
+        maxIR: [
+          3,
+          [Validators.required, Validators.min(0), Validators.max(10)],
+        ],
+        maxTaxi: [
+          4,
+          [Validators.required, Validators.min(0), Validators.max(8)],
+        ],
+      }),
     });
   }
 
@@ -67,8 +100,24 @@ export class LeagueSettingsComponent implements OnInit {
       name: league.name,
       description: league.description || '',
       isPrivate: league.isPrivate,
+      roster: {
+        minPlayers: league.rules.roster?.minPlayers || 15,
+        maxPlayers: league.rules.roster?.maxPlayers || 25,
+        positionRequirements: {
+          QB: league.rules.roster?.positionRequirements?.QB || 2,
+          RB: league.rules.roster?.positionRequirements?.RB || 4,
+          WR: league.rules.roster?.positionRequirements?.WR || 6,
+          TE: league.rules.roster?.positionRequirements?.TE || 2,
+          K: league.rules.roster?.positionRequirements?.K || 1,
+          DEF: league.rules.roster?.positionRequirements?.DEF || 1,
+        },
+        allowIR: league.rules.roster?.allowIR ?? true,
+        allowTaxi: league.rules.roster?.allowTaxi ?? true,
+        maxIR: league.rules.roster?.maxIR || 3,
+        maxTaxi: league.rules.roster?.maxTaxi || 4,
+      },
     });
-    
+
     this.isPrivate.set(league.isPrivate);
     this.joinCode.set(league.joinCode || '');
   }
@@ -86,12 +135,16 @@ export class LeagueSettingsComponent implements OnInit {
     try {
       this.isSaving.set(true);
       const formData = this.settingsForm.value;
-      
+
       // Update league settings
       await this.leagueService.updateLeague(this.league().id, {
         name: formData.name,
         description: formData.description,
         isPrivate: formData.isPrivate,
+        rules: {
+          ...this.league().rules,
+          roster: formData.roster,
+        },
       });
 
       this.messageService.add({
@@ -116,19 +169,22 @@ export class LeagueSettingsComponent implements OnInit {
 
   copyJoinCode(): void {
     if (this.joinCode()) {
-      navigator.clipboard.writeText(this.joinCode()).then(() => {
-        this.messageService.add({
-          severity: 'success',
-          summary: 'Code Copied',
-          detail: 'Join code copied to clipboard!',
+      navigator.clipboard
+        .writeText(this.joinCode())
+        .then(() => {
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Code Copied',
+            detail: 'Join code copied to clipboard!',
+          });
+        })
+        .catch(() => {
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Copy Failed',
+            detail: 'Failed to copy join code. Please copy manually.',
+          });
         });
-      }).catch(() => {
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Copy Failed',
-          detail: 'Failed to copy join code. Please copy manually.',
-        });
-      });
     }
   }
 
@@ -147,7 +203,9 @@ export class LeagueSettingsComponent implements OnInit {
    */
   private async loadTeams(): Promise<void> {
     try {
-      const teamsResponse = await this.leagueService.getLeagueTeams(this.league().id);
+      const teamsResponse = await this.leagueService.getLeagueTeams(
+        this.league().id
+      );
       this.teams.set(teamsResponse.teams);
     } catch (error) {
       console.error('Error loading teams:', error);
@@ -158,7 +216,7 @@ export class LeagueSettingsComponent implements OnInit {
    * Get team name by ID
    */
   getTeamName(teamId: string): string {
-    const team = this.teams().find(t => t.id === teamId);
+    const team = this.teams().find((t) => t.id === teamId);
     return team ? team.name : 'Unknown Team';
   }
 
@@ -176,7 +234,7 @@ export class LeagueSettingsComponent implements OnInit {
     try {
       this.isRandomizing.set(true);
       await this.leagueService.randomizeDraftOrder(this.league().id);
-      
+
       this.messageService.add({
         severity: 'success',
         summary: 'Draft Order Updated',
@@ -203,7 +261,7 @@ export class LeagueSettingsComponent implements OnInit {
   async clearDraftOrder(): Promise<void> {
     try {
       await this.leagueService.setDraftOrder(this.league().id, []);
-      
+
       this.messageService.add({
         severity: 'success',
         summary: 'Draft Order Cleared',

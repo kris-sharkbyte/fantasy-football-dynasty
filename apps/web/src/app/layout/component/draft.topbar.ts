@@ -1,4 +1,11 @@
-import { Component, Output, EventEmitter, OnInit } from '@angular/core';
+import {
+  Component,
+  Output,
+  EventEmitter,
+  OnInit,
+  signal,
+  inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { League, DraftState } from '@fantasy-football-dynasty/types';
@@ -44,7 +51,7 @@ import { LeagueMembershipService } from '../../services/league-membership.servic
               <h1
                 class="text-[18px] font-semibold text-surface-900 dark:text-surface-0"
               >
-                {{ draftLayoutService.league()?.name || 'Draft Room' }}
+                {{ league()?.name || 'Draft Room' }}
               </h1>
               <p class="text-sm text-surface-500 dark:text-surface-400">
                 {{ getDraftInfo() }}
@@ -55,13 +62,10 @@ import { LeagueMembershipService } from '../../services/league-membership.servic
           <!-- Center: Start Draft Button -->
           <div class="flex-1 flex justify-center">
             <!-- Start Draft - show when no draft state or draft is paused -->
+
+            @if ( canManageDraft() && (!draftState() ||
+            (!draftState()?.isComplete && draftState()?.isPaused)) ) {
             <button
-              *ngIf="
-                isCommissioner &&
-                (!draftLayoutService.draftState() ||
-                  (!draftLayoutService.draftState()?.isComplete &&
-                    draftLayoutService.draftState()?.isPaused))
-              "
               (click)="startDraft.emit()"
               class="bg-primary-500 hover:bg-primary-600 text-white px-6 py-2 rounded-md font-medium transition-colors flex items-center space-x-2"
             >
@@ -74,15 +78,12 @@ import { LeagueMembershipService } from '../../services/league-membership.servic
               </svg>
               <span>START DRAFT</span>
             </button>
+            }
 
             <!-- Pause Draft - show when draft is active -->
+            @if ( canManageDraft() && draftState() && !draftState()?.isComplete
+            && !draftState()?.isPaused ) {
             <button
-              *ngIf="
-                isCommissioner &&
-                draftLayoutService.draftState() &&
-                !draftLayoutService.draftState()?.isComplete &&
-                !draftLayoutService.draftState()?.isPaused
-              "
               (click)="pauseDraft.emit()"
               class="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-md font-medium transition-colors flex items-center space-x-2"
             >
@@ -95,10 +96,11 @@ import { LeagueMembershipService } from '../../services/league-membership.servic
               </svg>
               <span>PAUSE DRAFT</span>
             </button>
+            }
 
             <!-- Draft Complete -->
+            @if (draftState()?.isComplete) {
             <div
-              *ngIf="draftLayoutService.draftState()?.isComplete"
               class="flex items-center space-x-2 text-surface-600 dark:text-surface-400"
             >
               <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -110,19 +112,15 @@ import { LeagueMembershipService } from '../../services/league-membership.servic
               </svg>
               <span class="font-medium">DRAFT COMPLETE</span>
             </div>
+            }
 
-            <!-- Commissioner Only Message -->
-            <div
-              *ngIf="
-                !isCommissioner &&
-                (!draftLayoutService.draftState() ||
-                  (!draftLayoutService.draftState()?.isComplete &&
-                    draftLayoutService.draftState()?.isPaused))
-              "
-              class="text-surface-500 dark:text-surface-400 text-sm"
-            >
-              Waiting for commissioner to start draft...
+            <!-- Waiting Message -->
+            @if ( !canManageDraft() && (!draftState() ||
+            (!draftState()?.isComplete && draftState()?.isPaused)) ) {
+            <div class="text-surface-500 dark:text-surface-400 text-sm">
+              Waiting for league manager to start draft...
             </div>
+            }
           </div>
 
           <!-- Right: Draft Status and Controls -->
@@ -192,36 +190,50 @@ import { LeagueMembershipService } from '../../services/league-membership.servic
   styles: [``],
 })
 export class DraftTopbar implements OnInit {
+  private readonly leagueService = inject(LeagueService);
+  private readonly leagueMembershipService = inject(LeagueMembershipService);
+  private readonly router = inject(Router);
+  private readonly draftLayoutService = inject(DraftLayoutService);
+
   @Output() startDraft = new EventEmitter<void>();
   @Output() pauseDraft = new EventEmitter<void>();
 
-  isCommissioner = false;
-
-  constructor(
-    public draftLayoutService: DraftLayoutService,
-    private leagueService: LeagueService,
-    private router: Router,
-    private leagueMembershipService: LeagueMembershipService
-  ) {}
+  // Use the reactive permissions from the service
+  canManageDraft = this.leagueMembershipService.canManageDraft;
+  draftState = this.draftLayoutService.draftState;
+  selectedLeagueId = this.leagueService.selectedLeagueId;
+  league = this.draftLayoutService.league;
 
   async ngOnInit() {
-    // Check if user is commissioner for this league
-    await this.checkCommissionerStatus();
+    // Check if user can manage draft for this league
+    await this.checkDraftManagementStatus();
   }
 
-  private async checkCommissionerStatus() {
+  private async checkDraftManagementStatus() {
     try {
-      const selectedLeagueId = this.leagueService.selectedLeagueId();
-      if (selectedLeagueId) {
-        this.isCommissioner =
-          await this.leagueMembershipService.isLeagueCommissioner(
-            selectedLeagueId
-          );
+      const selectedLeagueId = this.selectedLeagueId();
+      const hasSelectedLeague = this.leagueService.hasSelectedLeague();
+      console.log('Checking draft management for league:', {
+        selectedLeagueId,
+        hasSelectedLeague,
+      });
+
+      if (selectedLeagueId && hasSelectedLeague) {
+        // Permissions are now automatically loaded by the LeagueService effect
+        console.log(
+          'Draft management status check completed - permissions loaded automatically'
+        );
+      } else {
+        console.log('No selected league ID found or league not loaded');
       }
     } catch (error) {
-      console.error('Error checking commissioner status:', error);
-      this.isCommissioner = false;
+      console.error('Error checking draft management status:', error);
     }
+  }
+
+  // Public method to refresh draft management status
+  async refreshDraftManagementStatus(): Promise<void> {
+    await this.checkDraftManagementStatus();
   }
 
   goBack() {

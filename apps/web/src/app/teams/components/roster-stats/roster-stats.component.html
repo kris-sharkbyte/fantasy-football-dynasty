@@ -1,0 +1,22 @@
+@if (stats) {
+<div class="roster-stats">
+  <div class="stat-card">
+    <div class="stat-value">{{ stats.totalPlayers }}/25</div>
+    <div class="stat-label">Total Players</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">
+      ${{ stats.capSpace ? (stats.capSpace / 1000000).toFixed(1) : '0.0' }}M
+    </div>
+    <div class="stat-label">Cap Space</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">
+      ${{
+        stats.totalCapHit ? (stats.totalCapHit / 1000000).toFixed(1) : '0.0'
+      }}M
+    </div>
+    <div class="stat-label">Total Cap Hit</div>
+  </div>
+</div>
+}

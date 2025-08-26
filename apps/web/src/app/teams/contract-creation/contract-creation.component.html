@@ -1,0 +1,161 @@
+<div class="contract-creation">
+  <h3>Create Contract for {{ getPlayerName() }}</h3>
+  
+  <form (ngSubmit)="createContract()" #contractForm="ngForm">
+    <!-- Contract Length -->
+    <div class="form-group">
+      <label for="years">Contract Length (Years)</label>
+      <select 
+        id="years" 
+        name="years" 
+        [(ngModel)]="contractData.years"
+        (change)="updateBaseSalaryYears()"
+        required
+        class="form-control"
+      >
+        <option value="1">1 Year</option>
+        <option value="2">2 Years</option>
+        <option value="3">3 Years</option>
+        <option value="4">4 Years</option>
+        <option value="5">5 Years</option>
+      </select>
+    </div>
+
+    <!-- Base Salary by Year -->
+    <div class="form-group">
+      <label>Base Salary by Year</label>
+      <div class="salary-inputs">
+        @for (year of getContractYears(); track year) {
+          <div class="salary-input">
+            <label for="salary-{{ year }}">Year {{ year }}</label>
+            <input 
+              type="number" 
+              id="salary-{{ year }}"
+              name="salary-{{ year }}"
+              [(ngModel)]="contractData.baseSalary[year]"
+              placeholder="0"
+              min="0"
+              step="100000"
+              required
+              class="form-control"
+            >
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Signing Bonus -->
+    <div class="form-group">
+      <label for="signingBonus">Signing Bonus</label>
+      <input 
+        type="number" 
+        id="signingBonus" 
+        name="signingBonus"
+        [(ngModel)]="contractData.signingBonus"
+        placeholder="0"
+        min="0"
+        step="100000"
+        class="form-control"
+      >
+    </div>
+
+    <!-- Guarantees -->
+    <div class="form-group">
+      <label>Guarantees</label>
+      <div class="guarantees-container">
+        @for (guarantee of contractData.guarantees; track $index) {
+          <div class="guarantee-item">
+            <select 
+              [(ngModel)]="guarantee.type"
+              name="guarantee-type-{{ $index }}"
+              class="form-control guarantee-type"
+            >
+              <option value="full">Full Guarantee</option>
+              <option value="injury-only">Injury Only</option>
+            </select>
+            <input 
+              type="number" 
+              [(ngModel)]="guarantee.amount"
+              name="guarantee-amount-{{ $index }}"
+              placeholder="Amount"
+              min="0"
+              step="100000"
+              required
+              class="form-control guarantee-amount"
+            >
+            <select 
+              [(ngModel)]="guarantee.year"
+              name="guarantee-year-{{ $index }}"
+              class="form-control guarantee-year"
+            >
+              @for (year of getContractYears(); track year) {
+                <option [value]="year">Year {{ year }}</option>
+              }
+            </select>
+            <button 
+              type="button" 
+              (click)="removeGuarantee($index)"
+              class="btn btn-danger btn-sm"
+            >
+              Remove
+            </button>
+          </div>
+        }
+        <button 
+          type="button" 
+          (click)="addGuarantee()"
+          class="btn btn-secondary btn-sm"
+        >
+          Add Guarantee
+        </button>
+      </div>
+    </div>
+
+    <!-- No Trade Clause -->
+    <div class="form-group">
+      <label class="checkbox-label">
+        <input 
+          type="checkbox" 
+          [(ngModel)]="contractData.noTradeClause"
+          name="noTradeClause"
+        >
+        No Trade Clause
+      </label>
+    </div>
+
+    <!-- Contract Summary -->
+    <div class="contract-summary">
+      <h4>Contract Summary</h4>
+      <div class="summary-item">
+        <span class="label">Total Value:</span>
+        <span class="value">${{ getTotalValue() / 1000000 }}M</span>
+      </div>
+      <div class="summary-item">
+        <span class="label">Average Annual Value:</span>
+        <span class="value">${{ getAPY() / 1000000 }}M</span>
+      </div>
+      <div class="summary-item">
+        <span class="label">Guaranteed Amount:</span>
+        <span class="value">${{ getGuaranteedAmount() / 1000000 }}M</span>
+      </div>
+    </div>
+
+    <!-- Submit Button -->
+    <div class="form-actions">
+      <button 
+        type="submit" 
+        [disabled]="!contractForm.valid"
+        class="btn btn-primary"
+      >
+        Create Contract
+      </button>
+      <button 
+        type="button" 
+        (click)="cancel()"
+        class="btn btn-secondary"
+      >
+        Cancel
+      </button>
+    </div>
+  </form>
+</div>

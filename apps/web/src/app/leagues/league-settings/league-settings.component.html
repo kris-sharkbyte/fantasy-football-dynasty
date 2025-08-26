@@ -117,6 +117,238 @@
         }
       </div>
 
+      <!-- Roster Settings -->
+      <div class="settings-section">
+        <h3 class="text-lg font-semibold text-secondary-800 mb-4">
+          Roster Requirements
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="field">
+            <label
+              for="minPlayers"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              Minimum Players *
+            </label>
+            <p-inputNumber
+              id="minPlayers"
+              formControlName="roster.minPlayers"
+              [min]="10"
+              [max]="20"
+              placeholder="15"
+              class="w-full"
+            ></p-inputNumber>
+            @if (settingsForm.get('roster.minPlayers')?.invalid &&
+            settingsForm.get('roster.minPlayers')?.touched) {
+            <small class="p-error"
+              >Minimum players must be between 10 and 20</small
+            >
+            }
+          </div>
+
+          <div class="field">
+            <label
+              for="maxPlayers"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              Maximum Players *
+            </label>
+            <p-inputNumber
+              id="maxPlayers"
+              formControlName="roster.maxPlayers"
+              [min]="20"
+              [max]="35"
+              placeholder="25"
+              class="w-full"
+            ></p-inputNumber>
+            @if (settingsForm.get('roster.maxPlayers')?.invalid &&
+            settingsForm.get('roster.maxPlayers')?.touched) {
+            <small class="p-error"
+              >Maximum players must be between 20 and 35</small
+            >
+            }
+          </div>
+        </div>
+
+        <!-- Position Requirements -->
+        <div class="mt-6">
+          <h4 class="text-md font-medium text-secondary-700 mb-3">
+            Position Requirements
+          </h4>
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div class="field">
+              <label
+                for="qb"
+                class="block text-sm font-medium text-secondary-600 mb-1"
+                >QB</label
+              >
+              <p-inputNumber
+                id="qb"
+                formControlName="roster.positionRequirements.QB"
+                [min]="1"
+                [max]="5"
+                placeholder="2"
+                class="w-full"
+              ></p-inputNumber>
+            </div>
+
+            <div class="field">
+              <label
+                for="rb"
+                class="block text-sm font-medium text-secondary-600 mb-1"
+                >RB</label
+              >
+              <p-inputNumber
+                id="rb"
+                formControlName="roster.positionRequirements.RB"
+                [min]="2"
+                [max]="8"
+                placeholder="4"
+                class="w-full"
+              ></p-inputNumber>
+            </div>
+
+            <div class="field">
+              <label
+                for="wr"
+                class="block text-sm font-medium text-secondary-600 mb-1"
+                >WR</label
+              >
+              <p-inputNumber
+                id="wr"
+                formControlName="roster.positionRequirements.WR"
+                [min]="2"
+                [max]="10"
+                placeholder="6"
+                class="w-full"
+              ></p-inputNumber>
+            </div>
+
+            <div class="field">
+              <label
+                for="te"
+                class="block text-sm font-medium text-secondary-600 mb-1"
+                >TE</label
+              >
+              <p-inputNumber
+                id="te"
+                formControlName="roster.positionRequirements.TE"
+                [min]="1"
+                [max]="4"
+                placeholder="2"
+                class="w-full"
+              ></p-inputNumber>
+            </div>
+
+            <div class="field">
+              <label
+                for="k"
+                class="block text-sm font-medium text-secondary-600 mb-1"
+                >K</label
+              >
+              <p-inputNumber
+                id="k"
+                formControlName="roster.positionRequirements.K"
+                [min]="1"
+                [max]="2"
+                placeholder="1"
+                class="w-full"
+              ></p-inputNumber>
+            </div>
+
+            <div class="field">
+              <label
+                for="def"
+                class="block text-sm font-medium text-secondary-600 mb-1"
+                >DEF</label
+              >
+              <p-inputNumber
+                id="def"
+                formControlName="roster.positionRequirements.DEF"
+                [min]="1"
+                [max]="2"
+                placeholder="1"
+                class="w-full"
+              ></p-inputNumber>
+            </div>
+          </div>
+        </div>
+
+        <!-- IR and Taxi Settings -->
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="field">
+            <div class="flex items-center gap-3 mb-3">
+              <input
+                type="checkbox"
+                id="allowIR"
+                formControlName="roster.allowIR"
+                class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500"
+              />
+              <label
+                for="allowIR"
+                class="text-sm font-medium text-secondary-700"
+              >
+                Allow Injured Reserve (IR)
+              </label>
+            </div>
+            @if (settingsForm.get('roster.allowIR')?.value) {
+            <div class="ml-7">
+              <label
+                for="maxIR"
+                class="block text-sm font-medium text-secondary-600 mb-1"
+              >
+                Max IR Spots
+              </label>
+              <p-inputNumber
+                id="maxIR"
+                formControlName="roster.maxIR"
+                [min]="0"
+                [max]="10"
+                placeholder="3"
+                class="w-full"
+              ></p-inputNumber>
+            </div>
+            }
+          </div>
+
+          <div class="field">
+            <div class="flex items-center gap-3 mb-3">
+              <input
+                type="checkbox"
+                id="allowTaxi"
+                formControlName="roster.allowTaxi"
+                class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500"
+              />
+              <label
+                for="allowTaxi"
+                class="text-sm font-medium text-secondary-700"
+              >
+                Allow Taxi Squad
+              </label>
+            </div>
+            @if (settingsForm.get('roster.allowTaxi')?.value) {
+            <div class="ml-7">
+              <label
+                for="maxTaxi"
+                class="block text-sm font-medium text-secondary-600 mb-1"
+              >
+                Max Taxi Spots
+              </label>
+              <p-inputNumber
+                id="maxTaxi"
+                formControlName="roster.maxTaxi"
+                [min]="0"
+                [max]="8"
+                placeholder="4"
+                class="w-full"
+              ></p-inputNumber>
+            </div>
+            }
+          </div>
+        </div>
+      </div>
+
       <!-- Draft Order Management -->
       <div class="settings-section">
         <h3 class="text-lg font-semibold text-secondary-800 mb-4">

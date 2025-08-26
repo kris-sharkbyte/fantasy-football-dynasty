@@ -158,30 +158,30 @@ Currently no tasks in progress.
   - [ ] User statistics and achievements
   - [ ] Privacy and notification settings
 
-- [ ] **Team Management**
+- [x] **Team Management**
 
-  - [ ] Team dashboard with cap sheet
-  - [ ] Roster management interface
-  - [ ] Contract overview and details
-  - [ ] Cap space calculations
-  - [ ] Multi-year cap projections
+  - [x] Team dashboard with cap sheet
+  - [x] Roster management interface
+  - [x] Contract overview and details
+  - [x] Cap space calculations
+  - [x] Multi-year cap projections
 
-- [ ] **Player Database Enhancement**
-  - [ ] Import NFL player data
-  - [ ] Advanced search and filtering
-  - [ ] Player detail pages
-  - [ ] Stats integration
-  - [ ] Player comparison tools
+- [x] **Player Database Enhancement**
+  - [x] Import NFL player data
+  - [x] Advanced search and filtering
+  - [x] Player detail pages
+  - [x] Stats integration
+  - [x] Player comparison tools
 
 ### 💰 Phase 3: Contract & Cap Management (Week 5-6)
 
-- [ ] **Contract System**
+- [x] **Contract System**
 
-  - [ ] Contract creation and editing
-  - [ ] Salary structure with guarantees
-  - [ ] Signing bonus proration
-  - [ ] Contract validation rules
-  - [ ] Dead money calculations
+  - [x] Contract creation and editing
+  - [x] Salary structure with guarantees
+  - [x] Signing bonus proration
+  - [x] Contract validation rules
+  - [x] Dead money calculations
 
 - [ ] **Salary Cap Features**
 
@@ -191,12 +191,15 @@ Currently no tasks in progress.
   - [ ] Dead money tracking
   - [ ] Cap penalty system
 
-- [ ] **Roster Management**
-  - [ ] Player signing workflow
-  - [ ] Contract extensions
-  - [ ] Player releases with dead money
-  - [ ] Roster size validation
-  - [ ] Position requirements
+- [x] **Roster Management**
+  - [x] Player signing workflow
+  - [x] Contract extensions
+  - [x] Player releases with dead money
+  - [x] Roster size validation
+  - [x] Position requirements
+  - [x] **Configurable roster rules per league**
+  - [x] **Position requirements configuration**
+  - [x] **IR and taxi squad settings**
 
 ### 🎯 Phase 4: Free Agency System (Week 7-8)
 
@@ -434,7 +437,7 @@ Currently no tasks in progress.
 
 ## 🎯 Current Status Summary
 
-**Overall Progress: 80% Complete**
+**Overall Progress: 95% Complete**
 
 - ✅ **Foundation (100%)** - Project setup, architecture, core libraries
 - ✅ **Backend Structure (80%)** - Firebase Functions, basic endpoints
@@ -443,10 +446,10 @@ Currently no tasks in progress.
 - ✅ **Theme System (100%)** - Dark/light mode with persistence and transitions
 - ✅ **Modal System (100%)** - Complete Sleeper-style authentication system
 - ✅ **Leagues Layout (100%)** - Sleeper-style sidebar layout with navigation
-- ❌ **Core Features (0%)** - Not started
+- ✅ **Core Features (90%)** - Team management, roster management, draft simulation, contract creation
 - ❌ **Real-time Features (0%)** - Not started
 
-**Next Priority:** Move to Phase 2 - Core League Features (League Creation Wizard)
+**Next Priority:** Move to Phase 3 - Contract & Cap Management (Salary Cap Features)
 
 ---
 

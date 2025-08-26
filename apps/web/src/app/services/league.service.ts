@@ -1,4 +1,4 @@
-import { Injectable, signal, computed, inject } from '@angular/core';
+import { Injectable, signal, computed, effect, inject } from '@angular/core';
 import {
   collection,
   doc,
@@ -75,6 +75,26 @@ export class LeagueService {
   public error = this._error.asReadonly();
   public hasLeagues = computed(() => this._userLeagues().length > 0);
   public selectedLeagueId = this._selectedLeagueId.asReadonly();
+  public hasSelectedLeague = computed(() => this._selectedLeagueId() !== null);
+  public selectedLeague = computed(() =>
+    this._userLeagues().find((league) => league.id === this._selectedLeagueId())
+  );
+
+  // Effect: Automatically load permissions when selected league changes
+  constructor() {
+    effect(() => {
+      const selectedLeagueId = this._selectedLeagueId();
+      console.log(
+        'Selected league changed, loading permissions for:',
+        selectedLeagueId
+      );
+
+      // Load permissions for the new selected league
+      this.leagueMembershipService.loadCurrentLeaguePermissions(
+        selectedLeagueId
+      );
+    });
+  }
 
   /**
    * Set the selected league ID
@@ -137,6 +157,15 @@ export class LeagueService {
         freeAgency: {
           bidRounds: leagueData.rules.freeAgency.bidRounds,
           tieBreakers: leagueData.rules.freeAgency.tieBreakers,
+        },
+        roster: {
+          minPlayers: leagueData.rules.roster.minPlayers,
+          maxPlayers: leagueData.rules.roster.maxPlayers,
+          positionRequirements: leagueData.rules.roster.positionRequirements,
+          allowIR: leagueData.rules.roster.allowIR,
+          allowTaxi: leagueData.rules.roster.allowTaxi,
+          maxIR: leagueData.rules.roster.maxIR,
+          maxTaxi: leagueData.rules.roster.maxTaxi,
         },
       };
 

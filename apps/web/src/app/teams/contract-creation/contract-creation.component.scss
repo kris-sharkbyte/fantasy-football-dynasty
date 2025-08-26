@@ -1,0 +1,263 @@
+.contract-creation {
+  padding: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+  
+  h3 {
+    color: var(--text-primary);
+    margin: 0 0 2rem 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    text-align: center;
+  }
+}
+
+// Form Groups
+.form-group {
+  margin-bottom: 2rem;
+  
+  label {
+    display: block;
+    color: var(--text-primary);
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+  }
+}
+
+// Form Controls
+.form-control {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-primary);
+  border-radius: 0.5rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+  
+  &::placeholder {
+    color: var(--text-secondary);
+  }
+}
+
+// Salary Inputs
+.salary-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  
+  .salary-input {
+    label {
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+    }
+  }
+}
+
+// Guarantees
+.guarantees-container {
+  .guarantee-item {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 0.75rem;
+    align-items: end;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 0.5rem;
+    
+    .guarantee-type {
+      min-width: 120px;
+    }
+    
+    .guarantee-amount {
+      min-width: 100px;
+    }
+    
+    .guarantee-year {
+      min-width: 100px;
+    }
+    
+    .btn-remove-guarantee {
+      background: var(--error-color);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.2rem;
+      font-weight: bold;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        background: var(--error-hover);
+        transform: scale(1.1);
+      }
+    }
+  }
+  
+  .btn-add-guarantee {
+    background: var(--success-color);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      background: var(--success-hover);
+    }
+  }
+}
+
+// Checkbox Group
+.checkbox-group {
+  label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary-color);
+    }
+  }
+}
+
+// Contract Summary
+.contract-summary {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  
+  h4 {
+    color: var(--text-primary);
+    margin: 0 0 1rem 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+  
+  .summary-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    
+    .summary-stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem;
+      background: var(--bg-primary);
+      border-radius: 0.25rem;
+      
+      .label {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+      }
+      
+      .value {
+        color: var(--primary-color);
+        font-weight: 600;
+        font-size: 1.1rem;
+      }
+    }
+  }
+}
+
+// Form Actions
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-primary);
+}
+
+// Button Styles
+.btn-primary {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  
+  &:hover:not(:disabled) {
+    background: var(--primary-hover);
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+  }
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .contract-creation {
+    padding: 1rem;
+  }
+  
+  .salary-inputs {
+    grid-template-columns: 1fr;
+  }
+  
+  .guarantee-item {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    
+    .guarantee-type,
+    .guarantee-amount,
+    .guarantee-year {
+      min-width: auto;
+    }
+  }
+  
+  .summary-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+    
+    .btn-primary,
+    .btn-secondary {
+      width: 100%;
+    }
+  }
+}

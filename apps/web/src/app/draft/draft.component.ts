@@ -22,12 +22,9 @@ import {
   League,
   Team,
   DraftSettings,
-} from '../../../../../libs/types/src/lib/types';
-import {
-  DraftBoardComponent,
-  PlayerSelectionComponent,
-  DraftControlsComponent,
-} from './components';
+} from '@fantasy-football-dynasty/types';
+import { DraftBoardComponent } from './components';
+import { PlayerSelectionComponent } from './components/player-selection/player-selection.component';
 
 @Component({
   selector: 'app-draft',
@@ -38,7 +35,6 @@ import {
     ButtonModule,
     DraftBoardComponent,
     PlayerSelectionComponent,
-    DraftControlsComponent,
   ],
   templateUrl: './draft.component.html',
   styleUrls: ['./draft.component.scss'],

@@ -1,0 +1,20 @@
+<div class="teams-sidebar">
+  <h3>My Teams</h3>
+  <div class="team-list">
+    @for (team of teams; track team.id) {
+    <div
+      class="team-item"
+      [class.active]="selectedTeam?.id === team.id"
+      (click)="selectTeam(team)"
+    >
+      <div class="team-name">{{ team.name }}</div>
+      <div class="team-info">
+        <span class="cap-space"
+          >${{ (team.capSpace / 1000000).toFixed(1) }}M cap</span
+        >
+        <span class="roster-size">{{ team.roster.length }} players</span>
+      </div>
+    </div>
+    }
+  </div>
+</div>

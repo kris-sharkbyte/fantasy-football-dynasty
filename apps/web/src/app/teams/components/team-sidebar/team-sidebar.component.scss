@@ -1,0 +1,51 @@
+.teams-sidebar {
+  width: 250px;
+  padding: 1rem;
+  border-right: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+
+  h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .team-list {
+    .team-item {
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+
+      &:hover {
+        background-color: #f3f4f6;
+        border-color: #d1d5db;
+      }
+
+      &.active {
+        background-color: #dbeafe;
+        border-color: #3b82f6;
+      }
+
+      .team-name {
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 0.25rem;
+      }
+
+      .team-info {
+        display: flex;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: #6b7280;
+
+        .cap-space {
+          color: #059669;
+        }
+      }
+    }
+  }
+}

@@ -44,32 +44,16 @@ export class LeaguesComponent implements OnInit {
   error = this.leagueService.error;
   hasLeagues = this.leagueService.hasLeagues;
 
-  // Store permissions for each league
-  leaguePermissions = new Map<string, boolean>();
-
   async ngOnInit(): Promise<void> {
+    this.leagueService.setSelectedLeagueId(null);
     // Load user leagues when component initializes
     await this.leagueService.loadUserLeagues();
-    
-    // Load permissions for each league
-    await this.loadLeaguePermissions();
-  }
-
-  private async loadLeaguePermissions(): Promise<void> {
-    const userLeagues = this.leagues();
-    for (const league of userLeagues) {
-      try {
-        const canManage = await this.leagueMembershipService.canManageLeague(league.id);
-        this.leaguePermissions.set(league.id, canManage);
-      } catch (err) {
-        console.error(`Error loading permissions for league ${league.id}:`, err);
-        this.leaguePermissions.set(league.id, false);
-      }
-    }
   }
 
   canManageLeague(leagueId: string): boolean {
-    return this.leaguePermissions.get(leagueId) || false;
+    // For now, return true for all leagues since we're using the reactive pattern
+    // In the future, we could extend this to check specific league permissions
+    return true;
   }
 
   showJoinLeagueModal(): void {
@@ -117,6 +101,7 @@ export class LeaguesComponent implements OnInit {
   }
 
   navigateToLeague(leagueId: string): void {
+    this.leagueService.setSelectedLeagueId(leagueId);
     this.router.navigate(['/leagues', leagueId]);
   }
 

@@ -124,6 +124,49 @@ export class CreateLeagueComponent {
             [Validators.required, Validators.min(24), Validators.max(168)],
           ],
         }),
+        roster: this.fb.group({
+          minPlayers: [
+            15,
+            [Validators.required, Validators.min(10), Validators.max(20)],
+          ],
+          maxPlayers: [
+            25,
+            [Validators.required, Validators.min(20), Validators.max(35)],
+          ],
+          positionRequirements: this.fb.group({
+            QB: [
+              2,
+              [Validators.required, Validators.min(1), Validators.max(5)],
+            ],
+            RB: [
+              4,
+              [Validators.required, Validators.min(2), Validators.max(8)],
+            ],
+            WR: [
+              6,
+              [Validators.required, Validators.min(2), Validators.max(10)],
+            ],
+            TE: [
+              2,
+              [Validators.required, Validators.min(1), Validators.max(4)],
+            ],
+            K: [1, [Validators.required, Validators.min(1), Validators.max(2)]],
+            DEF: [
+              1,
+              [Validators.required, Validators.min(1), Validators.max(2)],
+            ],
+          }),
+          allowIR: [true],
+          allowTaxi: [true],
+          maxIR: [
+            3,
+            [Validators.required, Validators.min(0), Validators.max(10)],
+          ],
+          maxTaxi: [
+            4,
+            [Validators.required, Validators.min(0), Validators.max(8)],
+          ],
+        }),
         freeAgency: this.fb.group({
           bidRounds: [
             30,
@@ -184,7 +227,17 @@ export class CreateLeagueComponent {
           this.leagueForm.get('rules.draft.rounds')?.valid &&
           this.leagueForm.get('rules.draft.timeLimit')?.valid &&
           this.leagueForm.get('rules.draft.autodraftDelay')?.valid &&
-          this.leagueForm.get('rules.draft.veteranNegotiationWindow')?.valid
+          this.leagueForm.get('rules.draft.veteranNegotiationWindow')?.valid &&
+          this.leagueForm.get('rules.roster.minPlayers')?.valid &&
+          this.leagueForm.get('rules.roster.maxPlayers')?.valid &&
+          this.leagueForm.get('rules.roster.positionRequirements.QB')?.valid &&
+          this.leagueForm.get('rules.roster.positionRequirements.RB')?.valid &&
+          this.leagueForm.get('rules.roster.positionRequirements.WR')?.valid &&
+          this.leagueForm.get('rules.roster.positionRequirements.TE')?.valid &&
+          this.leagueForm.get('rules.roster.positionRequirements.K')?.valid &&
+          this.leagueForm.get('rules.roster.positionRequirements.DEF')?.valid &&
+          this.leagueForm.get('rules.roster.maxIR')?.valid &&
+          this.leagueForm.get('rules.roster.maxTaxi')?.valid
         );
       case 3: // Free Agency & Privacy
         return !!(

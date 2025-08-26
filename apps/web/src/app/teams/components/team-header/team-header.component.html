@@ -1,0 +1,15 @@
+<div class="team-header">
+  <h2>{{ team?.name }}</h2>
+  <div class="team-actions">
+    <button
+      class="btn-primary"
+      (click)="onStartDraft()"
+      [disabled]="isDraftActive"
+    >
+      🏈 Start Draft
+    </button>
+    <button class="btn-secondary" (click)="onOpenPlayerSearch()">
+      🔍 Add Player
+    </button>
+  </div>
+</div>

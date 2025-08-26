@@ -10,7 +10,6 @@ export const AuthGuard: CanActivateFn = (route, state) => {
   // Wrap the native Firebase callback in a Promise:
   return new Promise<boolean | UrlTree>((resolve) => {
     onAuthStateChanged(firebaseAuth, (user) => {
-      console.log('User changed:', user);
       if (user) {
         resolve(true);
       } else {

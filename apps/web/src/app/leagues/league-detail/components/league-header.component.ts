@@ -1,4 +1,11 @@
-import { Component, Input, Output, EventEmitter, signal } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  signal,
+  input,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { MenuModule } from 'primeng/menu';
@@ -11,8 +18,8 @@ import { MenuItem } from 'primeng/api';
   template: `
     <div class="league-header">
       <div class="league-info">
-        <h1 class="league-name">{{ leagueName }}</h1>
-        <p class="league-subtitle">{{ leagueSubtitle }}</p>
+        <h1 class="league-name">{{ leagueName() }}</h1>
+        <p class="league-subtitle">{{ leagueSubtitle() }}</p>
       </div>
 
       <div class="league-actions">
@@ -103,8 +110,8 @@ import { MenuItem } from 'primeng/api';
   ],
 })
 export class LeagueHeaderComponent {
-  @Input() leagueName: string = 'League Name';
-  @Input() leagueSubtitle: string = 'Dynasty Fantasy Football League';
+  leagueName = input<string>('');
+  leagueSubtitle = input<string>('');
   @Output() openEditTeam = new EventEmitter<void>();
 
   settingsMenuItems: MenuItem[] = [

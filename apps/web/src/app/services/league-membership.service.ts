@@ -57,11 +57,45 @@ export class LeagueMembershipService {
   private _isLoading = signal(false);
   private _error = signal<string | null>(null);
 
+  // New: Current league permissions signal
+  private _currentLeaguePermissions = signal<Record<string, boolean>>({});
+  private _isLoadingPermissions = signal(false);
+
   // Public readonly signals
   public userMemberships = this._userMemberships.asReadonly();
-  public isLoading = this._isLoading.asReadonly();
+  public isLoading = this._userMemberships.asReadonly();
   public error = this._error.asReadonly();
   public hasMemberships = computed(() => this._userMemberships().length > 0);
+
+  // New: Public permission signals
+  public currentLeaguePermissions = this._currentLeaguePermissions.asReadonly();
+  public isLoadingPermissions = this._isLoadingPermissions.asReadonly();
+
+  // New: Computed permission getters
+  public canManageLeague = computed(
+    () => this._currentLeaguePermissions()['canManageLeague'] || false
+  );
+  public canManageDraft = computed(
+    () => this._currentLeaguePermissions()['canManageDraft'] || false
+  );
+  public canManageTeams = computed(
+    () => this._currentLeaguePermissions()['canManageTeams'] || false
+  );
+  public canApproveTrades = computed(
+    () => this._currentLeaguePermissions()['canApproveTrades'] || false
+  );
+  public canManageFreeAgency = computed(
+    () => this._currentLeaguePermissions()['canManageFreeAgency'] || false
+  );
+  public canViewAllTeams = computed(
+    () => this._currentLeaguePermissions()['canViewAllTeams'] || false
+  );
+  public canEditScoring = computed(
+    () => this._currentLeaguePermissions()['canEditScoring'] || false
+  );
+  public canEditRules = computed(
+    () => this._currentLeaguePermissions()['canEditRules'] || false
+  );
 
   /**
    * Get league role permissions
@@ -239,7 +273,16 @@ export class LeagueMembershipService {
   ): Promise<boolean> {
     try {
       const currentUser = this.authService.currentUser();
-      if (!currentUser) return false;
+      if (!currentUser) {
+        console.log('No current user found');
+        return false;
+      }
+
+      console.log('Checking permission:', {
+        leagueId,
+        permission,
+        userId: currentUser.uid,
+      });
 
       const memberRef = doc(
         this.db,
@@ -252,13 +295,55 @@ export class LeagueMembershipService {
 
       if (memberSnap.exists()) {
         const data = memberSnap.data() as FirestoreLeagueMember;
+        console.log('Member data found:', {
+          permissions: data.permissions,
+          requestedPermission: permission,
+          hasPermission: data.permissions[permission] || false,
+        });
         return data.permissions[permission] || false;
       }
 
+      console.log('Member document does not exist');
       return false;
     } catch (error) {
       console.error('Error checking league permission:', error);
       return false;
+    }
+  }
+
+  /**
+   * Get all league permissions for the current user
+   */
+  async getLeaguePermissions(
+    leagueId: string
+  ): Promise<Record<string, boolean>> {
+    try {
+      const currentUser = this.authService.currentUser();
+      if (!currentUser) {
+        console.log('No current user found');
+        return {};
+      }
+
+      const memberRef = doc(
+        this.db,
+        'leagues',
+        leagueId,
+        'members',
+        currentUser.uid
+      );
+      const memberSnap = await getDoc(memberRef);
+
+      if (memberSnap.exists()) {
+        const data = memberSnap.data() as FirestoreLeagueMember;
+        console.log('All league permissions loaded:', data.permissions);
+        return { ...data.permissions } as Record<string, boolean>;
+      }
+
+      console.log('Member document does not exist');
+      return {};
+    } catch (error) {
+      console.error('Error getting league permissions:', error);
+      return {};
     }
   }
 
@@ -369,24 +454,27 @@ export class LeagueMembershipService {
   }
 
   /**
-   * Check if user can manage league
+   * Load permissions for the current selected league
+   * This method is called automatically when the selected league changes
    */
-  async canManageLeague(leagueId: string): Promise<boolean> {
-    return this.hasLeaguePermission(leagueId, 'canManageLeague');
-  }
+  async loadCurrentLeaguePermissions(leagueId: string | null): Promise<void> {
+    try {
+      if (!leagueId) {
+        this._currentLeaguePermissions.set({});
+        return;
+      }
 
-  /**
-   * Check if user can manage teams
-   */
-  async canManageTeams(leagueId: string): Promise<boolean> {
-    return this.hasLeaguePermission(leagueId, 'canManageTeams');
-  }
+      this._isLoadingPermissions.set(true);
+      const permissions = await this.getLeaguePermissions(leagueId);
+      this._currentLeaguePermissions.set(permissions);
 
-  /**
-   * Check if user can approve trades
-   */
-  async canApproveTrades(leagueId: string): Promise<boolean> {
-    return this.hasLeaguePermission(leagueId, 'canApproveTrades');
+      console.log('Current league permissions loaded:', permissions);
+    } catch (error) {
+      console.error('Error loading current league permissions:', error);
+      this._currentLeaguePermissions.set({});
+    } finally {
+      this._isLoadingPermissions.set(false);
+    }
   }
 
   /**
