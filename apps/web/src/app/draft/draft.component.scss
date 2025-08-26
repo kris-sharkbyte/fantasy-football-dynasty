@@ -1,9 +1,46 @@
+.top-container.minimized {
+  height: 50vh;
+}
+
+.top-container {
+  height: 100vh;
+  overflow: hidden;
+  padding-bottom: 50px;
+  box-sizing: border-box;
+  transition: height 0.2s ease;
+  position: relative;
+}
+
+.bottom-container.minimized {
+  height: 0;
+}
+
+.bottom-container {
+  height: 50vh;
+  display: flex;
+  box-sizing: border-box;
+  position: relative;
+  transition: height 0.2s ease;
+  -ms-overflow-style: none;
+  transition: all 0.2s ease;
+}
+
 // Draft Container
+.draft-board {
+  display: flex;
+  overflow-y: hidden;
+  width: 100vw;
+  overflow-x: auto;
+  flex-direction: column;
+  position: relative;
+}
+
 .draft-container {
   position: relative;
   width: 100%;
   height: 100vh;
   overflow: hidden;
+  display: flex;
 }
 
 // Loading Container

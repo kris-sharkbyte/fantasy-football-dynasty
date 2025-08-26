@@ -5,6 +5,7 @@ import {
   signal,
   computed,
   effect,
+  inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -24,7 +25,7 @@ import {
 } from '../../../../../libs/types/src/lib/types';
 import {
   DraftBoardComponent,
-  PlayerSelectionSidebarComponent,
+  PlayerSelectionComponent,
   DraftControlsComponent,
 } from './components';
 
@@ -36,19 +37,26 @@ import {
     FormsModule,
     ButtonModule,
     DraftBoardComponent,
-    PlayerSelectionSidebarComponent,
+    PlayerSelectionComponent,
     DraftControlsComponent,
   ],
   templateUrl: './draft.component.html',
   styleUrls: ['./draft.component.scss'],
 })
 export class DraftComponent implements OnInit, OnDestroy {
+  draftService = inject(DraftService);
+  leagueService = inject(LeagueService);
+  route = inject(ActivatedRoute);
+  router = inject(Router);
+  draftLayoutService = inject(DraftLayoutService);
+  leagueMembershipService = inject(LeagueMembershipService);
   // Signals from services (initialized in constructor)
-  draftState!: any;
-  isConnected!: any;
-  currentPick!: any;
-  timeRemaining!: any;
-  isMyTurn!: any;
+  draftState = this.draftService.draftState;
+  isConnected = this.draftService.isConnected;
+  currentPick = this.draftService.currentPick;
+  timeRemaining = this.draftService.timeRemaining;
+  isMyTurn = this.draftService.isMyTurn;
+  showPlayerSelection = this.draftLayoutService.showPlayerList;
 
   // Local signals
   league = signal<League | null>(null);
@@ -64,7 +72,6 @@ export class DraftComponent implements OnInit, OnDestroy {
   selectedPosition = signal<string>('');
 
   // New signals for draft board
-  showPlayerSelection = signal<boolean>(true);
   selectedPick = signal<DraftPick | null>(null);
   watchlist = signal<Player[]>([]);
   isCommissioner = signal<boolean>(false);
@@ -92,7 +99,7 @@ export class DraftComponent implements OnInit, OnDestroy {
 
   // UI state
   showDraftBoard = signal<boolean>(true);
-  showPlayerList = signal<boolean>(true);
+  showPlayerList = this.draftLayoutService.showPlayerList;
   showAutodraftQueue = signal<boolean>(false);
 
   positions = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
@@ -101,20 +108,8 @@ export class DraftComponent implements OnInit, OnDestroy {
   // Expose Math for template
   Math = Math;
 
-  constructor(
-    private draftService: DraftService,
-    private leagueService: LeagueService,
-    private route: ActivatedRoute,
-    private router: Router,
-    public draftLayoutService: DraftLayoutService,
-    private leagueMembershipService: LeagueMembershipService
-  ) {
+  constructor() {
     // Initialize service signals
-    this.draftState = this.draftService.draftState;
-    this.isConnected = this.draftService.isConnected;
-    this.currentPick = this.draftService.currentPick;
-    this.timeRemaining = this.draftService.timeRemaining;
-    this.isMyTurn = this.draftService.isMyTurn;
 
     // Sync data with layout service
     effect(() => {

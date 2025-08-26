@@ -14,7 +14,7 @@ How We should prefer to code
 - You are careful to only make changes that are requested or you are confident are well understood and related to the change being requestd
 - When fixing an issue or bug, do not introduce a new pattern or technology without first exhausting all options for the existing implementation. And if you finally do this, make sure to remove the old implementation afterwards so we do not have duplicate logic
 - Keep codebase very clean and organized
-- Avoid having files over 200-300 lines of code. Refactor at that point.
+- Avoid having files over 200-300 lines of code. Refactor at that point. Refactoring will mean create a component folder and add move the code into the new component that the parent can reference
 - Mocking data is only needed for test, never mock data for dev, staging or prod
 - Never add stubbing or fake patterns to code that affects the dev, stage or prod enviorments
 - Never overwrite my enviorment files without asking first.
@@ -25,3 +25,5 @@ How We should prefer to code
 
 - when creating a component I allways want the format to be html, scss, and ts file
 - when doing style review the global.scss and /theme before adding new styles so that everything shares a theme
+
+- When you create a component with inputs you should always use input() signals as this is the modern Angular 17+ approach and is becoming the standard.

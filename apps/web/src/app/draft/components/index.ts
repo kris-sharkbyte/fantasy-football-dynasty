@@ -1,3 +1,3 @@
-export * from './draft-board.component';
-export * from './player-selection-sidebar.component';
+export * from './draft-board';
+export * from './player-selection';
 export * from './draft-controls.component';

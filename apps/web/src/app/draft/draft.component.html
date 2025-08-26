@@ -1,4 +1,5 @@
-<div class="draft-container">
+showPlayerSelection() {{ showPlayerSelection() }}
+<div class="top-container" [class.minimized]="showPlayerSelection()">
   @if (isLoading()) {
   <div class="loading-container">
     <div class="loading-spinner"></div>
@@ -11,65 +12,52 @@
   } @else {
   <div class="draft-container">
     <!-- Draft Board -->
-    <app-draft-board
-      [teams]="teams()"
-      [draftPicks]="draftPicks()"
-      [availablePlayers]="availablePlayers()"
-      [currentPick]="currentPick()"
-      [isMyTurn]="isMyTurn()"
-      [currentUserTeamId]="getCurrentUserTeamId()"
-      [canMakePick]="canMakePick()"
-      [numberOfTeams]="numberOfTeams()"
-      [totalRounds]="totalRounds()"
-      (claimTeam)="claimTeam($event)"
-      (openPlayerSelection)="openPlayerSelection($event)"
-    ></app-draft-board>
+    <div class="draft-board">
+      <app-draft-board
+        [teams]="teams()"
+        [draftPicks]="draftPicks()"
+        [availablePlayers]="availablePlayers()"
+        [currentPick]="currentPick()"
+        [isMyTurn]="isMyTurn()"
+        [currentUserTeamId]="getCurrentUserTeamId()"
+        [canMakePick]="canMakePick()"
+        [numberOfTeams]="numberOfTeams()"
+        [totalRounds]="totalRounds()"
+        (claimTeam)="claimTeam($event)"
+        (openPlayerSelection)="openPlayerSelection($event)"
+      ></app-draft-board>
 
-    <!-- Player Selection Sidebar -->
-    <app-player-selection-sidebar
-      [isOpen]="showPlayerSelection()"
-      [selectedPick]="selectedPick()"
-      [availablePlayers]="availablePlayers()"
-      [selectedPlayer]="selectedPlayer()"
-      [searchQuery]="searchQuery()"
-      [selectedPosition]="selectedPosition()"
-      [canMakePick]="canMakePick()"
-      [draftState]="draftState()"
-      [isInWatchlist]="isInWatchlistForTemplate"
-      (close)="closePlayerSelection()"
-      (searchQueryChange)="searchQuery.set($event)"
-      (positionChange)="selectedPosition.set($event)"
-      (playerSelect)="selectedPlayer.set($event)"
-      (draftPlayer)="makePick($event)"
-      (addToWatchlist)="addToWatchlist($event)"
-      (toggleWatchlist)="toggleWatchlist($event)"
-    ></app-player-selection-sidebar>
+      <!-- Draft Controls -->
+      <!-- <app-draft-controls
+        [isCommissioner]="isCommissioner()"
+        [draftState]="draftState()"
+        (startDraft)="initializeDraft()"
+        (pauseDraft)="pauseDraft()"
+      ></app-draft-controls> -->
 
-    <!-- Draft Controls -->
-    <app-draft-controls
-      [isCommissioner]="isCommissioner()"
-      [draftState]="draftState()"
-      (startDraft)="initializeDraft()"
-      (pauseDraft)="pauseDraft()"
-    ></app-draft-controls>
-
-    <!-- Toggle Button for Player Selection -->
-    <div class="player-selection-toggle">
-      <p-button
-        [icon]="showPlayerSelection() ? 'pi pi-times' : 'pi pi-users'"
-        [rounded]="true"
-        [text]="true"
-        [severity]="showPlayerSelection() ? 'danger' : 'primary'"
-        size="large"
-        (onClick)="showPlayerSelection.set(!showPlayerSelection())"
-        [title]="
-          showPlayerSelection()
-            ? 'Close Player Selection'
-            : 'Open Player Selection'
-        "
-        class="toggle-button"
-      ></p-button>
+      <!-- Toggle Button for Player Selection -->
     </div>
   </div>
   }
+</div>
+
+<div class="bottom-container" [class.minimized]="!showPlayerList()">
+  <!-- Player Selection Sidebar -->
+  <app-player-selection
+    [selectedPick]="selectedPick()"
+    [availablePlayers]="availablePlayers()"
+    [selectedPlayer]="selectedPlayer()"
+    [searchQuery]="searchQuery()"
+    [selectedPosition]="selectedPosition()"
+    [canMakePick]="canMakePick()"
+    [draftState]="draftState()"
+    [isInWatchlist]="isInWatchlistForTemplate"
+    (close)="closePlayerSelection()"
+    (searchQueryChange)="searchQuery.set($event)"
+    (positionChange)="selectedPosition.set($event)"
+    (playerSelect)="selectedPlayer.set($event)"
+    (draftPlayer)="makePick($event)"
+    (addToWatchlist)="addToWatchlist($event)"
+    (toggleWatchlist)="toggleWatchlist($event)"
+  ></app-player-selection>
 </div>

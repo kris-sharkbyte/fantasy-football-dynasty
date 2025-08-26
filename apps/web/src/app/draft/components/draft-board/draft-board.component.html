@@ -1,0 +1,152 @@
+Number of Teams: {{ numberOfTeams() }} Team Indices: {{ teamIndices }}
+<div class="column-container">
+  <!-- Team Columns -->
+  @for (teamIndex of teamIndices; track teamIndex; let teamPosition = $index) {
+  <div class="team-column">
+    <!-- Team Header -->
+    <div class="team-header-container">
+      <div class="draft-user-header">
+        <div class="header-button">
+          @if (!getTeamById(teamIndex)) {
+          <div class="claim-text">CLAIM</div>
+          <div style="height: 10px"></div>
+          <h1 class="header-text">Team {{ teamIndex + 1 }}</h1>
+          } @else {
+          <div class="claim-text" style="display: none"></div>
+          <div style="height: 10px"></div>
+          <h1 class="header-text">
+            {{ getTeamById(teamIndex)?.name || 'Team ' + (teamIndex + 1) }}
+          </h1>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Team Header Clone for Sticky Effect -->
+    <div class="team-header-container-clone">
+      <div class="draft-user-header">
+        <div class="header-button">
+          @if (!getTeamById(teamIndex)) {
+          <div class="claim-text">CLAIM</div>
+          <div style="height: 10px"></div>
+          <h1 class="header-text">Team {{ teamIndex + 1 }}</h1>
+          } @else {
+          <div class="claim-text" style="display: none"></div>
+          <div style="height: 10px"></div>
+          <h1 class="header-text">
+            {{ getTeamById(teamIndex)?.name || 'Team ' + (teamIndex + 1) }}
+          </h1>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Draft Cells for this Team -->
+    @for (round of rounds; track round; let roundIndex = $index) {
+    <div class="cell-container">
+      @if (getPickForTeamAndRound(teamIndex, round)) {
+      <div
+        class="cell"
+        [class]="getCellClasses(getPickForTeamAndRound(teamIndex, round)!)"
+        [id]="
+          'draft-cell-' + getPickForTeamAndRound(teamIndex, round)?.pickNumber
+        "
+        [class.is-active]="
+          getPickForTeamAndRound(teamIndex, round)?.pickNumber === currentPick()
+        "
+        (click)="onCellClick(getPickForTeamAndRound(teamIndex, round)!)"
+      >
+        <!-- Pick Number -->
+        <div class="pick">
+          {{ round }}.{{ getPickPositionInRound(teamIndex, round) }}
+        </div>
+
+        <!-- Timer Text (if on clock) -->
+        @if (getPickForTeamAndRound(teamIndex, round)?.pickNumber ===
+        currentPick() && !getPickForTeamAndRound(teamIndex, round)?.playerId) {
+        <div class="timer-text"></div>
+        }
+
+        <!-- Player Info (if drafted) -->
+        @if (getPickForTeamAndRound(teamIndex, round)?.playerId) { @if
+        (getPlayerById(getPickForTeamAndRound(teamIndex, round)?.playerId ||
+        '')) {
+        <div class="player">
+          <div class="player-name">
+            {{
+              getPlayerById(
+                getPickForTeamAndRound(teamIndex, round)?.playerId || ''
+              )?.name
+            }}
+          </div>
+          <div class="position">
+            {{
+              getPlayerById(
+                getPickForTeamAndRound(teamIndex, round)?.playerId || ''
+              )?.position
+            }}
+            -
+            {{
+              getPlayerById(
+                getPickForTeamAndRound(teamIndex, round)?.playerId || ''
+              )?.nflTeam
+            }}
+          </div>
+        </div>
+
+        <!-- Player Avatar -->
+        <div class="player-avatar-container">
+          <img
+            class="avatar-player"
+            [src]="
+              getPlayerAvatar(
+                getPickForTeamAndRound(teamIndex, round)?.playerId || ''
+              )
+            "
+            [alt]="
+              getPlayerById(
+                getPickForTeamAndRound(teamIndex, round)?.playerId || ''
+              )?.name
+            "
+          />
+        </div>
+        } }
+
+        <!-- Direction Arrow -->
+        <div class="cell-direction-wrap">
+          <img
+            class="direction"
+            [class]="getDirectionClass(roundIndex, teamPosition)"
+            [src]="getDirectionImage(roundIndex, teamPosition)"
+            [alt]="getDirectionAlt(roundIndex, teamPosition)"
+          />
+        </div>
+
+        <!-- Emoji Wrap (for future use) -->
+        <div class="cell-emoji-wrap">
+          <div class="draft-cell-emoji"></div>
+        </div>
+      </div>
+      } @else {
+      <!-- Empty cell if no pick exists -->
+      <div class="cell-container">
+        <div class="cell false">
+          <div class="pick">
+            {{ round }}.{{ getPickPositionInRound(teamIndex, round) }}
+          </div>
+          <div class="cell-direction-wrap">
+            <img
+              class="direction"
+              [class]="getDirectionClass(roundIndex, teamPosition)"
+              [src]="getDirectionImage(roundIndex, teamPosition)"
+              [alt]="getDirectionAlt(roundIndex, teamPosition)"
+            />
+          </div>
+        </div>
+      </div>
+      }
+    </div>
+    }
+  </div>
+  }
+</div>

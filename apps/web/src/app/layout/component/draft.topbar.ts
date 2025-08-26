@@ -1,7 +1,7 @@
 import { Component, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { League, DraftState } from '../../../../../../libs/types/src/lib/types';
+import { League, DraftState } from '@fantasy-football-dynasty/types';
 import { DraftLayoutService } from '../../services/draft-layout.service';
 import { LeagueService } from '../../services/league.service';
 import { LeagueMembershipService } from '../../services/league-membership.service';
@@ -14,8 +14,8 @@ import { LeagueMembershipService } from '../../services/league-membership.servic
     <header
       class="bg-surface-0 dark:bg-surface-900 border-b border-surface-200 dark:border-surface-700"
     >
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
+      <div class="mx-auto px-4 sm:px-6 lg:px-8 h-18">
+        <div class="flex items-center justify-between">
           <!-- Left: Back button and League Info -->
           <div class="flex items-center space-x-4">
             <!-- Back Button -->
@@ -42,7 +42,7 @@ import { LeagueMembershipService } from '../../services/league-membership.servic
             <!-- League Name and Draft Info -->
             <div>
               <h1
-                class="text-lg font-semibold text-surface-900 dark:text-surface-0"
+                class="text-[18px] font-semibold text-surface-900 dark:text-surface-0"
               >
                 {{ draftLayoutService.league()?.name || 'Draft Room' }}
               </h1>
@@ -189,13 +189,7 @@ import { LeagueMembershipService } from '../../services/league-membership.servic
       </div>
     </header>
   `,
-  styles: [
-    `
-      .transition-colors {
-        transition: background-color 0.2s ease, color 0.2s ease;
-      }
-    `,
-  ],
+  styles: [``],
 })
 export class DraftTopbar implements OnInit {
   @Output() startDraft = new EventEmitter<void>();
