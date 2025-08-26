@@ -60,8 +60,39 @@ export const initializeDraft = onCall(async (request) => {
       );
     }
 
-    // Generate draft order (can be randomized or based on previous season)
-    const draftOrder = generateDraftOrder(teams);
+    // Check if league has a pre-set draft order, otherwise generate one
+    let draftOrder: string[];
+    const leagueData = leagueDoc.data() as League;
+    if (leagueData.draftOrder && leagueData.draftOrder.length > 0) {
+      // Use the pre-set draft order from league settings
+      draftOrder = leagueData.draftOrder;
+
+      // Validate that all teams in the draft order exist
+      const teamIds = teams.map((team) => team.id);
+      const validDraftOrder = draftOrder.filter((teamId) =>
+        teamIds.includes(teamId)
+      );
+
+      if (validDraftOrder.length !== draftOrder.length) {
+        throw new HttpsError(
+          'failed-precondition',
+          'Some teams in the draft order no longer exist in the league'
+        );
+      }
+
+      // Ensure we have the same number of teams
+      if (validDraftOrder.length !== teams.length) {
+        throw new HttpsError(
+          'failed-precondition',
+          'Draft order must include all teams in the league'
+        );
+      }
+
+      draftOrder = validDraftOrder;
+    } else {
+      // Generate draft order (can be randomized or based on previous season)
+      draftOrder = generateDraftOrder(teams);
+    }
 
     // Create draft picks for all rounds
     const picks = generateDraftPicks(leagueId, draftOrder, settings.rounds);

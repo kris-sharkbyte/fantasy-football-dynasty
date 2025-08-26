@@ -5,7 +5,7 @@
   [closable]="true"
   [draggable]="false"
   [resizable]="false"
-  styleClass="join-league-modal"
+  class="join-league-modal"
   (onHide)="hide()"
 >
   <div class="join-league-content">
@@ -69,7 +69,7 @@
           </h3>
 
           @for (league of searchResults(); track league.id) {
-          <p-card styleClass="league-result-card">
+          <p-card class="league-result-card">
             <div class="flex items-center justify-between">
               <div class="flex-1">
                 <h4 class="text-lg font-semibold text-secondary-900 mb-2">

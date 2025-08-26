@@ -1,12 +1,12 @@
 <div class="league-settings-container">
-  <p-card header="League Settings" styleClass="settings-card">
+  <p-card header="League Settings" class="settings-card">
     <form [formGroup]="settingsForm" class="space-y-6">
       <!-- Basic Information -->
       <div class="settings-section">
         <h3 class="text-lg font-semibold text-secondary-800 mb-4">
           Basic Information
         </h3>
-        
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="field">
             <label
@@ -23,8 +23,11 @@
               placeholder="Enter league name"
               class="w-full"
             />
-            @if (settingsForm.get('name')?.invalid && settingsForm.get('name')?.touched) {
-            <small class="p-error">League name is required and must be at least 3 characters</small>
+            @if (settingsForm.get('name')?.invalid &&
+            settingsForm.get('name')?.touched) {
+            <small class="p-error"
+              >League name is required and must be at least 3 characters</small
+            >
             }
           </div>
 
@@ -52,7 +55,7 @@
         <h3 class="text-lg font-semibold text-secondary-800 mb-4">
           Privacy & Access
         </h3>
-        
+
         <div class="space-y-4">
           <div class="field">
             <div class="flex items-center gap-3">
@@ -71,7 +74,8 @@
               </label>
             </div>
             <small class="text-secondary-500 mt-2 block">
-              Private leagues can only be joined using the join code. Public leagues can be discovered through search and joined with the code.
+              Private leagues can only be joined using the join code. Public
+              leagues can be discovered through search and joined with the code.
             </small>
           </div>
         </div>
@@ -105,14 +109,69 @@
             </div>
           </div>
           <small class="join-code-help mt-2 block">
-            @if (isPrivate()) {
-              Share this code with people you want to invite to your private league.
-            } @else {
-              This code can be used to join your public league.
-            }
+            @if (isPrivate()) { Share this code with people you want to invite
+            to your private league. } @else { This code can be used to join your
+            public league. }
           </small>
         </div>
         }
+      </div>
+
+      <!-- Draft Order Management -->
+      <div class="settings-section">
+        <h3 class="text-lg font-semibold text-secondary-800 mb-4">
+          Draft Order Management
+        </h3>
+
+        <div class="space-y-4">
+          <div class="draft-order-info">
+            <p class="text-sm text-secondary-600 mb-4">
+              Set the draft order for your league. You can either randomize the
+              order or set it manually.
+            </p>
+
+            @if (draftOrder.length > 0) {
+            <div class="current-draft-order mb-4">
+              <h4 class="text-sm font-medium mb-2">Current Draft Order:</h4>
+              <div class="draft-order-list">
+                @for (teamId of draftOrder; track teamId; let i = $index) {
+                <div class="draft-order-item">
+                  <span class="pick-number">{{ i + 1 }}</span>
+                  <span class="team-name">{{ getTeamName(teamId) }}</span>
+                </div>
+                }
+              </div>
+            </div>
+            } @else {
+            <div class="no-draft-order mb-4">
+              <p class="text-sm text-secondary-500 italic">
+                No draft order has been set. Use the "Randomize Order" button to
+                generate one, or set it manually.
+              </p>
+            </div>
+            }
+
+            <div class="draft-order-actions flex gap-3">
+              <p-button
+                label="Randomize Order"
+                icon="pi pi-refresh"
+                severity="secondary"
+                (onClick)="randomizeDraftOrder()"
+                [loading]="isRandomizing()"
+                [disabled]="isRandomizing()"
+              ></p-button>
+
+              <p-button
+                label="Clear Order"
+                icon="pi pi-trash"
+                severity="danger"
+                outlined="true"
+                (onClick)="clearDraftOrder()"
+                [disabled]="draftOrder.length === 0"
+              ></p-button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- League Information (Read-only) -->
@@ -120,7 +179,7 @@
         <h3 class="text-lg font-semibold text-secondary-800 mb-4">
           League Information
         </h3>
-        
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="info-item">
             <span class="label">Teams:</span>
@@ -136,7 +195,9 @@
           </div>
           <div class="info-item">
             <span class="label">Salary Cap:</span>
-            <span class="value">${{ (league().rules.cap.salaryCap / 1000000).toFixed(1) }}M</span>
+            <span class="value"
+              >${{ (league().rules.cap.salaryCap / 1000000).toFixed(1) }}M</span
+            >
           </div>
         </div>
       </div>

@@ -41,6 +41,8 @@ export class LeagueSettingsComponent implements OnInit {
   isSaving = signal(false);
   isPrivate = signal(false);
   joinCode = signal<string>('');
+  isRandomizing = signal(false);
+  teams = signal<any[]>([]);
 
   private readonly leagueService = inject(LeagueService);
   private readonly messageService = inject(MessageService);
@@ -56,6 +58,7 @@ export class LeagueSettingsComponent implements OnInit {
 
   ngOnInit(): void {
     this.initializeForm();
+    this.loadTeams();
   }
 
   private initializeForm(): void {
@@ -137,5 +140,85 @@ export class LeagueSettingsComponent implements OnInit {
       summary: 'New Code',
       detail: 'New join code generation will be implemented soon.',
     });
+  }
+
+  /**
+   * Load teams for the league
+   */
+  private async loadTeams(): Promise<void> {
+    try {
+      const teamsResponse = await this.leagueService.getLeagueTeams(this.league().id);
+      this.teams.set(teamsResponse.teams);
+    } catch (error) {
+      console.error('Error loading teams:', error);
+    }
+  }
+
+  /**
+   * Get team name by ID
+   */
+  getTeamName(teamId: string): string {
+    const team = this.teams().find(t => t.id === teamId);
+    return team ? team.name : 'Unknown Team';
+  }
+
+  /**
+   * Get current draft order
+   */
+  get draftOrder(): string[] {
+    return this.league().draftOrder || [];
+  }
+
+  /**
+   * Randomize draft order
+   */
+  async randomizeDraftOrder(): Promise<void> {
+    try {
+      this.isRandomizing.set(true);
+      await this.leagueService.randomizeDraftOrder(this.league().id);
+      
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Draft Order Updated',
+        detail: 'Draft order has been randomized successfully.',
+      });
+
+      // Refresh the league data
+      await this.leagueService.refresh();
+    } catch (error) {
+      console.error('Error randomizing draft order:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Randomization Failed',
+        detail: 'Failed to randomize draft order. Please try again.',
+      });
+    } finally {
+      this.isRandomizing.set(false);
+    }
+  }
+
+  /**
+   * Clear draft order
+   */
+  async clearDraftOrder(): Promise<void> {
+    try {
+      await this.leagueService.setDraftOrder(this.league().id, []);
+      
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Draft Order Cleared',
+        detail: 'Draft order has been cleared successfully.',
+      });
+
+      // Refresh the league data
+      await this.leagueService.refresh();
+    } catch (error) {
+      console.error('Error clearing draft order:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Clear Failed',
+        detail: 'Failed to clear draft order. Please try again.',
+      });
+    }
   }
 }

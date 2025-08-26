@@ -15,6 +15,7 @@ showPlayerSelection() {{ showPlayerSelection() }}
     <div class="draft-board">
       <app-draft-board
         [teams]="teams()"
+        [draftOrder]="getDraftOrder()"
         [draftPicks]="draftPicks()"
         [availablePlayers]="availablePlayers()"
         [currentPick]="currentPick()"

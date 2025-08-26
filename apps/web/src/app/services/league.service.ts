@@ -49,6 +49,7 @@ export interface FirestoreLeague {
   isPrivate: boolean;
   joinCode: string;
   rules: LeagueRules;
+  draftOrder?: string[]; // team IDs in draft order
   createdAt: Date;
   updatedAt: Date;
 }
@@ -208,16 +209,19 @@ export class LeagueService {
       const leaguesRef = collection(this.db, 'leagues');
       const q = query(leaguesRef, orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
-      
+
       const leagues: League[] = [];
-      
+
       for (const leagueDoc of querySnapshot.docs) {
         try {
           // Check if user is a member by looking in the members subcollection
           const membersRef = collection(leagueDoc.ref, 'members');
-          const memberQuery = query(membersRef, where('userId', '==', currentUser.uid));
+          const memberQuery = query(
+            membersRef,
+            where('userId', '==', currentUser.uid)
+          );
           const memberSnapshot = await getDocs(memberQuery);
-          
+
           if (!memberSnapshot.empty) {
             // User is a member of this league
             const data = leagueDoc.data() as FirestoreLeague;
@@ -232,12 +236,16 @@ export class LeagueService {
               numberOfTeams: data.numberOfTeams || 0,
               isPrivate: data.isPrivate,
               joinCode: data.joinCode,
+              draftOrder: data.draftOrder,
               createdAt: data.createdAt,
               updatedAt: data.updatedAt,
             });
           }
         } catch (error) {
-          console.error(`Error checking membership for league ${leagueDoc.id}:`, error);
+          console.error(
+            `Error checking membership for league ${leagueDoc.id}:`,
+            error
+          );
         }
       }
 
@@ -454,16 +462,19 @@ export class LeagueService {
         try {
           // Check if user is already a member by looking in the members subcollection
           const membersRef = collection(leagueDoc.ref, 'members');
-          const memberQuery = query(membersRef, where('userId', '==', currentUser.uid));
+          const memberQuery = query(
+            membersRef,
+            where('userId', '==', currentUser.uid)
+          );
           const memberSnapshot = await getDocs(memberQuery);
-          
+
           if (!memberSnapshot.empty) {
             // User is already a member, skip this league
             continue;
           }
 
           const data = leagueDoc.data() as FirestoreLeague;
-          
+
           // Only include leagues that match search term if provided
           if (
             !searchTerm ||
@@ -480,12 +491,16 @@ export class LeagueService {
               numberOfTeams: data.numberOfTeams || 0,
               isPrivate: data.isPrivate,
               joinCode: data.joinCode,
+              draftOrder: data.draftOrder,
               createdAt: data.createdAt,
               updatedAt: data.updatedAt,
             });
           }
         } catch (error) {
-          console.error(`Error checking membership for league ${leagueDoc.id}:`, error);
+          console.error(
+            `Error checking membership for league ${leagueDoc.id}:`,
+            error
+          );
         }
       }
 
@@ -550,6 +565,72 @@ export class LeagueService {
         message:
           error instanceof Error ? error.message : 'Failed to join league',
       };
+    }
+  }
+
+  /**
+   * Set draft order manually
+   */
+  async setDraftOrder(leagueId: string, teamIds: string[]): Promise<void> {
+    try {
+      const leagueRef = doc(this.db, 'leagues', leagueId);
+      await updateDoc(leagueRef, {
+        draftOrder: teamIds,
+        updatedAt: Timestamp.now(),
+      });
+
+      // Refresh user's leagues
+      await this.loadUserLeagues();
+    } catch (error) {
+      console.error('Error setting draft order:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Randomize draft order
+   */
+  async randomizeDraftOrder(leagueId: string): Promise<void> {
+    try {
+      // Get teams for the league
+      const teamsResponse = await this.getLeagueTeams(leagueId);
+      const teams = teamsResponse.teams;
+
+      if (!teams || teams.length === 0) {
+        throw new Error('No teams found in league');
+      }
+
+      // Shuffle teams randomly
+      const shuffledTeams = [...teams];
+      for (let i = shuffledTeams.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledTeams[i], shuffledTeams[j]] = [
+          shuffledTeams[j],
+          shuffledTeams[i],
+        ];
+      }
+
+      // Extract team IDs in the new order
+      const teamIds = shuffledTeams.map((team) => team.id);
+
+      // Save the new draft order
+      await this.setDraftOrder(leagueId, teamIds);
+    } catch (error) {
+      console.error('Error randomizing draft order:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get current draft order for a league
+   */
+  async getDraftOrder(leagueId: string): Promise<string[]> {
+    try {
+      const league = await this.getLeague(leagueId);
+      return league?.league.draftOrder || [];
+    } catch (error) {
+      console.error('Error getting draft order:', error);
+      return [];
     }
   }
 

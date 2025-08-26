@@ -42,7 +42,7 @@
     @for (league of leagues(); track league.id) {
     <p-card
       [header]="league.name"
-      styleClass="league-card cursor-pointer hover:shadow-lg transition-shadow duration-300"
+      class="league-card cursor-pointer hover:shadow-lg transition-shadow duration-300"
       (click)="navigateToLeague(league.id)"
     >
       <div class="space-y-3">
@@ -102,14 +102,14 @@
             (click)="$event.stopPropagation()"
           ></p-button>
           @if (canManageLeague(league.id)) {
-            <p-button
-              label="Manage"
-              icon="pi pi-cog"
-              severity="secondary"
-              outlined="true"
-              size="small"
-              (click)="manageLeague(league.id)"
-            ></p-button>
+          <p-button
+            label="Manage"
+            icon="pi pi-cog"
+            severity="secondary"
+            outlined="true"
+            size="small"
+            (click)="manageLeague(league.id)"
+          ></p-button>
           }
         </div>
       </ng-template>

@@ -6,6 +6,7 @@ export interface League {
   rules: any;
   currentYear: number;
   phase: string;
+  draftOrder?: string[]; // team IDs in draft order
   createdAt: Date;
   updatedAt: Date;
 }

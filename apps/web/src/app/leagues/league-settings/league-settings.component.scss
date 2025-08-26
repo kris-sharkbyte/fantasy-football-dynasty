@@ -156,6 +156,61 @@ code {
   }
 }
 
+// Draft order management
+.draft-order-info {
+  .draft-order-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--border-primary);
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+  }
+  
+  .draft-order-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem;
+    background: var(--bg-primary);
+    border-radius: 0.25rem;
+    border: 1px solid var(--border-primary);
+    
+    .pick-number {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      background: var(--primary-color);
+      color: white;
+      border-radius: 50%;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+    
+    .team-name {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+  }
+  
+  .draft-order-actions {
+    margin-top: 1rem;
+  }
+  
+  .no-draft-order {
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 1px dashed var(--border-primary);
+    border-radius: 0.5rem;
+    text-align: center;
+  }
+}
+
 // Responsive adjustments
 @media (max-width: 768px) {
   .league-settings-container {

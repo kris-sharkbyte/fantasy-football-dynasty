@@ -555,4 +555,11 @@ export class DraftComponent implements OnInit, OnDestroy {
     console.log('Claiming team for pick:', pickId);
     // TODO: Implement team claiming logic
   }
+
+  /**
+   * Get the current draft order for the league
+   */
+  getDraftOrder(): string[] {
+    return this.league()?.draftOrder || [];
+  }
 }

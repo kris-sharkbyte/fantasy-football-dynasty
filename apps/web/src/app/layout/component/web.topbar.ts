@@ -123,7 +123,7 @@ import { LoginModalComponent } from '../../components/auth-modals/login-modal/lo
       [closable]="true"
       [draggable]="false"
       [resizable]="false"
-      styleClass="auth-dialog"
+      class="auth-dialog"
       header="Sign In"
       (onHide)="closeLoginDialog()"
     >
@@ -140,7 +140,7 @@ import { LoginModalComponent } from '../../components/auth-modals/login-modal/lo
       [closable]="true"
       [draggable]="false"
       [resizable]="false"
-      styleClass="auth-dialog"
+      class="auth-dialog"
       header="Create Account"
       (onHide)="closeRegisterDialog()"
     >

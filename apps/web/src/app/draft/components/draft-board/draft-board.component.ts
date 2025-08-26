@@ -13,6 +13,7 @@ import { DraftPick, Player, Team } from '@fantasy-football-dynasty/types';
 export class DraftBoardComponent {
   // Signal-based inputs (Angular 17+ modern approach)
   teams = input<Team[]>([]);
+  draftOrder = input<string[]>([]); // team IDs in draft order
   draftPicks = input<DraftPick[]>([]);
   availablePlayers = input<Player[]>([]);
   currentPick = input<number>(1);
@@ -35,8 +36,17 @@ export class DraftBoardComponent {
   }
 
   getTeamById(teamIndex: number): Team | null {
-    if (teamIndex < this.teams().length) {
-      return this.teams()[teamIndex];
+    // If draft order is set, use it; otherwise fall back to teams array order
+    if (this.draftOrder().length > 0) {
+      if (teamIndex < this.draftOrder().length) {
+        const teamId = this.draftOrder()[teamIndex];
+        return this.teams().find((team) => team.id === teamId) || null;
+      }
+    } else {
+      // Fallback to teams array order
+      if (teamIndex < this.teams().length) {
+        return this.teams()[teamIndex];
+      }
     }
     return null;
   }

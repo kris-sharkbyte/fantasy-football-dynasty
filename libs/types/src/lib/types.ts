@@ -22,6 +22,7 @@ export interface League {
   isPrivate: boolean;
   joinCode: string;
   rules: LeagueRules;
+  draftOrder?: string[]; // team IDs in draft order
   createdAt: Date;
   updatedAt: Date;
 }
