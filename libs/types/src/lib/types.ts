@@ -1,12 +1,27 @@
 // Core types for Dynasty Fantasy Football application
 
+export enum LeaguePhase {
+  'offseason' = 'offseason',
+  'drafting' = 'drafting',
+  'free-agency' = 'free-agency',
+  'regular-season' = 'regular-season',
+  'playoffs' = 'playoffs',
+  'completed' = 'completed',
+  'draft' = 'draft',
+  'preseason' = 'preseason',
+}
+
 export interface League {
   id: string;
   name: string;
-  rules: LeagueRules;
+  description?: string;
+  numberOfTeams: number;
   currentYear: number;
   phase: LeaguePhase;
-  numberOfTeams: number;
+  status: 'active' | 'inactive' | 'completed' | 'drafting' | 'free-agency';
+  isPrivate: boolean;
+  joinCode: string;
+  rules: LeagueRules;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -73,14 +88,6 @@ export interface FreeAgencyRules {
 }
 
 export type TieBreaker = 'guarantees' | 'apy' | 'length' | 'random';
-
-export type LeaguePhase =
-  | 'offseason'
-  | 'free-agency'
-  | 'draft'
-  | 'preseason'
-  | 'regular-season'
-  | 'playoffs';
 
 export interface Team {
   id: string;

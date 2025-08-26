@@ -142,21 +142,29 @@ import { DraftLayoutService } from '../../services/draft-layout.service';
       .timer-circle {
         width: 2rem;
         height: 2rem;
-                 @apply rounded-full border-2 border-blue-600 flex items-center justify-center;
+        border-radius: 9999px;
+        border-width: 2px;
+        border-color: var(--primary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
         transition: all 0.3s ease;
       }
 
       .timer-circle.warning {
-        @apply border-red-500 bg-red-50 dark:bg-red-900;
+        border-color: var(--error-color);
+        background-color: var(--bg-error-light);
         animation: pulse-warning 1s infinite;
       }
 
-             .timer-minutes {
-         @apply text-xs font-bold text-blue-600;
-       }
+      .timer-minutes {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--primary-color);
+      }
 
       .warning .timer-minutes {
-        @apply text-red-600 dark:text-red-400;
+        color: var(--error-color);
       }
 
       @keyframes pulse-warning {

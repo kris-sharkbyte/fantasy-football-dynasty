@@ -1,8 +1,12 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { LeagueHeaderComponent } from './league-header.component';
 import { EditTeamModalComponent } from './edit-team-modal';
+import { LeagueSettingsComponent } from '../league-settings';
+import { League, LeaguePhase } from '@fantasy-football-dynasty/types';
+import { LeagueMembershipService } from '../../services/league-membership.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-league-detail',
@@ -12,6 +16,7 @@ import { EditTeamModalComponent } from './edit-team-modal';
     RouterLink,
     LeagueHeaderComponent,
     EditTeamModalComponent,
+    LeagueSettingsComponent,
   ],
   template: `
     <div class="league-detail-container">
@@ -31,6 +36,11 @@ import { EditTeamModalComponent } from './edit-team-modal';
           <button class="btn-primary" (click)="goToDraft()">
             🏈 Enter Draft Room
           </button>
+          @if (canManageLeague()) {
+            <button class="btn-secondary" (click)="showSettings()">
+              ⚙️ League Settings
+            </button>
+          }
           <button class="btn-secondary" routerLink="/leagues">
             Back to Leagues
           </button>
@@ -42,6 +52,11 @@ import { EditTeamModalComponent } from './edit-team-modal';
       [visible]="editTeamModalVisible"
       (visibleChange)="onEditTeamModalVisibleChange($event)"
     ></app-edit-team-modal>
+
+    <app-league-settings
+      [league]="mockLeague"
+      *ngIf="showSettingsView"
+    ></app-league-settings>
   `,
   styles: [
     `
@@ -78,6 +93,7 @@ import { EditTeamModalComponent } from './edit-team-modal';
         display: flex;
         gap: 1rem;
         justify-content: flex-start;
+        flex-wrap: wrap;
       }
 
       .btn-secondary {
@@ -115,12 +131,83 @@ import { EditTeamModalComponent } from './edit-team-modal';
     `,
   ],
 })
-export class LeagueDetailComponent {
+export class LeagueDetailComponent implements OnInit {
   editTeamModalVisible = false;
+  showSettingsView = false;
   leagueId: string = '';
 
-  constructor(private route: ActivatedRoute, private router: Router) {
+  // Mock league data for now - this should come from the service
+  mockLeague: League = {
+    id: 'mock-league',
+    name: 'My Dynasty League',
+    description: 'A competitive dynasty fantasy football league',
+    numberOfTeams: 12,
+    phase: 'offseason' as LeaguePhase,
+    status: 'active',
+    currentYear: 2024,
+    isPrivate: false,
+    joinCode: 'ABC123',
+    rules: {
+      scoring: {
+        ppr: 1,
+        passingYards: 0.04,
+        rushingYards: 0.1,
+        receivingYards: 0.1,
+        passingTouchdown: 4,
+        rushingTouchdown: 6,
+        receivingTouchdown: 6,
+        interception: -2,
+        fumble: -2,
+        fieldGoal: 3,
+        extraPoint: 1,
+      },
+      cap: {
+        salaryCap: 200000000,
+        minimumSpend: 180000000,
+        deadMoneyRules: {
+          preJune1: true,
+          signingBonusAcceleration: true,
+        },
+      },
+      contracts: {
+        maxYears: 5,
+        maxSigningBonus: 50000000,
+        rookieScale: true,
+      },
+      draft: {
+        mode: 'snake',
+        rounds: 25,
+        timeLimit: 90,
+        snakeOrder: true,
+        autodraftDelay: 30,
+        rookieAutoContracts: true,
+        veteranNegotiationWindow: 72,
+      },
+      freeAgency: {
+        bidRounds: 30,
+        tieBreakers: ['guarantees', 'apy', 'length', 'random'],
+      },
+    },
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  constructor(
+    private route: ActivatedRoute,
+    private router: Router,
+    private leagueMembershipService: LeagueMembershipService,
+    private authService: AuthService,
+  ) {
     this.leagueId = this.route.snapshot.params['id'];
+  }
+
+  async ngOnInit(): Promise<void> {
+    try {
+      const canManage = await this.leagueMembershipService.canManageLeague(this.leagueId);
+      this.canManageLeagueSignal.set(canManage);
+    } catch (err) {
+      console.error('Error checking league management permissions:', err);
+    }
   }
 
   openEditTeamModal(): void {
@@ -131,8 +218,17 @@ export class LeagueDetailComponent {
     this.editTeamModalVisible = visible;
   }
 
+  showSettings(): void {
+    this.showSettingsView = true;
+  }
+
   goToDraft(): void {
     // Navigate to the draft room for this league
     this.router.navigate(['/draft', this.leagueId]);
+  }
+
+  canManageLeagueSignal = signal(false);
+  canManageLeague() {
+    return this.canManageLeagueSignal();
   }
 }

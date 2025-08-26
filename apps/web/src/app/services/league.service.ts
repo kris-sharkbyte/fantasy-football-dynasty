@@ -13,6 +13,7 @@ import {
   DocumentData,
   QueryDocumentSnapshot,
   Firestore,
+  getDoc,
 } from '@angular/fire/firestore';
 import { AuthService } from './auth.service';
 import { LeagueMembershipService } from './league-membership.service';
@@ -26,38 +27,30 @@ import {
   ContractRules,
   DraftRules,
   FreeAgencyRules,
+  LeaguePhase,
 } from '../../../../../libs/types/src/lib/types';
 
 export interface CreateLeagueData {
   name: string;
-  teamName: string;
   description?: string;
-  type: string;
-  scoring: string;
-  teams: number;
-  salaryCap: number;
-  minSpend: number;
-  maxContractYears: number;
-  franchiseTagCost: number;
-  allowVoidYears: boolean;
-  rosterSize: number;
-  taxiSquadSize: number;
-  draftDate?: string;
-  draftTimeLimit: number;
-  requiredPositions: string[];
-  inviteEmails?: string;
-  entryFee: number;
-  publicLeague: boolean;
+  numberOfTeams: number;
+  rules: LeagueRules;
+  isPrivate: boolean;
 }
 
-export interface FirestoreLeague
-  extends Omit<League, 'id' | 'createdAt' | 'updatedAt'> {
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  ownerUserId: string;
-  memberUserIds: string[];
-  status: 'active' | 'pending' | 'archived';
+export interface FirestoreLeague {
+  id: string;
+  name: string;
+  description?: string;
   numberOfTeams: number;
+  currentYear: number;
+  phase: LeaguePhase;
+  status: 'active' | 'inactive' | 'completed' | 'drafting' | 'free-agency';
+  isPrivate: boolean;
+  joinCode: string;
+  rules: LeagueRules;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 @Injectable({
@@ -83,15 +76,27 @@ export class LeagueService {
   public selectedLeagueId = this._selectedLeagueId.asReadonly();
 
   /**
-   * Create a new league and associate it with the current user
-   */
-  /**
    * Set the selected league ID
    */
   setSelectedLeagueId(leagueId: string | null) {
     this._selectedLeagueId.set(leagueId);
   }
 
+  /**
+   * Generate a unique join code for private leagues
+   */
+  private generateJoinCode(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  /**
+   * Create a new league and associate it with the current user
+   */
   async createLeague(leagueData: CreateLeagueData): Promise<string> {
     try {
       this._isLoading.set(true);
@@ -104,54 +109,49 @@ export class LeagueService {
 
       // Convert form data to league structure
       const leagueRules: LeagueRules = {
-        scoring: this.mapScoringRules(leagueData.scoring),
+        scoring: this.mapScoringRules('ppr'), // Default to PPR for now
         cap: {
-          salaryCap: leagueData.salaryCap,
-          minimumSpend: leagueData.minSpend,
+          salaryCap: leagueData.rules.cap.salaryCap,
+          minimumSpend: leagueData.rules.cap.minimumSpend,
           deadMoneyRules: {
             preJune1: true,
             signingBonusAcceleration: true,
           },
         },
         contracts: {
-          maxYears: leagueData.maxContractYears,
-          maxSigningBonus: leagueData.salaryCap * 0.25, // 25% of cap
-          rookieScale: true,
+          maxYears: leagueData.rules.contracts.maxYears,
+          maxSigningBonus: leagueData.rules.contracts.maxSigningBonus,
+          rookieScale: leagueData.rules.contracts.rookieScale,
         },
         draft: {
-          mode: 'snake',
-          rounds: leagueData.rosterSize,
-          timeLimit: leagueData.draftTimeLimit,
-          snakeOrder: true,
-          autodraftDelay: 30, // 30 seconds before autodraft
-          rookieAutoContracts: true,
-          veteranNegotiationWindow: 72, // 72 hours
+          mode: leagueData.rules.draft.mode,
+          rounds: leagueData.rules.draft.rounds,
+          timeLimit: leagueData.rules.draft.timeLimit,
+          snakeOrder: leagueData.rules.draft.snakeOrder,
+          autodraftDelay: leagueData.rules.draft.autodraftDelay,
+          rookieAutoContracts: leagueData.rules.draft.rookieAutoContracts,
+          veteranNegotiationWindow:
+            leagueData.rules.draft.veteranNegotiationWindow,
         },
         freeAgency: {
-          bidRounds: 30, // 30 seconds between rounds
-          tieBreakers: ['guarantees', 'apy', 'length', 'random'],
+          bidRounds: leagueData.rules.freeAgency.bidRounds,
+          tieBreakers: leagueData.rules.freeAgency.tieBreakers,
         },
       };
 
       const firestoreLeague: Omit<FirestoreLeague, 'id'> = {
         name: leagueData.name,
-        rules: leagueRules,
+        description: leagueData.description,
+        numberOfTeams: leagueData.numberOfTeams,
         currentYear: new Date().getFullYear(),
-        phase: 'offseason',
-        numberOfTeams: leagueData.teams,
-        ownerUserId: currentUser.uid,
-        memberUserIds: [currentUser.uid],
+        phase: 'offseason' as LeaguePhase,
         status: 'active',
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
+        isPrivate: leagueData.isPrivate,
+        joinCode: this.generateJoinCode(),
+        rules: leagueRules,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
-
-      // Only add draftDate if it's provided and not empty
-      if (leagueData.draftDate && leagueData.draftDate.trim() !== '') {
-        (firestoreLeague as any).draftDate = Timestamp.fromDate(
-          new Date(leagueData.draftDate)
-        );
-      }
 
       // Add league to Firestore
       const docRef = await addDoc(
@@ -162,9 +162,9 @@ export class LeagueService {
       // Create a default team for the league owner using the provided team name
       const teamId = await this.teamService.createTeam({
         leagueId: docRef.id,
-        name: leagueData.teamName,
+        name: leagueData.name, // Assuming team name is the same as league name for now
         ownerUserId: currentUser.uid,
-        capSpace: leagueData.salaryCap,
+        capSpace: leagueData.rules.cap.salaryCap,
       });
 
       // Add user as owner to the league with the team ID
@@ -204,30 +204,42 @@ export class LeagueService {
         return;
       }
 
-      // Query leagues where user is a member
+      // Query all leagues and check if user is a member in the members subcollection
       const leaguesRef = collection(this.db, 'leagues');
-      const q = query(
-        leaguesRef,
-        where('memberUserIds', 'array-contains', currentUser.uid),
-        orderBy('createdAt', 'desc')
-      );
-
+      const q = query(leaguesRef, orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
+      
       const leagues: League[] = [];
-
-      querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
-        const data = doc.data() as FirestoreLeague;
-        leagues.push({
-          id: doc.id,
-          name: data.name,
-          rules: data.rules,
-          currentYear: data.currentYear,
-          phase: data.phase,
-          numberOfTeams: data.numberOfTeams || 0,
-          createdAt: data.createdAt.toDate(),
-          updatedAt: data.updatedAt.toDate(),
-        });
-      });
+      
+      for (const leagueDoc of querySnapshot.docs) {
+        try {
+          // Check if user is a member by looking in the members subcollection
+          const membersRef = collection(leagueDoc.ref, 'members');
+          const memberQuery = query(membersRef, where('userId', '==', currentUser.uid));
+          const memberSnapshot = await getDocs(memberQuery);
+          
+          if (!memberSnapshot.empty) {
+            // User is a member of this league
+            const data = leagueDoc.data() as FirestoreLeague;
+            leagues.push({
+              id: leagueDoc.id,
+              name: data.name,
+              description: data.description,
+              rules: data.rules,
+              currentYear: data.currentYear,
+              phase: data.phase,
+              status: data.status,
+              numberOfTeams: data.numberOfTeams || 0,
+              isPrivate: data.isPrivate,
+              joinCode: data.joinCode,
+              createdAt: data.createdAt,
+              updatedAt: data.updatedAt,
+            });
+          }
+        } catch (error) {
+          console.error(`Error checking membership for league ${leagueDoc.id}:`, error);
+        }
+      }
 
       this._userLeagues.set(leagues);
     } catch (error) {
@@ -415,6 +427,130 @@ export class LeagueService {
    */
   clearError(): void {
     this._error.set(null);
+  }
+
+  /**
+   * Search for public leagues
+   */
+  async searchPublicLeagues(searchTerm?: string): Promise<League[]> {
+    try {
+      const currentUser = this.authService.currentUser();
+      if (!currentUser) {
+        throw new Error('User must be authenticated to search leagues');
+      }
+
+      const leaguesRef = collection(this.db, 'leagues');
+      let q = query(
+        leaguesRef,
+        where('isPrivate', '==', false),
+        where('status', '==', 'active'),
+        orderBy('createdAt', 'desc')
+      );
+
+      const querySnapshot = await getDocs(q);
+      const leagues: League[] = [];
+
+      for (const leagueDoc of querySnapshot.docs) {
+        try {
+          // Check if user is already a member by looking in the members subcollection
+          const membersRef = collection(leagueDoc.ref, 'members');
+          const memberQuery = query(membersRef, where('userId', '==', currentUser.uid));
+          const memberSnapshot = await getDocs(memberQuery);
+          
+          if (!memberSnapshot.empty) {
+            // User is already a member, skip this league
+            continue;
+          }
+
+          const data = leagueDoc.data() as FirestoreLeague;
+          
+          // Only include leagues that match search term if provided
+          if (
+            !searchTerm ||
+            data.name.toLowerCase().includes(searchTerm.toLowerCase())
+          ) {
+            leagues.push({
+              id: leagueDoc.id,
+              name: data.name,
+              description: data.description,
+              rules: data.rules,
+              currentYear: data.currentYear,
+              phase: data.phase,
+              status: data.status,
+              numberOfTeams: data.numberOfTeams || 0,
+              isPrivate: data.isPrivate,
+              joinCode: data.joinCode,
+              createdAt: data.createdAt,
+              updatedAt: data.updatedAt,
+            });
+          }
+        } catch (error) {
+          console.error(`Error checking membership for league ${leagueDoc.id}:`, error);
+        }
+      }
+
+      return leagues;
+    } catch (error) {
+      console.error('Error searching public leagues:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Join a league using a join code
+   */
+  async joinLeagueByCode(
+    joinCode: string
+  ): Promise<{ success: boolean; leagueId?: string; message: string }> {
+    try {
+      const currentUser = this.authService.currentUser();
+      if (!currentUser) {
+        throw new Error('User must be authenticated to join a league');
+      }
+
+      // Find league by join code
+      const leaguesRef = collection(this.db, 'leagues');
+      const q = query(
+        leaguesRef,
+        where('joinCode', '==', joinCode),
+        where('status', '==', 'active')
+      );
+
+      const querySnapshot = await getDocs(q);
+      if (querySnapshot.empty) {
+        return {
+          success: false,
+          message: 'Invalid join code or league not found',
+        };
+      }
+
+      const leagueDoc = querySnapshot.docs[0];
+      const leagueData = leagueDoc.data() as FirestoreLeague;
+
+      // Add user to league
+      await this.leagueMembershipService.addMemberToLeague(
+        leagueDoc.id,
+        currentUser.uid,
+        'member', // Assign lowest role type
+        '' // Empty string for now - they'll need to create a team later
+      );
+
+      // Refresh user's leagues
+      await this.loadUserLeagues();
+
+      return {
+        success: true,
+        leagueId: leagueDoc.id,
+        message: `Successfully joined ${leagueData.name}`,
+      };
+    } catch (error) {
+      console.error('Error joining league:', error);
+      return {
+        success: false,
+        message:
+          error instanceof Error ? error.message : 'Failed to join league',
+      };
+    }
   }
 
   /**

@@ -1,0 +1,204 @@
+<p-dialog
+  [(visible)]="visible"
+  header="Join League"
+  [modal]="true"
+  [closable]="true"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="join-league-modal"
+  (onHide)="hide()"
+>
+  <div class="join-league-content">
+    <!-- Section Toggle Buttons -->
+    <div class="section-toggle mb-4">
+      <button
+        class="toggle-btn"
+        [class.active]="activeTabIndex() === 0"
+        (click)="activeTabIndex.set(0)"
+      >
+        <i class="pi pi-search mr-2"></i>
+        Search Leagues
+      </button>
+      <button
+        class="toggle-btn"
+        [class.active]="activeTabIndex() === 1"
+        (click)="activeTabIndex.set(1)"
+      >
+        <i class="pi pi-key mr-2"></i>
+        Join by Code
+      </button>
+    </div>
+
+    <!-- Search Public Leagues Section -->
+    <div *ngIf="activeTabIndex() === 0" class="search-section">
+      <div class="space-y-4">
+        <div class="search-form">
+          <form
+            [formGroup]="searchForm"
+            (ngSubmit)="searchLeagues()"
+            class="flex gap-2"
+          >
+            <input
+              type="text"
+              pInputText
+              formControlName="searchTerm"
+              placeholder="Search for leagues by name..."
+              class="flex-1"
+            />
+            <p-button
+              type="submit"
+              label="Search"
+              icon="pi pi-search"
+              [loading]="isLoading()"
+              [disabled]="!searchForm.get('searchTerm')?.value"
+            ></p-button>
+          </form>
+          <small class="text-secondary-500 mt-2 block">
+            Enter at least 2 characters to search for public leagues.
+          </small>
+        </div>
+
+        @if (isLoading()) {
+        <div class="flex justify-center py-8">
+          <p-progressSpinner></p-progressSpinner>
+        </div>
+        } @else if (searchResults().length > 0) {
+        <div class="search-results space-y-3">
+          <h3 class="text-lg font-semibold text-secondary-800">
+            Found {{ searchResults().length }} league(s)
+          </h3>
+
+          @for (league of searchResults(); track league.id) {
+          <p-card styleClass="league-result-card">
+            <div class="flex items-center justify-between">
+              <div class="flex-1">
+                <h4 class="text-lg font-semibold text-secondary-900 mb-2">
+                  {{ league.name }}
+                </h4>
+                <div class="flex items-center gap-4 text-sm text-secondary-600">
+                  <span>{{ league.numberOfTeams }} teams</span>
+                  <span>{{ league.rules.draft.rounds }} roster spots</span>
+                  <span
+                    >${{ (league.rules.cap.salaryCap / 1000000).toFixed(1) }}M
+                    cap</span
+                  >
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                  <p-badge
+                    [value]="league.phase"
+                    [severity]="getStatusSeverity(league.phase)"
+                  ></p-badge>
+                  <p-chip
+                    [label]="
+                      league.rules.scoring.ppr === 1
+                        ? 'PPR'
+                        : league.rules.scoring.ppr === 0.5
+                        ? 'Half PPR'
+                        : 'Standard'
+                    "
+                    icon="pi pi-star"
+                  ></p-chip>
+                </div>
+              </div>
+              <div class="ml-4">
+                <p-button
+                  label="Join League"
+                  icon="pi pi-sign-in"
+                  severity="primary"
+                  size="small"
+                  (onClick)="joinPublicLeague(league)"
+                  [loading]="isLoading()"
+                ></p-button>
+              </div>
+            </div>
+          </p-card>
+          }
+        </div>
+        } @else if (searchForm.get('searchTerm')?.value &&
+        searchResults().length === 0) {
+        <div class="text-center py-8">
+          <i class="pi pi-search text-4xl text-secondary-400 mb-4"></i>
+          <p class="text-secondary-600">
+            No leagues found matching your search.
+          </p>
+        </div>
+        } @else {
+        <div class="text-center py-8">
+          <i class="pi pi-search text-4xl text-secondary-400 mb-4"></i>
+          <p class="text-secondary-600">Search for public leagues to join.</p>
+        </div>
+        }
+      </div>
+    </div>
+
+    <!-- Join by Code Section -->
+    <div *ngIf="activeTabIndex() === 1" class="join-code-section">
+      <div class="space-y-4">
+        <div class="text-center mb-6">
+          <i class="pi pi-key text-4xl text-primary-500 mb-4"></i>
+          <h3 class="text-lg font-semibold text-secondary-800 mb-2">
+            Have a Join Code?
+          </h3>
+          <p class="text-secondary-600">
+            Enter the 6-character join code provided by the league commissioner.
+          </p>
+        </div>
+
+        <form
+          [formGroup]="joinCodeForm"
+          (ngSubmit)="joinByCode()"
+          class="space-y-4"
+        >
+          <div class="field">
+            <label
+              for="joinCode"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              Join Code *
+            </label>
+            <input
+              id="joinCode"
+              type="text"
+              pInputText
+              formControlName="joinCode"
+              placeholder="Enter 6-character code"
+              class="w-full text-center text-lg tracking-widest font-mono"
+              maxlength="6"
+              style="letter-spacing: 0.5em"
+            />
+            @if (joinCodeForm.get('joinCode')?.invalid &&
+            joinCodeForm.get('joinCode')?.touched) {
+            <small class="p-error"
+              >Please enter a valid 6-character join code</small
+            >
+            }
+          </div>
+
+          <div class="flex justify-center">
+            <p-button
+              type="submit"
+              label="Join League"
+              icon="pi pi-sign-in"
+              severity="success"
+              size="large"
+              [loading]="isLoading()"
+              [disabled]="joinCodeForm.invalid"
+            ></p-button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-end">
+      <p-button
+        label="Cancel"
+        icon="pi pi-times"
+        severity="secondary"
+        outlined="true"
+        (onClick)="hide()"
+      ></p-button>
+    </div>
+  </ng-template>
+</p-dialog>

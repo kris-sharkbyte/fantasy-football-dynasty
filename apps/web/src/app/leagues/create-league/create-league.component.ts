@@ -16,9 +16,9 @@ import { TextareaModule } from 'primeng/textarea';
 import { DividerModule } from 'primeng/divider';
 import { MessageModule } from 'primeng/message';
 import { StepsModule } from 'primeng/steps';
-import { CheckboxModule } from 'primeng/checkbox';
 import { LeagueService, CreateLeagueData } from '../../services/league.service';
 import { MessageService } from 'primeng/api';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 @Component({
   selector: 'app-create-league',
@@ -36,96 +36,114 @@ import { MessageService } from 'primeng/api';
     DividerModule,
     MessageModule,
     StepsModule,
-    CheckboxModule,
+    ProgressSpinnerModule,
   ],
   providers: [MessageService],
   templateUrl: './create-league.component.html',
   styleUrls: ['./create-league.component.scss'],
 })
 export class CreateLeagueComponent {
-  leagueForm: FormGroup;
+  leagueForm!: FormGroup;
   isSubmitting = signal(false);
   currentStepIndex = signal(0);
+  isLoading = signal(true);
 
   steps = [
     { label: 'Basic Info', icon: 'pi pi-info-circle' },
-    { label: 'Salary Cap', icon: 'pi pi-dollar' },
+    { label: 'Salary Cap & Contracts', icon: 'pi pi-dollar' },
     { label: 'Draft & Roster', icon: 'pi pi-users' },
-    { label: 'Invitations', icon: 'pi pi-envelope' },
+    { label: 'Free Agency & Privacy', icon: 'pi pi-cog' },
     { label: 'Review', icon: 'pi pi-check-circle' },
-  ];
-
-  leagueTypes = [
-    { label: 'Dynasty', value: 'dynasty' },
-    { label: 'Keeper', value: 'keeper' },
-    { label: 'Redraft', value: 'redraft' },
   ];
 
   scoringSystems = [
     { label: 'PPR (Point Per Reception)', value: 'ppr' },
     { label: 'Half PPR', value: 'half-ppr' },
     { label: 'Standard', value: 'standard' },
-    { label: 'Custom', value: 'custom' },
-  ];
-
-  positions = [
-    { label: 'QB', value: 'QB' },
-    { label: 'RB', value: 'RB' },
-    { label: 'WR', value: 'WR' },
-    { label: 'TE', value: 'TE' },
-    { label: 'K', value: 'K' },
-    { label: 'DEF', value: 'DEF' },
-    { label: 'IDP', value: 'IDP' },
-    { label: 'FLEX', value: 'FLEX' },
   ];
 
   private leagueService = inject(LeagueService);
   private messageService = inject(MessageService);
   private router = inject(Router);
 
-  constructor(private fb: FormBuilder) {
+  constructor(private fb: FormBuilder) {}
+
+  ngOnInit(): void {
+    this.initializeForm();
+  }
+
+  private initializeForm(): void {
     this.leagueForm = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(3)]],
-      teamName: [
-        'My Dynasty Team',
-        [Validators.required, Validators.minLength(2)],
-      ],
-      teams: [12, [Validators.required, Validators.min(8), Validators.max(16)]],
       description: [''],
-      type: ['dynasty'],
-      scoring: ['ppr'],
-      salaryCap: [200000000, [Validators.required, Validators.min(100000000)]],
-      minSpend: [
-        85,
-        [Validators.required, Validators.min(70), Validators.max(95)],
+      numberOfTeams: [
+        12,
+        [Validators.required, Validators.min(2), Validators.max(32)],
       ],
-      maxContractYears: [
-        5,
-        [Validators.required, Validators.min(1), Validators.max(7)],
-      ],
-      franchiseTagCost: [
-        15,
-        [Validators.required, Validators.min(10), Validators.max(25)],
-      ],
-      allowVoidYears: [false],
-      rosterSize: [
-        25,
-        [Validators.required, Validators.min(20), Validators.max(35)],
-      ],
-      taxiSquadSize: [
-        3,
-        [Validators.required, Validators.min(0), Validators.max(10)],
-      ],
-      draftDate: [''],
-      draftTimeLimit: [
-        90,
-        [Validators.required, Validators.min(30), Validators.max(300)],
-      ],
-      requiredPositions: [['QB', 'RB', 'WR', 'TE', 'K', 'DEF']],
-      inviteEmails: [''],
-      entryFee: [0],
-      publicLeague: [false],
+      rules: this.fb.group({
+        scoring: ['ppr', Validators.required],
+        cap: this.fb.group({
+          salaryCap: [
+            200000000,
+            [Validators.required, Validators.min(100000000)],
+          ],
+          minimumSpend: [
+            180000000,
+            [Validators.required, Validators.min(100000000)],
+          ],
+        }),
+        contracts: this.fb.group({
+          maxYears: [
+            5,
+            [Validators.required, Validators.min(1), Validators.max(7)],
+          ],
+          maxSigningBonus: [
+            50000000,
+            [Validators.required, Validators.min(10000000)],
+          ],
+          rookieScale: [true],
+        }),
+        draft: this.fb.group({
+          mode: ['snake', Validators.required],
+          rounds: [
+            20,
+            [Validators.required, Validators.min(15), Validators.max(30)],
+          ],
+          timeLimit: [
+            90,
+            [Validators.required, Validators.min(30), Validators.max(300)],
+          ],
+          snakeOrder: [true],
+          autodraftDelay: [
+            30,
+            [Validators.required, Validators.min(10), Validators.max(60)],
+          ],
+          rookieAutoContracts: [true],
+          veteranNegotiationWindow: [
+            72,
+            [Validators.required, Validators.min(24), Validators.max(168)],
+          ],
+        }),
+        freeAgency: this.fb.group({
+          bidRounds: [
+            30,
+            [Validators.required, Validators.min(15), Validators.max(60)],
+          ],
+          tieBreakers: [['guarantees', 'apy', 'length', 'random']],
+        }),
+      }),
+      isPrivate: [false], // Default to public
     });
+
+    // Subscribe to isPrivate changes to update UI
+    this.leagueForm
+      .get('isPrivate')
+      ?.valueChanges.subscribe((isPrivate: boolean) => {
+        // No need to handle publicLeague anymore since we always generate codes
+      });
+
+    // Mark form as ready
+    this.isLoading.set(false);
   }
 
   nextStep(): void {
@@ -152,23 +170,27 @@ export class CreateLeagueComponent {
       case 0: // Basic Info
         return !!(
           this.leagueForm.get('name')?.valid &&
-          this.leagueForm.get('teamName')?.valid &&
-          this.leagueForm.get('teams')?.valid
+          this.leagueForm.get('numberOfTeams')?.valid
         );
-      case 1: // Salary Cap
+      case 1: // Salary Cap & Contracts
         return !!(
-          this.leagueForm.get('salaryCap')?.valid &&
-          this.leagueForm.get('minSpend')?.valid &&
-          this.leagueForm.get('maxContractYears')?.valid
+          this.leagueForm.get('rules.cap.salaryCap')?.valid &&
+          this.leagueForm.get('rules.cap.minimumSpend')?.valid &&
+          this.leagueForm.get('rules.contracts.maxYears')?.valid &&
+          this.leagueForm.get('rules.contracts.maxSigningBonus')?.valid
         );
       case 2: // Draft & Roster
         return !!(
-          this.leagueForm.get('rosterSize')?.valid &&
-          this.leagueForm.get('taxiSquadSize')?.valid &&
-          this.leagueForm.get('draftTimeLimit')?.valid
+          this.leagueForm.get('rules.draft.rounds')?.valid &&
+          this.leagueForm.get('rules.draft.timeLimit')?.valid &&
+          this.leagueForm.get('rules.draft.autodraftDelay')?.valid &&
+          this.leagueForm.get('rules.draft.veteranNegotiationWindow')?.valid
         );
-      case 3: // Invitations
-        return true; // Optional step
+      case 3: // Free Agency & Privacy
+        return !!(
+          this.leagueForm.get('rules.freeAgency.bidRounds')?.valid &&
+          this.leagueForm.get('rules.cap.minimumSpend')?.valid
+        );
       case 4: // Review
         return this.leagueForm.valid;
       default:
@@ -176,75 +198,34 @@ export class CreateLeagueComponent {
     }
   }
 
-  getLeagueTypeLabel(value: string): string {
-    const type = this.leagueTypes.find((t) => t.value === value);
-    return type ? type.label : value;
-  }
-
   getScoringLabel(value: string): string {
     const scoring = this.scoringSystems.find((s) => s.value === value);
     return scoring ? scoring.label : value;
   }
 
-  getSalaryCapDisplay(): string {
-    const salaryCap = this.leagueForm.get('salaryCap')?.value;
-    if (salaryCap) {
-      return (salaryCap / 1000000).toFixed(1);
-    }
-    return '0.0';
-  }
-
   async onSubmit(): Promise<void> {
-    if (this.leagueForm.valid) {
-      try {
-        this.isSubmitting.set(true);
+    if (this.leagueForm.invalid) {
+      return;
+    }
 
-        const formData = this.leagueForm.value;
-        const leagueData: CreateLeagueData = {
-          name: formData.name,
-          teamName: formData.teamName,
-          description: formData.description,
-          type: formData.type,
-          scoring: formData.scoring,
-          teams: formData.teams,
-          salaryCap: formData.salaryCap,
-          minSpend: formData.minSpend,
-          maxContractYears: formData.maxContractYears,
-          franchiseTagCost: formData.franchiseTagCost,
-          allowVoidYears: formData.allowVoidYears,
-          rosterSize: formData.rosterSize,
-          taxiSquadSize: formData.taxiSquadSize,
-          draftDate: formData.draftDate,
-          draftTimeLimit: formData.draftTimeLimit,
-          requiredPositions: formData.requiredPositions,
-          inviteEmails: formData.inviteEmails,
-          entryFee: formData.entryFee,
-          publicLeague: formData.publicLeague,
-        };
+    try {
+      this.isSubmitting.set(true);
+      const formData = this.leagueForm.value;
 
-        const leagueId = await this.leagueService.createLeague(leagueData);
+      const createLeagueData: CreateLeagueData = {
+        name: formData.name,
+        description: formData.description,
+        numberOfTeams: formData.numberOfTeams,
+        rules: formData.rules,
+        isPrivate: formData.isPrivate,
+      };
 
-        this.messageService.add({
-          severity: 'success',
-          summary: 'League Created!',
-          detail: `Your league "${formData.name}" has been created successfully.`,
-        });
-
-        // Navigate to the new league
-        this.router.navigate(['/leagues', leagueId]);
-      } catch (error) {
-        console.error('Error creating league:', error);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Creation Failed',
-          detail:
-            error instanceof Error
-              ? error.message
-              : 'Failed to create league. Please try again.',
-        });
-      } finally {
-        this.isSubmitting.set(false);
-      }
+      const leagueId = await this.leagueService.createLeague(createLeagueData);
+      this.router.navigate(['/leagues', leagueId]);
+    } catch (error) {
+      console.error('Error creating league:', error);
+    } finally {
+      this.isSubmitting.set(false);
     }
   }
 }

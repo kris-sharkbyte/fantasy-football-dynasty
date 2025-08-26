@@ -10,6 +10,13 @@
         (click)="refreshLeagues()"
       ></p-button>
       <p-button
+        label="Join League"
+        icon="pi pi-sign-in"
+        severity="secondary"
+        outlined="true"
+        (click)="joinLeagueModal.show()"
+      ></p-button>
+      <p-button
         label="Create League"
         icon="pi pi-plus"
         routerLink="/leagues/create"
@@ -94,14 +101,16 @@
             size="small"
             (click)="$event.stopPropagation()"
           ></p-button>
-          <p-button
-            label="Manage"
-            icon="pi pi-cog"
-            severity="secondary"
-            outlined="true"
-            size="small"
-            (click)="$event.stopPropagation()"
-          ></p-button>
+          @if (canManageLeague(league.id)) {
+            <p-button
+              label="Manage"
+              icon="pi pi-cog"
+              severity="secondary"
+              outlined="true"
+              size="small"
+              (click)="manageLeague(league.id)"
+            ></p-button>
+          }
         </div>
       </ng-template>
     </p-card>
@@ -129,3 +138,6 @@
   </div>
   }
 </div>
+
+<!-- Join League Modal -->
+<app-join-league-modal #joinLeagueModal></app-join-league-modal>

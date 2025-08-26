@@ -1,0 +1,166 @@
+<div class="league-settings-container">
+  <p-card header="League Settings" styleClass="settings-card">
+    <form [formGroup]="settingsForm" class="space-y-6">
+      <!-- Basic Information -->
+      <div class="settings-section">
+        <h3 class="text-lg font-semibold text-secondary-800 mb-4">
+          Basic Information
+        </h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="field">
+            <label
+              for="name"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              League Name *
+            </label>
+            <input
+              id="name"
+              type="text"
+              pInputText
+              formControlName="name"
+              placeholder="Enter league name"
+              class="w-full"
+            />
+            @if (settingsForm.get('name')?.invalid && settingsForm.get('name')?.touched) {
+            <small class="p-error">League name is required and must be at least 3 characters</small>
+            }
+          </div>
+
+          <div class="field">
+            <label
+              for="description"
+              class="block text-sm font-medium text-secondary-700 mb-2"
+            >
+              Description
+            </label>
+            <textarea
+              id="description"
+              pInputTextarea
+              formControlName="description"
+              rows="3"
+              placeholder="Describe your league (optional)"
+              class="w-full"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Privacy Settings -->
+      <div class="settings-section">
+        <h3 class="text-lg font-semibold text-secondary-800 mb-4">
+          Privacy & Access
+        </h3>
+        
+        <div class="space-y-4">
+          <div class="field">
+            <div class="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="isPrivate"
+                formControlName="isPrivate"
+                (change)="onPrivacyChange()"
+                class="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500"
+              />
+              <label
+                for="isPrivate"
+                class="text-sm font-medium text-secondary-700"
+              >
+                Make League Private (Requires join code to join)
+              </label>
+            </div>
+            <small class="text-secondary-500 mt-2 block">
+              Private leagues can only be joined using the join code. Public leagues can be discovered through search and joined with the code.
+            </small>
+          </div>
+        </div>
+
+        <!-- Join Code Display -->
+        @if (joinCode()) {
+        <div class="mt-6 p-4 join-code-display">
+          <h4 class="text-sm font-medium mb-2">Join Code</h4>
+          <div class="flex items-center gap-3">
+            <div class="flex-1">
+              <code class="join-code-text">
+                {{ joinCode() }}
+              </code>
+            </div>
+            <div class="flex gap-2">
+              <p-button
+                label="Copy"
+                icon="pi pi-copy"
+                severity="secondary"
+                size="small"
+                (onClick)="copyJoinCode()"
+              ></p-button>
+              <p-button
+                label="New Code"
+                icon="pi pi-refresh"
+                severity="secondary"
+                outlined="true"
+                size="small"
+                (onClick)="generateNewJoinCode()"
+              ></p-button>
+            </div>
+          </div>
+          <small class="join-code-help mt-2 block">
+            @if (isPrivate()) {
+              Share this code with people you want to invite to your private league.
+            } @else {
+              This code can be used to join your public league.
+            }
+          </small>
+        </div>
+        }
+      </div>
+
+      <!-- League Information (Read-only) -->
+      <div class="settings-section">
+        <h3 class="text-lg font-semibold text-secondary-800 mb-4">
+          League Information
+        </h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="info-item">
+            <span class="label">Teams:</span>
+            <span class="value">{{ league().numberOfTeams }}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Current Phase:</span>
+            <span class="value">{{ league().phase | titlecase }}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Season:</span>
+            <span class="value">{{ league().currentYear }}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Salary Cap:</span>
+            <span class="value">${{ (league().rules.cap.salaryCap / 1000000).toFixed(1) }}M</span>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <!-- Action Buttons -->
+    <ng-template pTemplate="footer">
+      <div class="flex gap-3 justify-end">
+        <p-button
+          label="Cancel"
+          icon="pi pi-times"
+          severity="secondary"
+          outlined="true"
+          routerLink="/leagues"
+        ></p-button>
+        <p-button
+          label="Save Changes"
+          icon="pi pi-check"
+          severity="success"
+          (onClick)="saveSettings()"
+          [loading]="isSaving()"
+          [disabled]="settingsForm.invalid || isSaving()"
+        ></p-button>
+      </div>
+    </ng-template>
+  </p-card>
+</div>
