@@ -5,6 +5,7 @@ import {
   OnDestroy,
   Output,
   EventEmitter,
+  OnInit,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
@@ -19,7 +20,7 @@ import { DraftLayoutService } from '../../services/draft-layout.service';
   standalone: true,
   imports: [CommonModule, DraftTopbar, DraftFooter, RouterModule],
   template: `<div
-    class="layout-wrapper draft-layout"
+    class="layout-wrapper draft-layout layout-full"
     [ngClass]="containerClass"
   >
     <app-draft-topbar
@@ -36,7 +37,7 @@ import { DraftLayoutService } from '../../services/draft-layout.service';
     </div>
   </div> `,
 })
-export class DraftLayout implements OnDestroy {
+export class DraftLayout implements OnInit, OnDestroy {
   overlayMenuOpenSubscription: Subscription;
 
   @ViewChild(DraftTopbar) draftTopbar!: DraftTopbar;
@@ -60,6 +61,11 @@ export class DraftLayout implements OnDestroy {
       });
   }
 
+  ngOnInit() {
+    // Force full screen layout for draft, overriding user preferences
+    this.forceFullScreenLayout();
+  }
+
   onStartDraft() {
     // This will be handled by the child draft component
     // For now, we could emit an event or call a service method
@@ -79,13 +85,31 @@ export class DraftLayout implements OnDestroy {
   get containerClass() {
     return {
       'draft-active': true,
-      'layout-static': true,
+      'layout-full': true,
+      'draft-fullscreen': true,
     };
+  }
+
+  private forceFullScreenLayout() {
+    // Add CSS classes to body to ensure full screen layout
+    document.body.classList.add('draft-fullscreen-mode');
+    document.body.classList.remove('layout-static', 'layout-overlay');
+
+    // Force the layout service to use full screen mode
+    this.layoutService.layoutState.update((state) => ({
+      ...state,
+      staticMenuDesktopInactive: true,
+      overlayMenuActive: false,
+      staticMenuMobileActive: false,
+    }));
   }
 
   ngOnDestroy() {
     if (this.overlayMenuOpenSubscription) {
       this.overlayMenuOpenSubscription.unsubscribe();
     }
+
+    // Clean up full screen mode when leaving draft
+    document.body.classList.remove('draft-fullscreen-mode');
   }
 }

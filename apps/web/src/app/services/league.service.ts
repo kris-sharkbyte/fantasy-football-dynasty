@@ -57,6 +57,7 @@ export interface FirestoreLeague
   ownerUserId: string;
   memberUserIds: string[];
   status: 'active' | 'pending' | 'archived';
+  numberOfTeams: number;
 }
 
 @Injectable({
@@ -137,12 +138,20 @@ export class LeagueService {
         rules: leagueRules,
         currentYear: new Date().getFullYear(),
         phase: 'offseason',
+        numberOfTeams: leagueData.teams,
         ownerUserId: currentUser.uid,
         memberUserIds: [currentUser.uid],
         status: 'active',
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
+
+      // Only add draftDate if it's provided and not empty
+      if (leagueData.draftDate && leagueData.draftDate.trim() !== '') {
+        (firestoreLeague as any).draftDate = Timestamp.fromDate(
+          new Date(leagueData.draftDate)
+        );
+      }
 
       // Add league to Firestore
       const docRef = await addDoc(
@@ -214,6 +223,7 @@ export class LeagueService {
           rules: data.rules,
           currentYear: data.currentYear,
           phase: data.phase,
+          numberOfTeams: data.numberOfTeams || 0,
           createdAt: data.createdAt.toDate(),
           updatedAt: data.updatedAt.toDate(),
         });

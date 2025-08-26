@@ -6,6 +6,7 @@ export interface League {
   rules: LeagueRules;
   currentYear: number;
   phase: LeaguePhase;
+  numberOfTeams: number;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -1,231 +1,75 @@
-<!-- Draft Room Container -->
-<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
-  <!-- Loading State -->
-  <div
-    *ngIf="isLoading()"
-    class="flex items-center justify-center min-h-screen"
-  >
-    <div class="text-center">
-      <div
-        class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"
-      ></div>
-      <p class="text-gray-600 dark:text-gray-400">Loading draft room...</p>
+<div class="draft-container">
+  @if (isLoading()) {
+  <div class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading draft...</p>
+  </div>
+  } @else if (error()) {
+  <div class="error-container">
+    <p>{{ error() }}</p>
+  </div>
+  } @else {
+  <div class="draft-container">
+    <!-- Draft Board -->
+    <app-draft-board
+      [teams]="teams()"
+      [draftPicks]="draftPicks()"
+      [availablePlayers]="availablePlayers()"
+      [currentPick]="currentPick()"
+      [isMyTurn]="isMyTurn()"
+      [currentUserTeamId]="getCurrentUserTeamId()"
+      [canMakePick]="canMakePick()"
+      [numberOfTeams]="numberOfTeams()"
+      [totalRounds]="totalRounds()"
+      (claimTeam)="claimTeam($event)"
+      (openPlayerSelection)="openPlayerSelection($event)"
+    ></app-draft-board>
+
+    <!-- Player Selection Sidebar -->
+    <app-player-selection-sidebar
+      [isOpen]="showPlayerSelection()"
+      [selectedPick]="selectedPick()"
+      [availablePlayers]="availablePlayers()"
+      [selectedPlayer]="selectedPlayer()"
+      [searchQuery]="searchQuery()"
+      [selectedPosition]="selectedPosition()"
+      [canMakePick]="canMakePick()"
+      [draftState]="draftState()"
+      [isInWatchlist]="isInWatchlistForTemplate"
+      (close)="closePlayerSelection()"
+      (searchQueryChange)="searchQuery.set($event)"
+      (positionChange)="selectedPosition.set($event)"
+      (playerSelect)="selectedPlayer.set($event)"
+      (draftPlayer)="makePick($event)"
+      (addToWatchlist)="addToWatchlist($event)"
+      (toggleWatchlist)="toggleWatchlist($event)"
+    ></app-player-selection-sidebar>
+
+    <!-- Draft Controls -->
+    <app-draft-controls
+      [isCommissioner]="isCommissioner()"
+      [draftState]="draftState()"
+      (startDraft)="initializeDraft()"
+      (pauseDraft)="pauseDraft()"
+    ></app-draft-controls>
+
+    <!-- Toggle Button for Player Selection -->
+    <div class="player-selection-toggle">
+      <p-button
+        [icon]="showPlayerSelection() ? 'pi pi-times' : 'pi pi-users'"
+        [rounded]="true"
+        [text]="true"
+        [severity]="showPlayerSelection() ? 'danger' : 'primary'"
+        size="large"
+        (onClick)="showPlayerSelection.set(!showPlayerSelection())"
+        [title]="
+          showPlayerSelection()
+            ? 'Close Player Selection'
+            : 'Open Player Selection'
+        "
+        class="toggle-button"
+      ></p-button>
     </div>
   </div>
-
-  <!-- Error State -->
-  <div *ngIf="error()" class="flex items-center justify-center min-h-screen">
-    <div class="text-center">
-      <div
-        class="bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-200 px-4 py-3 rounded"
-      >
-        {{ error() }}
-      </div>
-    </div>
-  </div>
-
-  <!-- Draft Room Content -->
-  <div *ngIf="!isLoading() && !error()" class="flex flex-col h-screen">
-    <!-- Main Content Area -->
-    <div class="flex-1 flex overflow-hidden">
-      <!-- Draft Board -->
-      <div
-        *ngIf="draftLayoutService.showDraftBoard()"
-        class="flex-1 flex flex-col bg-white dark:bg-gray-800"
-      >
-        <div class="border-b border-gray-200 dark:border-gray-700 px-4 py-3">
-          <h2 class="text-lg font-medium text-gray-900 dark:text-white">
-            Draft Board
-          </h2>
-        </div>
-
-        <div class="flex-1 overflow-auto p-4">
-          <!-- Draft picks grid -->
-          <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-            <div
-              *ngFor="let pick of draftPicks(); let i = index"
-              class="border border-gray-200 dark:border-gray-700 rounded-lg p-3"
-            >
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-sm font-medium text-gray-900 dark:text-white">
-                  Pick {{ pick.pickNumber }}
-                </span>
-                <span class="text-xs text-gray-500 dark:text-gray-400">
-                  Round {{ pick.round }}
-                </span>
-              </div>
-
-              <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                {{ getTeamName(pick.currentTeamId) }}
-              </div>
-
-              <div
-                *ngIf="pick.playerId"
-                class="border-t border-gray-200 dark:border-gray-700 pt-2"
-              >
-                <div class="flex items-center justify-between">
-                  <div>
-                    <div class="font-medium text-gray-900 dark:text-white">
-                      {{ getPlayerById(pick.playerId!)?.name }}
-                    </div>
-                    <div
-                      class="text-sm"
-                      [class]="
-                        getPositionColor(
-                          getPlayerById(pick.playerId!)?.position || ''
-                        )
-                      "
-                    >
-                      {{ getPlayerById(pick.playerId!)?.position }} -
-                      {{ getPlayerById(pick.playerId!)?.nflTeam }}
-                    </div>
-                  </div>
-                  <div
-                    *ngIf="pick.isAutodrafted"
-                    class="bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 text-xs px-2 py-1 rounded"
-                  >
-                    AUTO
-                  </div>
-                </div>
-              </div>
-
-              <div
-                *ngIf="!pick.playerId && pick.pickNumber === currentPick()"
-                class="border-t border-gray-200 dark:border-gray-700 pt-2"
-              >
-                <div
-                  class="text-blue-600 dark:text-blue-400 font-medium text-sm"
-                >
-                  On the clock...
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Player List -->
-      <div
-        *ngIf="draftLayoutService.showPlayerList()"
-        class="w-80 lg:w-96 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col"
-      >
-        <!-- Player Search and Filters -->
-        <div
-          class="border-b border-gray-200 dark:border-gray-700 p-4 space-y-3"
-        >
-          <h2 class="text-lg font-medium text-gray-900 dark:text-white">
-            Available Players
-          </h2>
-
-          <!-- Search -->
-          <input
-            type="text"
-            [value]="searchQuery()"
-            (input)="onSearchChange($any($event.target).value)"
-            placeholder="Search players..."
-            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          />
-
-          <!-- Position Filter -->
-          <select
-            [value]="selectedPosition()"
-            (change)="onPositionChange($any($event.target).value)"
-            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          >
-            <option value="">All Positions</option>
-            <option *ngFor="let position of positions" [value]="position">
-              {{ position }}
-            </option>
-          </select>
-        </div>
-
-        <!-- Player List -->
-        <div class="flex-1 overflow-auto">
-          <div
-            *ngFor="let player of availablePlayers(); let i = index"
-            class="border-b border-gray-100 dark:border-gray-700 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
-            [class.bg-blue-50]="selectedPlayer()?.id === player.id"
-            [class.dark:bg-blue-900]="selectedPlayer()?.id === player.id"
-            (click)="selectPlayer(player)"
-          >
-            <div class="flex items-center justify-between">
-              <div class="flex-1">
-                <div class="font-medium text-gray-900 dark:text-white">
-                  {{ player.name }}
-                </div>
-                <div class="text-sm text-gray-600 dark:text-gray-400">
-                  <span [class]="getPositionColor(player.position)">{{
-                    player.position
-                  }}</span>
-                  - {{ player.nflTeam }}
-                </div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">
-                  Age: {{ player.age }} | Overall: {{ player.overall }}
-                </div>
-              </div>
-
-              <div class="ml-2">
-                <span
-                  class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs px-2 py-1 rounded"
-                >
-                  {{ player.devGrade }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Draft Player Button -->
-        <div
-          *ngIf="selectedPlayer() && canMakePick()"
-          class="border-t border-gray-200 dark:border-gray-700 p-4"
-        >
-          <button
-            (click)="makePick(selectedPlayer()!)"
-            class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium"
-          >
-            Draft {{ selectedPlayer()?.name }}
-          </button>
-        </div>
-
-        <!-- Not Your Turn Message -->
-        <div
-          *ngIf="
-            selectedPlayer() &&
-            !canMakePick() &&
-            draftState() &&
-            !draftState()?.isComplete
-          "
-          class="border-t border-gray-200 dark:border-gray-700 p-4"
-        >
-          <div class="text-center text-gray-600 dark:text-gray-400 text-sm">
-            <div *ngIf="draftState()?.isPaused">Draft is paused</div>
-            <div *ngIf="!draftState()?.isPaused">Not your turn</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- No Draft State -->
-    <div *ngIf="!draftState()" class="flex-1 flex items-center justify-center">
-      <div class="text-center">
-        <div class="text-6xl mb-4">🏈</div>
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          Ready to Draft?
-        </h2>
-        <p class="text-gray-600 dark:text-gray-400 mb-6 max-w-md">
-          Start your {{ league()?.rules?.draft?.rounds || 0 }}-round snake
-          draft. Each team has
-          {{ Math.floor((league()?.rules?.draft?.timeLimit || 0) / 60) }}
-          minutes per pick.
-        </p>
-        <button
-          (click)="startDraft()"
-          class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium"
-        >
-          Initialize Draft
-        </button>
-      </div>
-    </div>
-  </div>
+  }
 </div>

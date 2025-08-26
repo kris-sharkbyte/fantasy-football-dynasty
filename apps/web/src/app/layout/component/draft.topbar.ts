@@ -1,9 +1,10 @@
-import { Component, Output, EventEmitter } from '@angular/core';
+import { Component, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { League, DraftState } from '../../../../../../libs/types/src/lib/types';
 import { DraftLayoutService } from '../../services/draft-layout.service';
 import { LeagueService } from '../../services/league.service';
+import { LeagueMembershipService } from '../../services/league-membership.service';
 
 @Component({
   selector: 'app-draft-topbar',
@@ -56,9 +57,10 @@ import { LeagueService } from '../../services/league.service';
             <!-- Start Draft - show when no draft state or draft is paused -->
             <button
               *ngIf="
-                !draftLayoutService.draftState() ||
-                (!draftLayoutService.draftState()?.isComplete &&
-                  draftLayoutService.draftState()?.isPaused)
+                isCommissioner &&
+                (!draftLayoutService.draftState() ||
+                  (!draftLayoutService.draftState()?.isComplete &&
+                    draftLayoutService.draftState()?.isPaused))
               "
               (click)="startDraft.emit()"
               class="bg-primary-500 hover:bg-primary-600 text-white px-6 py-2 rounded-md font-medium transition-colors flex items-center space-x-2"
@@ -76,6 +78,7 @@ import { LeagueService } from '../../services/league.service';
             <!-- Pause Draft - show when draft is active -->
             <button
               *ngIf="
+                isCommissioner &&
                 draftLayoutService.draftState() &&
                 !draftLayoutService.draftState()?.isComplete &&
                 !draftLayoutService.draftState()?.isPaused
@@ -98,71 +101,48 @@ import { LeagueService } from '../../services/league.service';
               *ngIf="draftLayoutService.draftState()?.isComplete"
               class="flex items-center space-x-2 text-surface-600 dark:text-surface-400"
             >
-              <svg
-                class="w-5 h-5 text-green-500"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fill-rule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                   clip-rule="evenodd"
                 />
               </svg>
-              <span class="font-medium">Draft Complete</span>
+              <span class="font-medium">DRAFT COMPLETE</span>
+            </div>
+
+            <!-- Commissioner Only Message -->
+            <div
+              *ngIf="
+                !isCommissioner &&
+                (!draftLayoutService.draftState() ||
+                  (!draftLayoutService.draftState()?.isComplete &&
+                    draftLayoutService.draftState()?.isPaused))
+              "
+              class="text-surface-500 dark:text-surface-400 text-sm"
+            >
+              Waiting for commissioner to start draft...
             </div>
           </div>
 
-          <!-- Right: Action Icons -->
-          <div class="flex items-center space-x-3">
-            <!-- Notification Icon -->
-            <button
-              class="p-2 rounded-md text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors relative"
-              title="Notifications"
-            >
-              <svg
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M15 17h5l-5-5V9a6 6 0 10-12 0v3l-5 5h5m7 0v1a3 3 0 01-6 0v-1m6 0H9"
-                />
-              </svg>
-              <!-- Notification dot -->
+          <!-- Right: Draft Status and Controls -->
+          <div class="flex items-center space-x-4">
+            <!-- Draft Status -->
+            <div class="text-right">
               <div
-                class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
-              ></div>
-            </button>
-
-            <!-- Sound Toggle Icon -->
-            <button
-              class="p-2 rounded-md text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-              title="Toggle Sound"
-            >
-              <svg
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+                class="text-sm font-medium text-surface-900 dark:text-surface-0"
               >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 14.142M6.343 6.343L4.929 4.929m0 14.142l1.414-1.414M12 3v6m0 6v6"
-                />
-              </svg>
-            </button>
+                {{ getDraftStatus() }}
+              </div>
+              <div class="text-xs text-surface-500 dark:text-surface-400">
+                {{ getDraftProgress() }}
+              </div>
+            </div>
 
-            <!-- Settings/More Icon -->
+            <!-- Settings Button -->
             <button
               class="p-2 rounded-md text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-              title="Settings"
+              title="Draft Settings"
             >
               <svg
                 class="w-5 h-5"
@@ -217,15 +197,38 @@ import { LeagueService } from '../../services/league.service';
     `,
   ],
 })
-export class DraftTopbar {
+export class DraftTopbar implements OnInit {
   @Output() startDraft = new EventEmitter<void>();
   @Output() pauseDraft = new EventEmitter<void>();
+
+  isCommissioner = false;
 
   constructor(
     public draftLayoutService: DraftLayoutService,
     private leagueService: LeagueService,
-    private router: Router
+    private router: Router,
+    private leagueMembershipService: LeagueMembershipService
   ) {}
+
+  async ngOnInit() {
+    // Check if user is commissioner for this league
+    await this.checkCommissionerStatus();
+  }
+
+  private async checkCommissionerStatus() {
+    try {
+      const selectedLeagueId = this.leagueService.selectedLeagueId();
+      if (selectedLeagueId) {
+        this.isCommissioner =
+          await this.leagueMembershipService.isLeagueCommissioner(
+            selectedLeagueId
+          );
+      }
+    } catch (error) {
+      console.error('Error checking commissioner status:', error);
+      this.isCommissioner = false;
+    }
+  }
 
   goBack() {
     const selectedLeagueId = this.leagueService.selectedLeagueId();
@@ -261,5 +264,17 @@ export class DraftTopbar {
     if (draftState.isComplete) return 'Complete';
     if (draftState.isPaused) return 'Paused';
     return 'Active';
+  }
+
+  getDraftProgress(): string {
+    const draftState = this.draftLayoutService.draftState();
+    if (!draftState) return '';
+
+    const stats = this.draftLayoutService.draftStats();
+    if (stats) {
+      return `Round ${stats.currentRound} of ${stats.totalRounds} • ${stats.completedPicks}/${stats.totalPicks} picks`;
+    }
+
+    return '';
   }
 }

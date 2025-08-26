@@ -1,0 +1,296 @@
+.draft-board-container {
+  padding: 20px;
+  background: var(--surface-0);
+  min-height: 100vh;
+}
+
+.draft-board-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--surface-border);
+
+  h2 {
+    margin: 0;
+    color: var(--surface-900);
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  .draft-info {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+
+    span {
+      color: var(--surface-600);
+      font-weight: 500;
+    }
+
+    .my-turn {
+      color: var(--primary-500);
+      font-weight: 600;
+      animation: pulse 2s infinite;
+    }
+  }
+}
+
+.draft-board-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.round-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: var(--surface-50);
+
+  .round-header {
+    font-weight: 600;
+    color: var(--surface-700);
+    font-size: 1.125rem;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--surface-border);
+  }
+
+  .picks-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    gap: 8px;
+    justify-items: center;
+  }
+}
+
+.pick-cell {
+  width: 128px;
+  height: 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: stretch;
+  padding: 4px;
+  border: 1px solid var(--surface-border);
+  border-radius: 6px;
+  background: var(--surface-0);
+  transition: all 0.2s ease;
+  position: relative;
+  box-sizing: border-box;
+
+  &.current-pick {
+    border-color: var(--primary-500);
+    background: var(--primary-50);
+    box-shadow: 0 0 0 3px var(--primary-100);
+  }
+
+  &.empty-pick {
+    background: var(--surface-100);
+    border-style: dashed;
+  }
+
+  .pick-number-display {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: var(--surface-500);
+    line-height: 1;
+  }
+
+  .team-name {
+    font-weight: 600;
+    color: var(--surface-700);
+    font-size: 0.625rem;
+    text-align: center;
+    line-height: 1.1;
+    margin-top: 8px;
+  }
+
+  .pick-number {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--primary-600);
+    text-align: center;
+    line-height: 1.1;
+  }
+
+  .player-info {
+    width: 100%;
+    height: 100%;
+    padding: 2px;
+    border-radius: 4px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-top: 8px;
+
+    .player-name {
+      font-weight: 600;
+      color: var(--surface-900);
+      font-size: 0.5rem;
+      line-height: 1.1;
+      margin-bottom: 1px;
+    }
+
+    .player-position {
+      font-size: 0.375rem;
+      color: var(--surface-600);
+      font-weight: 500;
+      line-height: 1.1;
+    }
+  }
+
+  .on-clock {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 2px;
+    background: var(--orange-50);
+    border: 1px solid var(--orange-200);
+    border-radius: 3px;
+    width: 100%;
+    height: 100%;
+    margin-top: 8px;
+
+    .clock-indicator {
+      font-size: 0.75rem;
+      animation: pulse 1s infinite;
+    }
+
+    .clock-text {
+      font-size: 0.375rem;
+      font-weight: 600;
+      color: var(--orange-700);
+      text-transform: uppercase;
+      letter-spacing: 0.25px;
+      line-height: 1.1;
+    }
+  }
+
+  .p-button {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.5rem;
+    padding: 1px;
+    margin-top: 8px;
+  }
+
+  // Team Claim Section
+  .team-claim-section {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    margin-top: 8px;
+
+    .claim-button {
+      font-size: 0.375rem;
+      padding: 1px 2px;
+      height: auto;
+      min-height: 12px;
+    }
+  }
+
+  .empty-slot {
+    font-size: 0.5rem;
+    color: var(--surface-400);
+    text-align: center;
+    margin-top: 8px;
+  }
+}
+
+// Position-specific background colors
+.bg-red-100 { background-color: var(--red-100) !important; }
+.bg-red-900 { background-color: var(--red-900) !important; }
+.bg-green-100 { background-color: var(--green-100) !important; }
+.bg-green-900 { background-color: var(--green-900) !important; }
+.bg-blue-100 { background-color: var(--blue-100) !important; }
+.bg-blue-900 { background-color: var(--blue-900) !important; }
+.bg-yellow-100 { background-color: var(--yellow-100) !important; }
+.bg-yellow-900 { background-color: var(--yellow-900) !important; }
+.bg-purple-100 { background-color: var(--purple-100) !important; }
+.bg-purple-900 { background-color: var(--purple-900) !important; }
+.bg-gray-100 { background-color: var(--gray-100) !important; }
+.bg-gray-900 { background-color: var(--gray-900) !important; }
+
+// Animations
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .draft-board-container {
+    padding: 16px;
+  }
+
+  .draft-board-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+
+    .draft-info {
+      flex-direction: column;
+      gap: 8px;
+    }
+  }
+
+  .round-row {
+    padding: 12px;
+
+    .picks-container {
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 6px;
+    }
+  }
+
+  .pick-cell {
+    width: 120px;
+    height: 48px;
+    padding: 3px;
+  }
+}
+
+@media (max-width: 640px) {
+  .draft-board-container {
+    padding: 12px;
+  }
+
+  .draft-board-header {
+    h2 {
+      font-size: 1.25rem;
+    }
+  }
+
+  .round-row {
+    padding: 8px;
+
+    .picks-container {
+      grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+      gap: 4px;
+    }
+  }
+
+  .pick-cell {
+    width: 112px;
+    height: 44px;
+    padding: 2px;
+  }
+}

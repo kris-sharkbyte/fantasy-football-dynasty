@@ -8,10 +8,12 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ButtonModule } from 'primeng/button';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DraftService } from '../services/draft.service';
 import { LeagueService } from '../services/league.service';
 import { DraftLayoutService } from '../services/draft-layout.service';
+import { LeagueMembershipService } from '../services/league-membership.service';
 import {
   DraftState,
   Player,
@@ -20,11 +22,23 @@ import {
   Team,
   DraftSettings,
 } from '../../../../../libs/types/src/lib/types';
+import {
+  DraftBoardComponent,
+  PlayerSelectionSidebarComponent,
+  DraftControlsComponent,
+} from './components';
 
 @Component({
   selector: 'app-draft',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ButtonModule,
+    DraftBoardComponent,
+    PlayerSelectionSidebarComponent,
+    DraftControlsComponent,
+  ],
   templateUrl: './draft.component.html',
   styleUrls: ['./draft.component.scss'],
 })
@@ -48,6 +62,14 @@ export class DraftComponent implements OnInit, OnDestroy {
   // Search and filters
   searchQuery = signal<string>('');
   selectedPosition = signal<string>('');
+
+  // New signals for draft board
+  showPlayerSelection = signal<boolean>(true);
+  selectedPick = signal<DraftPick | null>(null);
+  watchlist = signal<Player[]>([]);
+  isCommissioner = signal<boolean>(false);
+  numberOfTeams = signal<number>(0);
+  totalRounds = signal<number>(25);
 
   // Computed values
   draftStats = computed(() => {
@@ -84,7 +106,8 @@ export class DraftComponent implements OnInit, OnDestroy {
     private leagueService: LeagueService,
     private route: ActivatedRoute,
     private router: Router,
-    public draftLayoutService: DraftLayoutService
+    public draftLayoutService: DraftLayoutService,
+    private leagueMembershipService: LeagueMembershipService
   ) {
     // Initialize service signals
     this.draftState = this.draftService.draftState;
@@ -143,28 +166,48 @@ export class DraftComponent implements OnInit, OnDestroy {
     this.draftService.disconnect();
   }
 
-  private async loadInitialData() {
-    // Set the selected league ID for navigation
-    this.leagueService.setSelectedLeagueId(this.leagueId);
+  public async loadInitialData(): Promise<void> {
+    try {
+      this.isLoading.set(true);
+      this.error.set('');
 
-    // Load league data
-    const leagueResponse = await this.leagueService.getLeague(this.leagueId);
-    if (leagueResponse && leagueResponse.league) {
-      this.league.set(leagueResponse.league);
-      this.draftLayoutService.updateLeague(leagueResponse.league);
+      // Load league information
+      const leagueResult = await this.leagueService.getLeague(this.leagueId);
+      if (leagueResult?.league) {
+        this.league.set(leagueResult.league);
+        this.numberOfTeams.set(leagueResult.league.numberOfTeams);
+        this.totalRounds.set(leagueResult.league.rules.draft.rounds);
+      }
+
+      // Load teams
+      const teamsResult = await this.leagueService.getLeagueTeams(
+        this.leagueId
+      );
+      if (teamsResult?.teams) {
+        this.teams.set(teamsResult.teams);
+      }
+
+      // Load draft state from service signals
+      const draftState = this.draftService.draftState();
+      if (draftState) {
+        this.draftState.set(draftState);
+        this.currentPick.set(draftState.currentPick);
+        this.isMyTurn.set(
+          draftState.currentTeamId === this.getCurrentUserTeamId()
+        );
+      }
+
+      // Check commissioner status
+      await this.checkCommissionerStatus();
+
+      // Load watchlist
+      await this.loadWatchlist();
+    } catch (err) {
+      console.error('Error loading initial data:', err);
+      this.error.set('Failed to load draft data: ' + (err as Error).message);
+    } finally {
+      this.isLoading.set(false);
     }
-
-    // Load teams
-    const teamsResponse = await this.leagueService.getLeagueTeams(
-      this.leagueId
-    );
-    this.teams.set(teamsResponse.teams);
-
-    // Load draft picks
-    await this.loadDraftPicks();
-
-    // Load available players
-    await this.loadAvailablePlayers();
   }
 
   private async loadDraftPicks() {
@@ -189,6 +232,35 @@ export class DraftComponent implements OnInit, OnDestroy {
       this.availablePlayers.set(players);
     } catch (error) {
       console.error('Error loading available players:', error);
+    }
+  }
+
+  private async loadWatchlist() {
+    try {
+      // Load watchlist from local storage or service
+      const watchlistData = localStorage.getItem(`watchlist_${this.leagueId}`);
+      if (watchlistData) {
+        const watchlistIds = JSON.parse(watchlistData);
+        // Filter out players that are already drafted
+        const availableWatchlist = watchlistIds.filter(
+          (id: string) =>
+            !this.draftPicks().some((pick) => pick.playerId === id)
+        );
+        this.watchlist.set(availableWatchlist);
+      }
+    } catch (error) {
+      console.error('Error loading watchlist:', error);
+    }
+  }
+
+  private async checkCommissionerStatus() {
+    try {
+      const isCommissioner =
+        await this.leagueMembershipService.isLeagueCommissioner(this.leagueId);
+      this.isCommissioner.set(isCommissioner);
+    } catch (error) {
+      console.error('Error checking commissioner status:', error);
+      this.isCommissioner.set(false);
     }
   }
 
@@ -232,8 +304,12 @@ export class DraftComponent implements OnInit, OnDestroy {
 
       // Clear selection and reload data
       this.selectedPlayer.set(null);
+      this.closePlayerSelection();
       await this.loadDraftPicks();
       await this.loadAvailablePlayers();
+
+      // Remove from watchlist if it was there
+      this.removeFromWatchlist(player.id);
     } catch (error) {
       console.error('Error making draft pick:', error);
       this.error.set('Failed to make draft pick');
@@ -311,8 +387,177 @@ export class DraftComponent implements OnInit, OnDestroy {
     return colors[position] || 'text-gray-600';
   }
 
+  getPositionBgClass(position: string): string {
+    const bgColors: Record<string, string> = {
+      QB: 'bg-red-100 dark:bg-red-900',
+      RB: 'bg-green-100 dark:bg-green-900',
+      WR: 'bg-blue-100 dark:bg-blue-900',
+      TE: 'bg-yellow-100 dark:bg-yellow-900',
+      K: 'bg-purple-100 dark:bg-purple-900',
+      DEF: 'bg-gray-100 dark:bg-gray-900',
+    };
+    return bgColors[position] || 'bg-gray-100 dark:bg-gray-900';
+  }
+
   goToNegotiations(): void {
     // Navigate to contract negotiations
     this.router.navigate(['/negotiations', this.leagueId]);
+  }
+
+  // New methods for draft board functionality
+
+  canClaimTeam(teamId: string): boolean {
+    // Check if team is available to claim
+    // This would integrate with your team claiming logic
+    return true; // Simplified for now
+  }
+
+  getRounds(): number[] {
+    const league = this.league();
+    if (!league?.rules?.draft?.rounds) return [];
+
+    const rounds = league.rules.draft.rounds;
+    return Array.from({ length: rounds }, (_, i) => i + 1);
+  }
+
+  getPicksForRound(round: number): DraftPick[] {
+    return this.draftPicks().filter((pick) => pick.round === round);
+  }
+
+  getCurrentUserTeamId(): string | null {
+    // This would get the current user's team ID
+    // For now, return the current team from draft state
+    const state = this.draftState();
+    return state?.currentTeamId || null;
+  }
+
+  getArrowClass(
+    pick: DraftPick,
+    roundIndex: number,
+    pickIndex: number
+  ): string {
+    const teamsCount = this.teams().length;
+    const isSnakeRound = roundIndex % 2 === 1; // Even rounds (0-indexed) are snake
+
+    if (isSnakeRound) {
+      // Snake round - arrows point left
+      return 'arrow-left';
+    } else {
+      // Normal round - arrows point right
+      return 'arrow-right';
+    }
+  }
+
+  getArrowSymbol(
+    pick: DraftPick,
+    roundIndex: number,
+    pickIndex: number
+  ): string {
+    const teamsCount = this.teams().length;
+    const isSnakeRound = roundIndex % 2 === 1; // Even rounds (0-indexed) are snake
+
+    if (isSnakeRound) {
+      return '←'; // Left arrow for snake rounds
+    } else {
+      return '→'; // Right arrow for normal rounds
+    }
+  }
+
+  openPlayerSelection(pick: DraftPick): void {
+    this.selectedPick.set(pick);
+    this.showPlayerSelection.set(true);
+  }
+
+  closePlayerSelection(): void {
+    this.showPlayerSelection.set(false);
+    this.selectedPick.set(null);
+    this.selectedPlayer.set(null);
+  }
+
+  // Watchlist functionality
+
+  isInWatchlist(playerId: string): boolean {
+    return this.watchlist().some((player) => player.id === playerId);
+  }
+
+  addToWatchlist(player: Player): void {
+    if (!this.isInWatchlist(player.id)) {
+      const currentWatchlist = this.watchlist();
+      this.watchlist.set([...currentWatchlist, player]);
+      this.saveWatchlist();
+    }
+  }
+
+  removeFromWatchlist(playerId: string): void {
+    const currentWatchlist = this.watchlist();
+    this.watchlist.set(
+      currentWatchlist.filter((player) => player.id !== playerId)
+    );
+    this.saveWatchlist();
+  }
+
+  toggleWatchlist(player: Player): void {
+    if (this.isInWatchlist(player.id)) {
+      this.removeFromWatchlist(player.id);
+    } else {
+      this.addToWatchlist(player);
+    }
+  }
+
+  private saveWatchlist(): void {
+    try {
+      const watchlistData = this.watchlist().map((player) => player.id);
+      localStorage.setItem(
+        `watchlist_${this.leagueId}`,
+        JSON.stringify(watchlistData)
+      );
+    } catch (error) {
+      console.error('Error saving watchlist:', error);
+    }
+  }
+
+  async initializeDraft(): Promise<void> {
+    try {
+      this.isLoading.set(true);
+      this.error.set('');
+
+      // Create default draft settings
+      const defaultSettings = {
+        mode: 'snake' as const,
+        rounds: 20,
+        timeLimit: 60,
+        autodraftDelay: 10,
+        allowPickTrading: false,
+        allowChatting: true,
+      };
+
+      // Call the Firebase function to initialize the draft
+      const result = await this.draftService.initializeDraft(
+        this.leagueId,
+        defaultSettings
+      );
+
+      if (result.success) {
+        // Reload draft data after initialization
+        await this.loadInitialData();
+      } else {
+        this.error.set('Failed to initialize draft');
+      }
+    } catch (err) {
+      this.error.set('Error initializing draft: ' + (err as Error).message);
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
+  // Helper method for the template binding
+  isInWatchlistForTemplate(playerId: string): boolean {
+    return this.isInWatchlist(playerId);
+  }
+
+  claimTeam(pickId: string): void {
+    // Handle team claiming for draft order setup
+    console.log('Claiming team for pick:', pickId);
+    // TODO: Implement team claiming logic
   }
 }
