@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -7,11 +7,18 @@ import {
   FAWeekBid,
 } from '../../../services/free-agency.service';
 import { TeamService } from '../../../services/team.service';
-import { PlayerDataService } from '../../../services/player-data.service';
 import { ContractOffer } from '@fantasy-football-dynasty/types';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputIconModule } from 'primeng/inputicon';
+import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
+import { ButtonModule } from 'primeng/button';
+import {
+  ContractInputsComponent,
+  ContractFormData,
+} from '../../../teams/negotiation/components/contract-inputs/contract-inputs.component';
+import { SelectModule } from 'primeng/select';
 
 @Component({
   selector: 'app-fa-week',
@@ -22,29 +29,42 @@ import { InputIconModule } from 'primeng/inputicon';
     IconFieldModule,
     InputTextModule,
     InputIconModule,
+    TableModule,
+    TagModule,
+    ButtonModule,
+    ContractInputsComponent,
+    SelectModule,
   ],
   templateUrl: './fa-week.component.html',
   styleUrls: ['./fa-week.component.scss'],
 })
-export class FAWeekComponent {
+export class FAWeekComponent implements OnInit {
   private readonly freeAgencyService = inject(FreeAgencyService);
   private readonly teamService = inject(TeamService);
-  private readonly playerDataService = inject(PlayerDataService);
 
-  // Component state
+  // Private state signals
   private _selectedPlayer = signal<FAWeekPlayer | null>(null);
   private _showBidModal = signal<boolean>(false);
-  private _bidForm = signal<Partial<ContractOffer>>({
+  private _bidForm = signal<ContractFormData>({
     years: 1,
-    baseSalary: {},
+    baseSalary: { 1: 0 },
     signingBonus: 0,
-    guarantees: [],
   });
+  private _isSubmitting = signal<boolean>(false);
+  private _playerMinimum = signal<number | null>(null);
+  private _marketContextSummary = signal<any>(null);
+  private _isLoadingMore = signal<boolean>(false);
+  private _hasMorePlayers = signal<boolean>(true);
 
   // Public signals
   public selectedPlayer = this._selectedPlayer.asReadonly();
   public showBidModal = this._showBidModal.asReadonly();
   public bidForm = this._bidForm.asReadonly();
+  public isSubmitting = this._isSubmitting.asReadonly();
+  public playerMinimum = this._playerMinimum.asReadonly();
+  public marketContextSummary = this._marketContextSummary.asReadonly();
+  public isLoadingMore = this._isLoadingMore.asReadonly();
+  public hasMorePlayers = this._hasMorePlayers.asReadonly();
 
   // Computed values
   public currentWeek = computed(() =>
@@ -123,47 +143,103 @@ export class FAWeekComponent {
   }
 
   /**
-   * Select a player to bid on
+   * Select a player for bidding
    */
   selectPlayer(player: FAWeekPlayer): void {
     this._selectedPlayer.set(player);
-    this.initializeBidForm(player);
+    this.openBidModal();
+  }
+
+  /**
+   * Open bid modal for selected player
+   */
+  openBidModal(): void {
+    if (!this._selectedPlayer()) return;
+
+    // Load player minimum and market context when opening modal
+    this.loadPlayerData();
+
     this._showBidModal.set(true);
+  }
+
+  /**
+   * Load player data for the bid modal
+   */
+  private async loadPlayerData(): Promise<void> {
+    const player = this._selectedPlayer();
+    if (!player) return;
+
+    try {
+      // Load player minimum
+      await this.getPlayerMinimum(player.id);
+
+      // Load market context summary
+      await this.getMarketContextSummary();
+    } catch (error) {
+      console.error('Error loading player data:', error);
+    }
   }
 
   /**
    * Initialize bid form with player-specific defaults
    */
   private initializeBidForm(player: FAWeekPlayer): void {
-    const baseSalary: Record<number, number> = {};
-    const currentYear = new Date().getFullYear();
-
-    // Set base salary for each year
-    for (let i = 0; i < 3; i++) {
-      const year = currentYear + i;
-      baseSalary[year] = 0;
-    }
-
+    // Start with 1 year and 0 values
     this._bidForm.set({
       years: 1,
-      baseSalary,
+      baseSalary: { 1: 0 },
       signingBonus: 0,
-      guarantees: [],
     });
   }
 
   /**
-   * Update base salary for a specific year
+   * Update contract years and automatically split salary across years
    */
-  updateBaseSalary(year: number, value: number): void {
+  updateYears(years: number): void {
     const currentForm = this._bidForm();
-    const updatedBaseSalary = { ...currentForm.baseSalary, [year]: value };
-    this._bidForm.set({ ...currentForm, baseSalary: updatedBaseSalary });
+    const currentTotalSalary = currentForm.baseSalary[1] || 0;
+
+    // Create new base salary object with salary split across years
+    const newBaseSalary: Record<number, number> = {};
+    for (let i = 1; i <= years; i++) {
+      newBaseSalary[i] = Math.round(currentTotalSalary / years);
+    }
+
+    this._bidForm.set({
+      ...currentForm,
+      years,
+      baseSalary: newBaseSalary,
+    });
   }
 
-  updateSigningBonus(value: number): void {
+  /**
+   * Update total salary and automatically split across years
+   */
+  updateSalary(totalSalary: number): void {
     const currentForm = this._bidForm();
-    this._bidForm.set({ ...currentForm, signingBonus: value });
+    const years = currentForm.years;
+
+    // Split salary evenly across all years
+    const newBaseSalary: Record<number, number> = {};
+    for (let i = 1; i <= years; i++) {
+      newBaseSalary[i] = Math.round(totalSalary / years);
+    }
+
+    this._bidForm.set({
+      ...currentForm,
+      baseSalary: newBaseSalary,
+    });
+  }
+
+  /**
+   * Update signing bonus
+   */
+  updateSigningBonus(bonus: number): void {
+    const currentForm = this._bidForm();
+    this._bidForm.set({
+      ...currentForm,
+      signingBonus: bonus,
+    });
   }
 
   /**
@@ -182,9 +258,79 @@ export class FAWeekComponent {
   }
 
   /**
-   * Handle search input changes
+   * Load additional players for pagination
+   */
+  async loadMorePlayers(): Promise<void> {
+    if (this._isLoadingMore() || !this._hasMorePlayers()) return;
+
+    try {
+      this._isLoadingMore.set(true);
+
+      const currentCount = this.availablePlayers().length;
+      const additionalPlayers =
+        await this.freeAgencyService.loadAdditionalPlayers(currentCount, 100);
+
+      if (additionalPlayers.length === 0) {
+        this._hasMorePlayers.set(false);
+      } else {
+        // Add new players to the existing list
+        const allPlayers = [...this.availablePlayers(), ...additionalPlayers];
+        // Note: This will update the UI through the service's signal
+        console.log(
+          `Loaded ${additionalPlayers.length} additional players, total: ${allPlayers.length}`
+        );
+      }
+    } catch (error) {
+      console.error('Error loading more players:', error);
+    } finally {
+      this._isLoadingMore.set(false);
+    }
+  }
+
+  /**
+   * Handle search input changes with debouncing
    */
   onSearchInputChange(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.searchQuery.set(value);
+
+    // Clear any existing timeout
+    if ((this as any).searchTimeout) {
+      clearTimeout((this as any).searchTimeout);
+    }
+
+    // Debounce search to avoid too many API calls
+    (this as any).searchTimeout = setTimeout(() => {
+      this.performSearch(value);
+    }, 300);
+  }
+
+  /**
+   * Perform search using the service
+   */
+  private async performSearch(query: string): Promise<void> {
+    if (!query.trim()) {
+      // If search is empty, reload initial players
+      // Note: The service should handle this automatically
+      return;
+    }
+
+    try {
+      console.log('Performing search for:', query);
+      const searchResults = await this.freeAgencyService.searchPlayers(query);
+      console.log('Search results:', searchResults.length);
+
+      // Update the search query to trigger filtered display
+      // The filteredPlayers computed will handle the rest
+    } catch (error) {
+      console.error('Error performing search:', error);
+    }
+  }
+
+  /**
+   * Handle global search input changes for PrimeNG table
+   */
+  onGlobalSearchChange(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
     this.searchQuery.set(value);
   }
@@ -195,17 +341,6 @@ export class FAWeekComponent {
   clearFilters(): void {
     this.positionFilter.set('all');
     this.searchQuery.set('');
-  }
-
-  /**
-   * Update contract years and adjust base salary accordingly
-   */
-  updateYears(years: number): void {
-    // Validate that years is one of the allowed values
-    if (years === 1 || years === 2 || years === 3) {
-      const currentForm = this._bidForm();
-      this._bidForm.set({ ...currentForm, years: years as 1 | 2 | 3 });
-    }
   }
 
   /**
@@ -223,55 +358,102 @@ export class FAWeekComponent {
   }
 
   /**
-   * Calculate average annual value
+   * Calculate total bid value (base salary + signing bonus)
    */
-  calculateAAV(): number {
-    const totalValue = this.calculateTotalValue();
-    const years = this._bidForm()?.years || 1;
-    return years > 0 ? Math.round(totalValue / years) : 0;
+  private calculateTotalBidValue(): number {
+    const form = this._bidForm();
+    const totalBaseSalary = Object.values(form.baseSalary).reduce((sum, salary) => sum + salary, 0);
+    return totalBaseSalary + form.signingBonus;
+  }
+
+  /**
+   * Calculate Average Annual Value (AAV) of the bid
+   */
+  public calculateAAV(): number {
+    const totalValue = this.calculateTotalBidValue();
+    return Math.round(totalValue / this._bidForm().years);
   }
 
   /**
    * Submit bid for selected player
    */
   async submitBid(): Promise<void> {
-    try {
-      const player = this._selectedPlayer();
-      const form = this._bidForm();
+    if (this._isSubmitting()) return;
 
-      if (!player || !form.years || !form.baseSalary) {
-        throw new Error('Invalid bid form');
+    const player = this.selectedPlayer();
+    if (!player) return;
+
+    try {
+      this._isSubmitting.set(true);
+
+      // Calculate total bid value
+      const totalBidValue = this.calculateTotalBidValue();
+      
+      // Check if bid is below player's minimum
+      const playerMinimum = this._playerMinimum();
+      if (playerMinimum && totalBidValue < playerMinimum) {
+        const shouldProceed = await this.showLowBidWarning(totalBidValue, playerMinimum);
+        if (!shouldProceed) {
+          return; // User cancelled the bid
+        }
       }
 
-      // Create contract offer
+      // Submit the bid
       const contractOffer: ContractOffer = {
-        years: form.years as 1 | 2 | 3,
-        baseSalary: form.baseSalary,
-        signingBonus: form.signingBonus || 0,
-        guarantees: form.guarantees || [],
+        years: this._bidForm().years as 1 | 2 | 3,
+        baseSalary: this._bidForm().baseSalary,
+        signingBonus: this._bidForm().signingBonus || 0,
+        guarantees: [],
         contractType: 'standard',
-        totalValue: this.calculateTotalValue(),
+        totalValue: this.calculateTotalBidValue(),
         apy: this.calculateAAV(),
       };
 
-      // Submit bid
-      const bid = await this.freeAgencyService.submitBid(
+      await this.freeAgencyService.submitBid(
         player.id,
         this.getCurrentTeamId(),
         contractOffer
       );
 
-      if (bid) {
-        console.log('Bid submitted successfully:', bid);
-        this.closeBidModal();
-        // TODO: Show success message
-      } else {
-        throw new Error('Failed to submit bid');
-      }
+      // Close modal and reset form
+      this._showBidModal.set(false);
+      this._selectedPlayer.set(null);
+      this._bidForm.set({
+        years: 1,
+        baseSalary: { 1: 0 },
+        signingBonus: 0,
+      });
+
+      console.log('Bid submitted successfully');
     } catch (error) {
       console.error('Error submitting bid:', error);
-      // TODO: Show error message
+    } finally {
+      this._isSubmitting.set(false);
     }
+  }
+
+  /**
+   * Show warning when bid is below player's minimum
+   */
+  private async showLowBidWarning(bidAmount: number, playerMinimum: number): Promise<boolean> {
+    const difference = playerMinimum - bidAmount;
+    const percentageBelow = ((difference / playerMinimum) * 100).toFixed(1);
+    
+    const message = `Warning: Your bid of $${bidAmount.toLocaleString()} is $${difference.toLocaleString()} below this player's minimum desired contract of $${playerMinimum.toLocaleString()} (${percentageBelow}% below minimum).
+
+This player will likely reject your bid, which could:
+• Reduce your team's trust rating with this player
+• Make future negotiations more difficult
+• Result in the player signing with another team
+
+Are you sure you want to submit this bid anyway?`;
+
+    return new Promise((resolve) => {
+      // Using browser's built-in confirm dialog for now
+      // In a production app, you might want to use a custom PrimeNG dialog
+      const confirmed = window.confirm(message);
+      resolve(confirmed);
+    });
   }
 
   /**
@@ -280,7 +462,11 @@ export class FAWeekComponent {
   closeBidModal(): void {
     this._showBidModal.set(false);
     this._selectedPlayer.set(null);
-    this._bidForm.set({});
+    this._bidForm.set({
+      years: 1,
+      baseSalary: { 1: 0 },
+      signingBonus: 0,
+    });
   }
 
   /**
@@ -314,11 +500,25 @@ export class FAWeekComponent {
   }
 
   /**
-   * Get current team ID
+   * Trigger weekly player evaluation manually (for testing)
+   */
+  async triggerWeeklyEvaluation(): Promise<void> {
+    try {
+      await this.freeAgencyService.triggerWeeklyEvaluation();
+      // TODO: Show success message
+    } catch (error) {
+      console.error('Error triggering weekly evaluation:', error);
+      // TODO: Show error message
+    }
+  }
+
+  /**
+   * Get current team ID (placeholder - should be injected from team service)
    */
   private getCurrentTeamId(): string {
-    // TODO: Get from team service or auth
-    return 'team1'; // Mock for now
+    // TODO: This should come from a team service or user context
+    // For now, returning a placeholder - you'll need to implement this
+    return 'team_placeholder_id';
   }
 
   /**
@@ -377,6 +577,26 @@ export class FAWeekComponent {
   }
 
   /**
+   * Get player status severity for PrimeNG tags
+   */
+  getPlayerStatusSeverity(status: string): string {
+    switch (status) {
+      case 'available':
+        return 'success';
+      case 'bidding':
+        return 'info';
+      case 'evaluating':
+        return 'warning';
+      case 'signed':
+        return 'success';
+      case 'shortlisted':
+        return 'warning';
+      default:
+        return 'secondary';
+    }
+  }
+
+  /**
    * Format currency
    */
   formatCurrency(amount: number): string {
@@ -405,41 +625,80 @@ export class FAWeekComponent {
   }
 
   /**
-   * Get salary years based on selected contract length
+   * Get enhanced player minimum
    */
-  getSalaryYears(): number[] {
-    const years = this._bidForm()?.years || 1;
-    const currentYear = new Date().getFullYear();
-    const salaryYears: number[] = [];
+  async getPlayerMinimum(playerId: string): Promise<number | null> {
+    try {
+      const minimum = await this.freeAgencyService.getEnhancedPlayerMinimum(
+        playerId
+      );
+      this._playerMinimum.set(minimum);
+      return minimum;
+    } catch (error) {
+      console.error('Error getting player minimum:', error);
+      this._playerMinimum.set(null);
+      return null;
+    }
+  }
 
-    for (let i = 0; i < years; i++) {
-      salaryYears.push(currentYear + i);
+  /**
+   * Get market context summary
+   */
+  async getMarketContextSummary(): Promise<any> {
+    try {
+      const summary = await this.freeAgencyService.getMarketContextSummary();
+      this._marketContextSummary.set(summary);
+      return summary;
+    } catch (error) {
+      console.error('Error getting market context summary:', error);
+      this._marketContextSummary.set(null);
+      return null;
+    }
+  }
+
+  /**
+   * Get total salary for display (sum of all years)
+   */
+  getTotalSalary(): number {
+    const form = this._bidForm();
+    if (!form.baseSalary) return 0;
+    return Object.values(form.baseSalary).reduce(
+      (sum, salary) => sum + salary,
+      0
+    );
+  }
+
+  /**
+   * Check if the bid is valid
+   */
+  public isValidBid(): boolean {
+    const form = this._bidForm();
+    const totalValue = this.calculateTotalBidValue();
+    
+    // Basic validation
+    if (!form.years || !form.baseSalary || totalValue <= 0) {
+      return false;
     }
 
-    return salaryYears;
+    // Check if bid is below player's minimum (but still allow it with warning)
+    const playerMinimum = this._playerMinimum();
+    if (playerMinimum && totalValue < playerMinimum) {
+      // Bid is below minimum but still valid (user will get warning)
+      return true;
+    }
+
+    return true;
   }
 
   /**
-   * Get base salary for a specific year
+   * Check if bid is below player's minimum
    */
-  getBaseSalary(year: number): number {
-    return this._bidForm()?.baseSalary?.[year] || 0;
-  }
-
-  /**
-   * Check if bid form is valid
-   */
-  isValidBid(): boolean {
-    const form = this._bidForm();
-    if (!form.years || !form.baseSalary) return false;
-
-    // Check if all years have salary values
-    const salaryYears = this.getSalaryYears();
-    const hasAllSalaries = salaryYears.every(
-      (year) => form.baseSalary?.[year] && form.baseSalary[year] > 0
-    );
-
-    return hasAllSalaries;
+  public isBidBelowMinimum(): boolean {
+    const playerMinimum = this._playerMinimum();
+    if (!playerMinimum) return false;
+    
+    const totalValue = this.calculateTotalBidValue();
+    return totalValue < playerMinimum;
   }
 
   /**
@@ -457,6 +716,44 @@ export class FAWeekComponent {
     } catch (error) {
       console.error('Error cancelling bid:', error);
       // TODO: Show error message
+    }
+  }
+
+  ngOnInit(): void {
+    // Load initial data
+    this.loadInitialData();
+
+    // Debug: Check if players are loaded
+    console.log('FA Week Component initialized');
+    console.log('Available players count:', this.availablePlayers().length);
+    console.log('Available players:', this.availablePlayers());
+
+    // If no players are loaded, try to trigger loading
+    if (this.availablePlayers().length === 0) {
+      console.log('No players loaded, checking service state...');
+      // The service should auto-load players, but let's add a small delay and check again
+      setTimeout(() => {
+        console.log(
+          'After delay - Available players count:',
+          this.availablePlayers().length
+        );
+        console.log(
+          'After delay - Available players:',
+          this.availablePlayers()
+        );
+      }, 1000);
+    }
+  }
+
+  /**
+   * Load initial data for the component
+   */
+  private async loadInitialData(): Promise<void> {
+    try {
+      // Load market context summary
+      await this.getMarketContextSummary();
+    } catch (error) {
+      console.error('Error loading initial data:', error);
     }
   }
 }

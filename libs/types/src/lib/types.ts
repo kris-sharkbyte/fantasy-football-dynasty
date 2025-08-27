@@ -122,7 +122,16 @@ export interface RosterSlot {
   activeTo?: Date;
 }
 
-export type Position = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF';
+export type Position =
+  | 'QB'
+  | 'RB'
+  | 'WR'
+  | 'TE'
+  | 'K'
+  | 'DEF'
+  | 'DL'
+  | 'LB'
+  | 'DB';
 export type RosterStatus = 'active' | 'bench' | 'ir' | 'taxi';
 
 export interface Player {
@@ -133,6 +142,7 @@ export interface Player {
   age: number;
   devGrade: 'A' | 'B' | 'C' | 'D';
   overall: number;
+  yearsExp: number; // Add years of experience for FA evaluation
   traits: PlayerTraits;
   stats: PlayerStats[];
 }
@@ -599,4 +609,202 @@ export interface FAWeekAdvancement {
     marketShifts: number;
     teamsReady: number;
   };
+}
+
+// Market Context for Player Evaluation
+export interface MarketContext {
+  leagueId: string;
+  currentWeek: number;
+  positionalDemand: number; // 0-1 scale of demand for each position
+  seasonStage: 'EarlyFA' | 'MidFA' | 'LateFA' | 'OpenFA';
+  recentComps: ContractOffer[]; // Recent contracts for similar players
+  teamCapSpace: Record<string, number>; // Available cap space per team
+  marketTrends: {
+    overall: 'rising' | 'falling' | 'stable';
+    byPosition: Record<string, 'rising' | 'falling' | 'stable'>;
+    byTier: Record<string, 'rising' | 'falling' | 'stable'>;
+  };
+}
+
+// New unified Player system interfaces for Sports Data
+export interface SportsTeam {
+  Key: string;
+  TeamID: number;
+  PlayerID: number;
+  City: string;
+  Name: string;
+  Conference: string;
+  Division: string;
+  FullName: string;
+  StadiumID: number;
+  ByeWeek: number;
+  AverageDraftPosition: number;
+  AverageDraftPositionPPR: number;
+  PrimaryColor: string;
+  SecondaryColor: string;
+  TertiaryColor: string;
+  QuaternaryColor: string | null;
+  WikipediaLogoUrl: string;
+  WikipediaWordMarkUrl: string;
+  DraftKingsName: string;
+  DraftKingsPlayerID: number;
+  FanDuelName: string;
+  FanDuelPlayerID: number;
+  AverageDraftPosition2QB: number;
+  AverageDraftPositionDynasty: number;
+  StadiumDetails: {
+    StadiumID: number;
+    Name: string;
+    City: string;
+    State: string;
+    Country: string;
+    Capacity: number;
+    PlayingSurface: string;
+    GeoLat: number;
+    GeoLong: number;
+    Type: string;
+  };
+}
+
+export interface SportsPlayer {
+  PlayerID: number;
+  Team: string | null;
+  Number: number | null;
+  FirstName: string;
+  LastName: string;
+  Position: string;
+  Status: string;
+  Height: string;
+  Weight: number;
+  BirthDate: string;
+  College: string;
+  Experience: number;
+  FantasyPosition: string;
+  Active: boolean;
+  PositionCategory: string;
+  Name: string;
+  Age: number;
+  PhotoUrl: string | null;
+  ByeWeek: number;
+  UpcomingGameOpponent: string | null;
+  UpcomingGameWeek: number | null;
+  ShortName: string;
+  AverageDraftPosition: number | null;
+  AverageDraftPositionPPR: number | null;
+  AverageDraftPositionRookie: number | null;
+  AverageDraftPositionDynasty: number | null;
+  AverageDraftPosition2QB: number | null;
+  TeamID: number | null;
+  GlobalTeamID: number | null;
+  DraftKingsName: string | null;
+  FanDuelName: string | null;
+  YahooName: string | null;
+  InjuryStatus: string | null;
+  InjuryBodyPart: string | null;
+  InjuryNotes: string | null;
+  InjuryStartDate: string | null;
+  DeclaredInactive: boolean;
+  UpcomingDraftKingsSalary: number | null;
+  FanDuelSalary: number | null;
+  DraftKingsSalary: number | null;
+  YahooSalary: number | null;
+  FantasyDraftSalary: number | null;
+  FantasyDraftName: string | null;
+  UsaTodayHeadshotUrl: string | null;
+  UsaTodayHeadshotNoBackgroundUrl: string | null;
+  UsaTodayHeadshotUpdated: string | null;
+  UsaTodayHeadshotNoBackgroundUpdated: string | null;
+  overall?: number;
+}
+
+export interface PlayerStats {
+  PlayerID: number;
+  SeasonType: number;
+  Season: number;
+  Team: string;
+  Number: number;
+  Name: string;
+  Position: string;
+  PositionCategory: string;
+  Played: number;
+  Started: number;
+  PassingAttempts: number;
+  PassingCompletions: number;
+  PassingYards: number;
+  PassingCompletionPercentage: number;
+  PassingYardsPerAttempt: number;
+  PassingYardsPerCompletion: number;
+  PassingTouchdowns: number;
+  PassingInterceptions: number;
+  PassingRating: number;
+  PassingLong: number;
+  PassingSacks: number;
+  PassingSackYards: number;
+  RushingAttempts: number;
+  RushingYards: number;
+  RushingYardsPerAttempt: number;
+  RushingTouchdowns: number;
+  RushingLong: number;
+  ReceivingTargets: number;
+  Receptions: number;
+  ReceivingYards: number;
+  ReceivingYardsPerReception: number;
+  ReceivingTouchdowns: number;
+  ReceivingLong: number;
+  Fumbles: number;
+  FumblesLost: number;
+  PuntReturns: number;
+  PuntReturnYards: number;
+  PuntReturnTouchdowns: number;
+  KickReturns: number;
+  KickReturnYards: number;
+  KickReturnTouchdowns: number;
+  SoloTackles: number;
+  AssistedTackles: number;
+  TacklesForLoss: number;
+  Sacks: number;
+  SackYards: number;
+  QuarterbackHits: number;
+  PassesDefended: number;
+  FumblesForced: number;
+  FumblesRecovered: number;
+  FumbleReturnTouchdowns: number;
+  Interceptions: number;
+  InterceptionReturnTouchdowns: number;
+  FieldGoalsAttempted: number;
+  FieldGoalsMade: number;
+  ExtraPointsMade: number;
+  TwoPointConversionPasses: number;
+  TwoPointConversionRuns: number;
+  TwoPointConversionReceptions: number;
+  FantasyPoints: number;
+  FantasyPointsPPR: number;
+  FantasyPosition: string;
+  PlayerSeasonID: number;
+  ExtraPointsAttempted: number;
+  AuctionValue: number | null;
+  AuctionValuePPR: number | null;
+  FantasyPointsFanDuel: number;
+  FieldGoalsMade0to19: number;
+  FieldGoalsMade20to29: number;
+  FieldGoalsMade30to39: number;
+  FieldGoalsMade40to49: number;
+  FieldGoalsMade50Plus: number;
+  FantasyPointsDraftKings: number;
+  AverageDraftPosition: number | null;
+  AverageDraftPositionPPR: number | null;
+  TeamID: number;
+  AverageDraftPositionRookie: number | null;
+  AverageDraftPositionDynasty: number | null;
+  AverageDraftPosition2QB: number | null;
+}
+
+// Enhanced Player interface that combines base player data with stats
+export interface EnhancedSportsPlayer extends SportsPlayer {
+  stats?: PlayerStats;
+  teamInfo?: SportsTeam;
+  overall?: number;
+  marketValue?: number;
+  fantasyPoints?: number;
+  fantasyPointsPPR?: number;
 }

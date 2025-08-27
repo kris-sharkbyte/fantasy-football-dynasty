@@ -653,7 +653,17 @@ export class DraftSimulationService {
       return {
         totalPicks: 0,
         picksByTeam: {},
-        picksByPosition: { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 },
+        picksByPosition: {
+          QB: 0,
+          RB: 0,
+          WR: 0,
+          TE: 0,
+          K: 0,
+          DEF: 0,
+          DL: 0,
+          LB: 0,
+          DB: 0,
+        },
         averagePickTime: 0,
       };
     }
@@ -666,6 +676,9 @@ export class DraftSimulationService {
       TE: 0,
       K: 0,
       DEF: 0,
+      DL: 0,
+      LB: 0,
+      DB: 0,
     };
 
     state.completedPicks.forEach((pick) => {

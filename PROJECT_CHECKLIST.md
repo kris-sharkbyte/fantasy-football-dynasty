@@ -298,6 +298,8 @@ Currently no tasks in progress.
   - [x] Team status management
   - [x] Phase-based component rendering
 
+**📚 See [FREE_AGENCY_SYSTEM_README.md](./FREE_AGENCY_SYSTEM_README.md) for detailed roadmap and current status**
+
 ### 📋 Phase 5: Draft System (Week 9-10)
 
 - [x] **Draft System Foundation**

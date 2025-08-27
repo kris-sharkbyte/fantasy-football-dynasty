@@ -11,6 +11,7 @@ import {
   limit,
   getDocs,
   onSnapshot,
+  writeBatch,
 } from '@angular/fire/firestore';
 import {
   FAWeek,
@@ -21,10 +22,15 @@ import {
   OpenFASigning,
   ContractOffer,
   Player,
+  Position,
+  MarketContext,
+  FAEvaluationResult,
+  PlayerDecision,
 } from '@fantasy-football-dynasty/types';
-import { PlayerDataService, SleeperPlayer } from './player-data.service';
+import { SportsDataService } from './sports-data.service';
 import { TeamService } from './team.service';
 import { LeagueService } from './league.service';
+import { EnhancedPlayerMinimumService } from './enhanced-player-minimum.service';
 
 export interface FAWeekBid {
   id: string;
@@ -55,9 +61,12 @@ export interface FAWeekPlayer {
 })
 export class FreeAgencyService {
   private readonly firestore = inject(Firestore);
-  private readonly playerDataService = inject(PlayerDataService);
+  private readonly sportsDataService = inject(SportsDataService);
   private readonly teamService = inject(TeamService);
   private readonly leagueService = inject(LeagueService);
+  private readonly enhancedPlayerMinimumService = inject(
+    EnhancedPlayerMinimumService
+  );
 
   // Private state signals
   private _currentFAWeek = signal<FAWeek | null>(null);
@@ -267,10 +276,11 @@ export class FreeAgencyService {
       const bidRef = doc(this.firestore, 'faBids', bid.id);
       await setDoc(bidRef, bid);
 
-      // Update local state immediately for responsiveness
-      this._activeBids.update((bids) => [...bids, bid]);
-      this.updateTeamBidStatus(teamId, bid.id);
-      this.updatePlayerBidStatus(playerId, 'bidding');
+      // Don't update local state immediately - let the Firestore listener handle it
+      // This prevents duplicate entries when the listener fires
+      // this._activeBids.update((bids) => [...bids, bid]);
+      // this.updateTeamBidStatus(teamId, bid.id);
+      // this.updatePlayerBidStatus(playerId, 'bidding');
 
       console.log('Bid submitted successfully:', bid);
       return bid;
@@ -346,44 +356,52 @@ export class FreeAgencyService {
   }
 
   /**
-   * Advance to next FA week - direct Firestore operation
+   * Advance to next week (commissioner only)
    */
   async advanceToNextWeek(): Promise<boolean> {
     try {
       const currentWeek = this._currentFAWeek();
-      if (!currentWeek) return false;
+      if (!currentWeek) {
+        throw new Error('No active FA week found');
+      }
 
-      // Process current week evaluation
-      await this.processWeekEvaluation();
+      // Process weekly player evaluation before advancing
+      await this.processWeeklyPlayerEvaluation();
 
-      // Mark current week as completed
-      const currentWeekRef = doc(this.firestore, 'faWeeks', currentWeek.id);
-      await updateDoc(currentWeekRef, {
+      // Update current week status to completed
+      const faWeekRef = doc(this.firestore, 'faWeeks', currentWeek.id);
+      await updateDoc(faWeekRef, {
         status: 'completed',
         updatedAt: new Date(),
       });
 
       // Create next week
-      const nextWeekNumber = currentWeek.weekNumber + 1;
       const nextWeek = await this.createFAWeek(
         currentWeek.leagueId,
-        nextWeekNumber
+        currentWeek.weekNumber + 1
       );
 
+      // Update current week reference
       this._currentFAWeek.set(nextWeek);
 
-      // Reset team readiness
-      this._teamStatuses.update((statuses) =>
-        statuses.map((status) => ({ ...status, isReady: false }))
-      );
-
-      this._isReadyToAdvance.set(false);
-
-      console.log('Advanced to week:', nextWeekNumber);
+      console.log(`Advanced to week ${nextWeek.weekNumber}`);
       return true;
     } catch (error) {
-      console.error('Failed to advance week:', error);
+      console.error('Error advancing week:', error);
       return false;
+    }
+  }
+
+  /**
+   * Trigger weekly player evaluation manually (for testing)
+   */
+  async triggerWeeklyEvaluation(): Promise<void> {
+    try {
+      await this.processWeeklyPlayerEvaluation();
+      console.log('Weekly player evaluation completed');
+    } catch (error) {
+      console.error('Error triggering weekly evaluation:', error);
+      throw error;
     }
   }
 
@@ -453,69 +471,149 @@ export class FreeAgencyService {
    */
   private async loadAvailablePlayers(): Promise<void> {
     try {
-      // Ensure players are loaded first
-      if (!this.playerDataService.hasPlayers()) {
-        await this.playerDataService.loadPlayers();
-      }
+      console.log('FreeAgencyService.loadAvailablePlayers() called');
 
-      // Get all players and filter out retired/inactive ones
-      const allPlayers = this.playerDataService.getAllPlayers();
+      // Wait for sports data to be loaded
+      await this.sportsDataService.waitForData();
+      console.log('Sports data is ready, proceeding to load players');
+
+      // Get all active players from sports data service
+      const allPlayers = this.sportsDataService.getActivePlayers();
+      console.log('SportsDataService returned players:', allPlayers.length);
+
       const availablePlayers: FAWeekPlayer[] = allPlayers
         .filter((player) => {
-          // Filter out retired/inactive players
-          const isRetired =
-            player.status === 'Inactive' ||
-            player.status === 'Retired' ||
-            player.status === 'Suspended' ||
-            (player.team === 'FA' && player.status !== 'Active');
-
           // Filter out players without valid positions
           const hasValidPosition =
-            player.position &&
-            player.position !== 'NA' &&
-            player.position !== '';
+            player.Position &&
+            player.Position !== 'NA' &&
+            player.Position !== '';
 
           // Filter out players without names
           const hasValidName =
-            player.first_name &&
-            player.last_name &&
-            player.first_name.trim() !== '' &&
-            player.last_name.trim() !== '';
+            player.FirstName &&
+            player.LastName &&
+            player.FirstName.trim() !== '' &&
+            player.LastName.trim() !== '';
 
-          return !isRetired && hasValidPosition && hasValidName;
+          return hasValidPosition && hasValidName;
         })
-        .slice(0, 50)
+        .slice(0, 200) // Increased from 50 to 200 for better initial load
         .map((player) => ({
-          id: player.player_id,
-          name: `${player.first_name} ${player.last_name}`,
-          position: player.position,
-          age: player.age,
-          overall: this.calculatePlayerOverall(player),
-          nflTeam: player.team,
+          id: player.PlayerID.toString(),
+          name: `${player.FirstName} ${player.LastName}`,
+          position: player.Position,
+          age: player.Age,
+          overall: player.overall || 70,
+          nflTeam: player.Team || 'FA',
           bidCount: 0,
           status: 'available',
         }));
 
+      console.log('Filtered and mapped players:', availablePlayers.length);
+      console.log('First few mapped players:', availablePlayers.slice(0, 3));
+
       this._availablePlayers.set(availablePlayers);
+      console.log(`Loaded ${availablePlayers.length} available players for FA`);
     } catch (error) {
       console.error('Failed to load available players:', error);
     }
   }
 
   /**
-   * Calculate player overall rating from Sleeper data
+   * Load additional players (for pagination or search)
    */
-  private calculatePlayerOverall(player: any): number {
-    // Simple calculation based on search rank and experience
-    // In production, this would use the domain logic
-    const baseRating = 100 - (player.search_rank || 1000) / 10;
-    const experienceBonus = Math.min(player.years_exp || 0, 5) * 2;
-    const agePenalty = Math.max(0, (player.age || 25) - 28) * 1.5;
+  public async loadAdditionalPlayers(
+    offset: number = 0,
+    limit: number = 100
+  ): Promise<FAWeekPlayer[]> {
+    try {
+      await this.sportsDataService.waitForData();
 
-    return Math.max(
-      50,
-      Math.min(99, Math.round(baseRating + experienceBonus - agePenalty))
-    );
+      const allPlayers = this.sportsDataService.getActivePlayers();
+
+      const additionalPlayers: FAWeekPlayer[] = allPlayers
+        .filter((player) => {
+          const hasValidPosition =
+            player.Position &&
+            player.Position !== 'NA' &&
+            player.Position !== '';
+
+          const hasValidName =
+            player.FirstName &&
+            player.LastName &&
+            player.FirstName.trim() !== '' &&
+            player.LastName.trim() !== '';
+
+          return hasValidPosition && hasValidName;
+        })
+        .slice(offset, offset + limit)
+        .map((player) => ({
+          id: player.PlayerID.toString(),
+          name: `${player.FirstName} ${player.LastName}`,
+          position: player.Position,
+          age: player.Age,
+          overall: player.overall || 70,
+          nflTeam: player.Team || 'FA',
+          bidCount: 0,
+          status: 'available',
+        }));
+
+      return additionalPlayers;
+    } catch (error) {
+      console.error('Failed to load additional players:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Search players by name or team
+   */
+  public async searchPlayers(query: string): Promise<FAWeekPlayer[]> {
+    try {
+      await this.sportsDataService.waitForData();
+
+      const allPlayers = this.sportsDataService.getActivePlayers();
+      const searchQuery = query.toLowerCase();
+
+      const searchResults: FAWeekPlayer[] = allPlayers
+        .filter((player) => {
+          const hasValidPosition =
+            player.Position &&
+            player.Position !== 'NA' &&
+            player.Position !== '';
+
+          const hasValidName =
+            player.FirstName &&
+            player.LastName &&
+            player.FirstName.trim() !== '' &&
+            player.LastName.trim() !== '';
+
+          if (!hasValidPosition || !hasValidName) return false;
+
+          const fullName =
+            `${player.FirstName} ${player.LastName}`.toLowerCase();
+          const team = (player.Team || '').toLowerCase();
+
+          return fullName.includes(searchQuery) || team.includes(searchQuery);
+        })
+        .slice(0, 100) // Limit search results to 100
+        .map((player) => ({
+          id: player.PlayerID.toString(),
+          name: `${player.FirstName} ${player.LastName}`,
+          position: player.Position,
+          age: player.Age,
+          overall: player.overall || 70,
+          nflTeam: player.Team || 'FA',
+          bidCount: 0,
+          status: 'available',
+        }));
+
+      return searchResults;
+    } catch (error) {
+      console.error('Failed to search players:', error);
+      return [];
+    }
   }
 
   /**
@@ -582,47 +680,355 @@ export class FreeAgencyService {
   }
 
   /**
-   * Cancel a pending bid - direct Firestore operation
+   * Cancel a pending bid
    */
   async cancelBid(bidId: string): Promise<boolean> {
     try {
-      const bid = this._activeBids().find((b) => b.id === bidId);
-      if (!bid || bid.status !== 'pending') return false;
-
-      // Update status in Firestore
       const bidRef = doc(this.firestore, 'faBids', bidId);
       await updateDoc(bidRef, {
         status: 'cancelled',
         updatedAt: new Date(),
       });
-
-      // Remove bid from active bids
-      this._activeBids.update((bids) => bids.filter((b) => b.id !== bidId));
-
-      // Update team status
-      this._teamStatuses.update((statuses) =>
-        statuses.map((status) =>
-          status.teamId === bid.teamId
-            ? {
-                ...status,
-                activeBids: status.activeBids.filter((id) => id !== bidId),
-              }
-            : status
-        )
-      );
-
-      // Update player status if no more bids
-      const remainingBids = this.getPlayerBids(bid.playerId);
-      if (remainingBids.length === 0) {
-        this.updatePlayerBidStatus(bid.playerId, 'available');
-      }
-
-      console.log('Bid cancelled:', bidId);
       return true;
     } catch (error) {
-      console.error('Failed to cancel bid:', error);
+      console.error('Error cancelling bid:', error);
       return false;
     }
+  }
+
+  // ============================================================================
+  // PHASE 6: PLAYER DECISION SYSTEM
+  // ============================================================================
+
+  /**
+   * Process weekly player evaluation for all pending bids
+   */
+  async processWeeklyPlayerEvaluation(): Promise<void> {
+    try {
+      const currentWeek = this._currentFAWeek();
+      if (!currentWeek || currentWeek.status !== 'active') {
+        throw new Error('No active FA week found');
+      }
+
+      // Get all pending bids for the current week
+      const pendingBids = this._activeBids().filter(
+        (bid) =>
+          bid.status === 'pending' && bid.weekNumber === currentWeek.weekNumber
+      );
+
+      if (pendingBids.length === 0) {
+        console.log('No pending bids to evaluate');
+        return;
+      }
+
+      // Create market context for evaluation
+      const marketContext = await this.createMarketContext();
+
+      // Get all players for evaluation
+      const allPlayers = await this.getAllPlayersForEvaluation();
+
+      // Process evaluation using FAWeekManager
+      const evaluationResults = await this.evaluateAllPlayerBids(
+        pendingBids,
+        allPlayers,
+        marketContext
+      );
+
+      // Apply evaluation results
+      await this.applyEvaluationResults(evaluationResults);
+
+      // Update FA week status to evaluating
+      await this.updateFAWeekStatus('evaluating');
+
+      console.log(`Processed ${evaluationResults.length} player evaluations`);
+    } catch (error) {
+      console.error('Error processing weekly player evaluation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create market context for player evaluation
+   */
+  private async createMarketContext(): Promise<any> {
+    // Use any to match domain interface
+    const currentWeek = this._currentFAWeek();
+    if (!currentWeek) {
+      throw new Error('No active FA week');
+    }
+
+    // Get recent contracts for market context
+    const recentContracts = await this.getRecentContracts();
+
+    // Calculate positional demand based on available players and team needs
+    const positionalDemand = await this.calculatePositionalDemand();
+
+    // Get team cap space information
+    const teamCapSpace = await this.getTeamCapSpace();
+
+    // Determine season stage
+    const seasonStage = this.determineSeasonStage(currentWeek.weekNumber);
+
+    return {
+      competingOffers: 0, // Default value
+      positionalDemand,
+      capSpaceAvailable: 0, // Default value
+      recentComps: recentContracts,
+      seasonStage: seasonStage === 'OpenFA' ? 'Camp' : seasonStage, // Map to domain values
+      teamReputation: 0.5, // Default neutral reputation
+    };
+  }
+
+  /**
+   * Get all players needed for evaluation
+   */
+  private async getAllPlayersForEvaluation(): Promise<Player[]> {
+    const allPlayers = this.sportsDataService.getActivePlayers();
+
+    // Convert SportsPlayer to Player interface
+    return allPlayers.map((sportsPlayer) => ({
+      id: sportsPlayer.PlayerID.toString(),
+      name: `${sportsPlayer.FirstName} ${sportsPlayer.LastName}`,
+      position: sportsPlayer.Position as Position,
+      age: sportsPlayer.Age || 25,
+      overall: sportsPlayer.overall || 70,
+      yearsExp: sportsPlayer.Experience || 0,
+      nflTeam: sportsPlayer.Team || 'FA',
+      status: sportsPlayer.Status,
+      devGrade: 'C' as const, // Default grade for FA players
+      traits: {
+        speed: 50,
+        strength: 50,
+        agility: 50,
+        awareness: 50,
+        injury: 50,
+        schemeFit: [],
+      },
+      stats: [], // Empty stats for FA players
+    }));
+  }
+
+  /**
+   * Evaluate all player bids using FAWeekManager
+   */
+  private async evaluateAllPlayerBids(
+    bids: FABid[],
+    players: Player[],
+    marketContext: any // Use any to match domain interface
+  ): Promise<FAEvaluationResult[]> {
+    // Import FAWeekManager from domain
+    const { FAWeekManager } = await import('@fantasy-football-dynasty/domain');
+
+    // Use the existing FAWeekManager to process evaluation
+    return FAWeekManager.processFAWeekEvaluation(
+      bids,
+      players,
+      marketContext,
+      this.defaultSettings
+    );
+  }
+
+  /**
+   * Apply evaluation results to bids and update player statuses
+   */
+  private async applyEvaluationResults(
+    results: FAEvaluationResult[]
+  ): Promise<void> {
+    const batch = writeBatch(this.firestore);
+
+    for (const result of results) {
+      const decision = result.decisions[0]; // Get the first decision
+      if (!decision) continue;
+
+      // Update accepted bid
+      if (decision.acceptedBidId) {
+        const acceptedBidRef = doc(
+          this.firestore,
+          'faBids',
+          decision.acceptedBidId
+        );
+        batch.update(acceptedBidRef, {
+          status: 'accepted',
+          feedback: decision.feedback,
+          evaluatedAt: new Date(),
+        });
+      }
+
+      // Update shortlisted bids
+      for (const shortlistedBidId of decision.shortlistedBidIds) {
+        const shortlistedBidRef = doc(
+          this.firestore,
+          'faBids',
+          shortlistedBidId
+        );
+        batch.update(shortlistedBidRef, {
+          status: 'shortlisted',
+          feedback: decision.feedback,
+          evaluatedAt: new Date(),
+        });
+      }
+
+      // Update rejected bids
+      for (const rejectedBidId of decision.rejectedBidIds) {
+        const rejectedBidRef = doc(this.firestore, 'faBids', rejectedBidId);
+        batch.update(rejectedBidRef, {
+          status: 'rejected',
+          feedback: decision.feedback,
+          evaluatedAt: new Date(),
+        });
+      }
+
+      // Update player status
+      await this.updatePlayerStatus(result.playerId, decision);
+    }
+
+    // Commit all updates
+    await batch.commit();
+  }
+
+  /**
+   * Update player status based on decision
+   */
+  private async updatePlayerStatus(
+    playerId: string,
+    decision: PlayerDecision
+  ): Promise<void> {
+    const playerRef = doc(this.firestore, 'players', playerId);
+
+    if (decision.acceptedBidId) {
+      // Player signed a contract
+      await updateDoc(playerRef, {
+        status: 'signed',
+        updatedAt: new Date(),
+      });
+    } else if (decision.shortlistedBidIds.length > 0) {
+      // Player is considering offers
+      await updateDoc(playerRef, {
+        status: 'shortlisted',
+        updatedAt: new Date(),
+      });
+    } else {
+      // Player rejected all offers
+      await updateDoc(playerRef, {
+        status: 'available',
+        updatedAt: new Date(),
+      });
+    }
+  }
+
+  /**
+   * Get recent contracts for market context
+   */
+  private async getRecentContracts(): Promise<ContractOffer[]> {
+    // This would typically query recent signings from Firestore
+    // For now, return empty array - can be enhanced later
+    return [];
+  }
+
+  /**
+   * Calculate positional demand based on available players and team needs
+   */
+  private async calculatePositionalDemand(): Promise<number> {
+    // Simple calculation - can be enhanced with more sophisticated logic
+    const availablePlayers = this._availablePlayers();
+    const totalPlayers = availablePlayers.length;
+
+    if (totalPlayers === 0) return 0.5;
+
+    // Calculate demand based on position scarcity
+    const positionCounts = availablePlayers.reduce((acc, player) => {
+      acc[player.position] = (acc[player.position] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Higher demand for positions with fewer available players
+    const avgPlayersPerPosition =
+      totalPlayers / Object.keys(positionCounts).length;
+    const demandScore =
+      Object.values(positionCounts).reduce((sum, count) => {
+        return sum + avgPlayersPerPosition / count;
+      }, 0) / Object.keys(positionCounts).length;
+
+    return Math.min(1, Math.max(0, demandScore / avgPlayersPerPosition));
+  }
+
+  /**
+   * Get team cap space information
+   */
+  private async getTeamCapSpace(): Promise<Record<string, number>> {
+    // This would typically query team cap information from Firestore
+    // For now, return mock data - can be enhanced later
+    return {};
+  }
+
+  /**
+   * Determine season stage based on week number
+   */
+  private determineSeasonStage(
+    weekNumber: number
+  ): 'EarlyFA' | 'MidFA' | 'LateFA' | 'OpenFA' {
+    if (weekNumber <= 1) return 'EarlyFA';
+    if (weekNumber <= 2) return 'MidFA';
+    if (weekNumber <= 4) return 'LateFA';
+    return 'OpenFA';
+  }
+
+  /**
+   * Calculate positional market trends
+   */
+  private calculatePositionalTrends(): Record<
+    string,
+    'rising' | 'falling' | 'stable'
+  > {
+    // This would analyze recent contract data to determine trends
+    // For now, return stable for all positions
+    const positions: Position[] = [
+      'QB',
+      'RB',
+      'WR',
+      'TE',
+      'K',
+      'DEF',
+      'DL',
+      'LB',
+      'DB',
+    ];
+    return positions.reduce((acc, position) => {
+      acc[position] = 'stable';
+      return acc;
+    }, {} as Record<string, 'rising' | 'falling' | 'stable'>);
+  }
+
+  /**
+   * Calculate tier-based market trends
+   */
+  private calculateTierTrends(): Record<
+    string,
+    'rising' | 'falling' | 'stable'
+  > {
+    // This would analyze recent contract data by player tier
+    // For now, return stable for all tiers
+    return {
+      elite: 'stable',
+      starter: 'stable',
+      depth: 'stable',
+    };
+  }
+
+  /**
+   * Update FA week status
+   */
+  private async updateFAWeekStatus(
+    status: 'active' | 'evaluating' | 'completed'
+  ): Promise<void> {
+    const currentWeek = this._currentFAWeek();
+    if (!currentWeek) return;
+
+    const faWeekRef = doc(this.firestore, 'faWeeks', currentWeek.id);
+    await updateDoc(faWeekRef, {
+      status,
+      updatedAt: new Date(),
+    });
   }
 
   /**
@@ -683,22 +1089,50 @@ export class FreeAgencyService {
   getPlayerStatusInfo(
     playerId: string
   ): { isRetired: boolean; status: string; team: string } | null {
-    const player = this.playerDataService
-      .getAllPlayers()
-      .find((p) => p.player_id === playerId);
+    const player = this.sportsDataService.getPlayerById(parseInt(playerId));
     if (!player) return null;
 
-    const isRetired =
-      player.status === 'Inactive' ||
-      player.status === 'Retired' ||
-      player.status === 'Suspended' ||
-      (player.team === 'FA' && player.status !== 'Active');
+    const isRetired = player.Status !== 'Active';
 
     return {
       isRetired,
-      status: player.status,
-      team: player.team,
+      status: player.Status,
+      team: player.Team || 'FA',
     };
+  }
+
+  /**
+   * Get enhanced player minimum using market ripple effects and league cap context
+   */
+  async getEnhancedPlayerMinimum(playerId: string): Promise<number | null> {
+    const sportsPlayer = this.sportsDataService.getPlayerById(
+      parseInt(playerId)
+    );
+
+    if (!sportsPlayer) return null;
+
+    // Convert SportsPlayer to FAWeekPlayer format with calculated overall
+    const player = {
+      id: sportsPlayer.PlayerID.toString(),
+      name: `${sportsPlayer.FirstName} ${sportsPlayer.LastName}`,
+      position: sportsPlayer.Position,
+      age: sportsPlayer.Age,
+      overall: sportsPlayer.overall || 70,
+      nflTeam: sportsPlayer.Team || 'FA',
+      bidCount: 0,
+      status: 'available',
+    };
+
+    return await this.enhancedPlayerMinimumService.calculatePlayerMinimum(
+      player
+    );
+  }
+
+  /**
+   * Get market context summary for display
+   */
+  async getMarketContextSummary() {
+    return await this.enhancedPlayerMinimumService.getMarketContextSummary();
   }
 
   /**

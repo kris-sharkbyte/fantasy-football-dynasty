@@ -371,6 +371,9 @@ export class TeamService {
       TE: 0,
       K: 0,
       DEF: 0,
+      DL: 0,
+      LB: 0,
+      DB: 0,
     };
 
     // Handle case where roster might be undefined (during draft)
@@ -418,7 +421,9 @@ export class TeamService {
         const current = stats.playersByPosition[position as Position] || 0;
         if (current < (required as number)) {
           issues.push(
-            `Need at least ${required} ${position}${(required as number) > 1 ? 's' : ''}`
+            `Need at least ${required} ${position}${
+              (required as number) > 1 ? 's' : ''
+            }`
           );
         }
       }

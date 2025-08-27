@@ -56,6 +56,46 @@
         color: var(--text-color-secondary);
         font-size: 0.875rem;
       }
+
+      .market-context {
+        display: flex;
+        gap: 1rem;
+        margin-top: 0.75rem;
+        padding: 0.75rem;
+        background: var(--surface-100);
+        border-radius: 8px;
+
+        .market-item {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.25rem;
+
+          .label {
+            font-size: 0.75rem;
+            color: var(--text-color-secondary);
+            font-weight: 500;
+          }
+
+          .value {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-color);
+
+            &.prosperous {
+              color: var(--green-600);
+            }
+
+            &.struggling {
+              color: var(--red-600);
+            }
+
+            &.healthy {
+              color: var(--blue-600);
+            }
+          }
+        }
+      }
     }
   }
 
@@ -93,6 +133,16 @@
 
       &:hover:not(:disabled) {
         background: var(--surface-hover);
+        transform: translateY(-1px);
+      }
+    }
+
+    .btn-info {
+      background: var(--blue-500);
+      color: white;
+
+      &:hover:not(:disabled) {
+        background: var(--blue-600);
         transform: translateY(-1px);
       }
     }
@@ -188,145 +238,222 @@
     gap: 1rem;
   }
 
-  .player-card {
-    background: var(--surface-card);
-    border: 1px solid var(--surface-border);
-    border-radius: 12px;
-    padding: 1.25rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-      border-color: var(--primary-color);
+  // PrimeNG Table Styles
+  :host ::ng-deep .p-datatable {
+    .p-datatable-header {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
     }
 
-    &.has-team-bid {
-      border-color: var(--primary-color);
-      background: var(--primary-50);
+    .p-datatable-caption {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      padding: 1rem 1.5rem;
+    }
 
-      &::before {
-        content: 'Your Bid';
-        position: absolute;
-        top: -8px;
-        right: 12px;
-        background: var(--primary-color);
-        color: white;
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: 600;
+    .p-datatable-thead > tr > th {
+      background: var(--surface-100);
+      border: 1px solid var(--surface-border);
+      color: var(--text-color);
+      font-weight: 600;
+      padding: 1rem 0.75rem;
+      text-align: left;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+
+      &:first-child {
+        border-left: none;
+      }
+
+      &:last-child {
+        border-right: none;
       }
     }
 
-    .player-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
+    .p-datatable-tbody > tr {
+      border: 1px solid var(--surface-border);
+      transition: all 0.2s ease;
 
-      .player-name {
+      &:hover {
+        background: var(--surface-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      &.has-team-bid {
+        background: var(--primary-50);
+        border-color: var(--primary-color);
+
+        td {
+          border-color: var(--primary-color);
+        }
+      }
+
+      > td {
+        border: 1px solid var(--surface-border);
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+
+        &:first-child {
+          border-left: none;
+        }
+
+        &:last-child {
+          border-right: none;
+        }
+      }
+    }
+
+    .p-paginator {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      padding: 1rem;
+    }
+  }
+
+  // Table-specific styles
+  .player-row {
+    cursor: pointer;
+  }
+
+  .player-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    .player-name {
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .bid-indicator {
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  .overall-badge {
+    display: inline-block;
+    background: var(--primary-color);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    min-width: 2rem;
+    text-align: center;
+  }
+
+  .min-value {
+    color: var(--primary-color);
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+
+  .no-min {
+    color: var(--text-color-secondary);
+    font-style: italic;
+  }
+
+  .bid-count {
+    background: var(--primary-100);
+    color: var(--primary-700);
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    min-width: 1.5rem;
+    text-align: center;
+  }
+
+  .no-bids {
+    color: var(--text-color-secondary);
+    font-style: italic;
+  }
+
+  .position-tag {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 2.5rem;
+    text-align: center;
+  }
+
+  .status-tag {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .bid-button {
+    min-width: 80px;
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem;
+
+    p {
+      color: var(--text-color-secondary);
+      margin: 0;
+    }
+  }
+
+  // Table Header Styles
+  .table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+
+    .table-title {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+
+      h4 {
+        margin: 0;
+        color: var(--text-color);
         font-size: 1.125rem;
         font-weight: 600;
-        color: var(--text-color);
       }
 
-      .player-position {
-        font-size: 0.75rem;
-        font-weight: 600;
-        padding: 0.25rem 0.5rem;
-        border-radius: 12px;
-        text-align: center;
-        min-width: 2rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-    }
-
-    .player-details {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-
-      > div {
-        text-align: center;
+      .player-count {
+        color: var(--text-color-secondary);
         font-size: 0.875rem;
-        color: var(--text-color-secondary);
-
-        &.player-overall {
-          color: var(--text-color);
-          font-weight: 600;
-        }
       }
     }
 
-    .player-status {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
+    .table-search {
+      .global-search-input {
+        min-width: 300px;
+        padding: 0.5rem 0.75rem 0.5rem 2.5rem;
+        border: 1px solid var(--surface-border);
+        border-radius: 6px;
+        background: var(--surface-card);
+        color: var(--text-color);
+        font-size: 0.875rem;
 
-      .status-indicator {
-        padding: 0.375rem 0.75rem;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-
-        &.status-available {
-          background: var(--green-100);
-          color: var(--green-700);
+        &:focus {
+          outline: none;
+          border-color: var(--primary-color);
+          box-shadow: 0 0 0 2px var(--primary-100);
         }
 
-        &.status-bidding {
-          background: var(--blue-100);
-          color: var(--blue-700);
-        }
-
-        &.status-evaluating {
-          background: var(--orange-100);
-          color: var(--orange-700);
-        }
-
-        &.status-signed {
-          background: var(--purple-100);
-          color: var(--purple-700);
-        }
-
-        &.status-shortlisted {
-          background: var(--yellow-100);
-          color: var(--yellow-700);
-        }
-      }
-
-      .bid-count {
-        background: var(--surface-border);
-        color: var(--text-color-secondary);
-        padding: 0.25rem 0.5rem;
-        border-radius: 8px;
-        font-size: 0.75rem;
-        font-weight: 600;
-      }
-    }
-
-    .player-actions {
-      .btn {
-        width: 100%;
-        padding: 0.5rem;
-        border: none;
-        border-radius: 8px;
-        background: var(--primary-color);
-        color: white;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background 0.2s ease;
-
-        &:hover {
-          background: var(--primary-600);
+        &::placeholder {
+          color: var(--text-color-secondary);
         }
       }
     }
@@ -566,84 +693,92 @@
     padding: 1.5rem;
 
     .bid-form {
-      .form-group {
+      .player-contract-info {
+        background: var(--surface-50);
+        border: 1px solid var(--surface-border);
+        border-radius: 8px;
+        padding: 1rem;
         margin-bottom: 1.5rem;
 
-        label {
-          display: block;
-          margin-bottom: 0.5rem;
-          font-weight: 600;
+        h4 {
+          margin: 0 0 0.75rem 0;
           color: var(--text-color);
+          font-size: 1rem;
+          font-weight: 600;
         }
 
-        .years-selector {
-          display: flex;
-          gap: 0.5rem;
-
-          .year-btn {
-            flex: 1;
-            padding: 0.75rem;
-            border: 1px solid var(--surface-border);
-            background: var(--surface-ground);
-            color: var(--text-color);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-
-            &:hover {
-              background: var(--surface-hover);
-            }
-
-            &.active {
-              background: var(--primary-color);
-              color: white;
-              border-color: var(--primary-color);
-            }
-          }
-        }
-
-        .salary-inputs {
+        .info-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          grid-template-columns: repeat(2, 1fr);
           gap: 0.75rem;
+          margin-bottom: 1rem;
 
-          .salary-input {
-            label {
+          .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            .label {
+              color: var(--text-color-secondary);
               font-size: 0.875rem;
-              margin-bottom: 0.25rem;
+              font-weight: 500;
             }
 
-            input {
-              width: 100%;
-              padding: 0.5rem;
-              border: 1px solid var(--surface-border);
-              border-radius: 6px;
-              background: var(--surface-ground);
+            .value {
               color: var(--text-color);
+              font-weight: 600;
               font-size: 0.875rem;
 
-              &:focus {
-                outline: none;
-                border-color: var(--primary-color);
-                box-shadow: 0 0 0 2px var(--primary-100);
+              &.min-value {
+                color: var(--primary-color);
               }
             }
           }
         }
 
-        input[type='number'] {
-          width: 100%;
-          padding: 0.5rem;
-          border: 1px solid var(--surface-border);
-          border-radius: 6px;
-          background: var(--surface-ground);
-          color: var(--text-color);
-          font-size: 0.875rem;
+        .market-context-summary {
+          border-top: 1px solid var(--surface-border);
+          padding-top: 0.75rem;
 
-          &:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 2px var(--primary-100);
+          h5 {
+            margin: 0 0 0.5rem 0;
+            color: var(--text-color);
+            font-size: 0.875rem;
+            font-weight: 600;
+          }
+
+          .market-items {
+            display: flex;
+            gap: 1rem;
+
+            .market-item {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 0.25rem;
+
+              .label {
+                font-size: 0.75rem;
+                color: var(--text-color-secondary);
+                font-weight: 500;
+              }
+
+              .value {
+                font-size: 0.75rem;
+                font-weight: 600;
+                color: var(--text-color);
+
+                &.prosperous {
+                  color: var(--green-600);
+                }
+                &.struggling {
+                  color: var(--red-600);
+                }
+                &.healthy {
+                  color: var(--blue-600);
+                }
+              }
+            }
           }
         }
       }
@@ -676,6 +811,9 @@
           }
         }
       }
+
+      // Remove old form styles - no longer needed with shared component
+      // .form-group, .years-selector, .salary-inputs, .salary-input removed
     }
   }
 
@@ -726,6 +864,66 @@
   font-size: 0.875rem;
 }
 
+.load-more-container {
+  display: flex;
+  justify-content: center;
+  margin: 1rem 0;
+  padding: 1rem;
+}
+
+.no-more-players {
+  text-align: center;
+  margin: 1rem 0;
+  padding: 1rem;
+  color: var(--text-color-secondary);
+  font-style: italic;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &.btn-secondary {
+    background-color: var(--surface-200);
+    color: var(--text-color);
+
+    &:hover:not(:disabled) {
+      background-color: var(--surface-300);
+    }
+  }
+
+  &.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+
+    &:hover:not(:disabled) {
+      background-color: var(--primary-600);
+    }
+  }
+
+  &.btn-warning {
+    background-color: var(--orange-500);
+    color: white;
+
+    &:hover:not(:disabled) {
+      background-color: var(--orange-600);
+    }
+  }
+}
+
 // Responsive Design
 @media (max-width: 768px) {
   .fa-week-container {
@@ -754,5 +952,29 @@
   .modal-content {
     margin: 1rem;
     max-height: calc(100vh - 2rem);
+  }
+}
+
+// Bid Warning Styles
+.bid-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  background: var(--orange-50);
+  border: 1px solid var(--orange-200);
+  border-radius: 8px;
+  color: var(--orange-700);
+
+  i {
+    font-size: 1.25rem;
+    color: var(--orange-500);
+  }
+
+  .warning-text {
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.4;
   }
 }

@@ -12,6 +12,8 @@ export interface ContractFormData {
   signingBonus: number;
 }
 
+export type ContractInputMode = 'individual' | 'total';
+
 @Component({
   selector: 'app-contract-inputs',
   standalone: true,
@@ -30,6 +32,7 @@ export class ContractInputsComponent {
   contractData = input.required<ContractFormData>();
   formattedSalary = input.required<string>();
   formattedBonus = input.required<string>();
+  mode = input<ContractInputMode>('individual'); // Default to individual mode
 
   // Output signals
   yearsChanged = output<number>();
@@ -53,13 +56,37 @@ export class ContractInputsComponent {
   }
 
   incrementSalary(amount: number): void {
-    const currentSalary = this.contractData().baseSalary[1] || 0;
+    let currentSalary: number;
+
+    if (this.mode() === 'total') {
+      // For total mode, sum all years
+      currentSalary = Object.values(this.contractData().baseSalary).reduce(
+        (sum, salary) => sum + salary,
+        0
+      );
+    } else {
+      // For individual mode, use year 1
+      currentSalary = this.contractData().baseSalary[1] || 0;
+    }
+
     const newSalary = currentSalary + amount;
     this.onSalaryChange(newSalary);
   }
 
   decrementSalary(amount: number): void {
-    const currentSalary = this.contractData().baseSalary[1] || 0;
+    let currentSalary: number;
+
+    if (this.mode() === 'total') {
+      // For total mode, sum all years
+      currentSalary = Object.values(this.contractData().baseSalary).reduce(
+        (sum, salary) => sum + salary,
+        0
+      );
+    } else {
+      // For individual mode, use year 1
+      currentSalary = this.contractData().baseSalary[1] || 0;
+    }
+
     const newSalary = Math.max(0, currentSalary - amount);
     this.onSalaryChange(newSalary);
   }
@@ -74,5 +101,21 @@ export class ContractInputsComponent {
     const currentBonus = this.contractData().signingBonus || 0;
     const newBonus = Math.max(0, currentBonus - amount);
     this.onBonusChange(newBonus);
+  }
+
+  /**
+   * Get current salary value based on mode
+   */
+  getCurrentSalaryValue(): number {
+    if (this.mode() === 'total') {
+      // For total mode, return sum of all years
+      return Object.values(this.contractData().baseSalary).reduce(
+        (sum, salary) => sum + salary,
+        0
+      );
+    } else {
+      // For individual mode, return year 1
+      return this.contractData().baseSalary[1] || 0;
+    }
   }
 }

@@ -11,6 +11,30 @@
           {{ readyTeamsCount() }} / {{ totalTeamsCount() }} teams ready
         </span>
       </div>
+
+      <!-- Market Context Summary -->
+      @if (marketContextSummary()) {
+      <div class="market-context">
+        <div class="market-item">
+          <span class="label">League Health:</span>
+          <span class="value" [class]="marketContextSummary()?.leagueHealth">
+            {{ marketContextSummary()?.leagueHealth | titlecase }}
+          </span>
+        </div>
+        <div class="market-item">
+          <span class="label">Avg Cap Space:</span>
+          <span class="value">{{
+            marketContextSummary()?.averageCapSpace
+          }}</span>
+        </div>
+        <div class="market-item">
+          <span class="label">Recent Signings:</span>
+          <span class="value">{{
+            marketContextSummary()?.recentSigningsCount
+          }}</span>
+        </div>
+      </div>
+      }
     </div>
 
     <div class="week-actions">
@@ -29,6 +53,16 @@
       >
         Advance Week
       </button>
+
+      <!-- Manual evaluation trigger for testing -->
+      <button
+        class="btn btn-info"
+        (click)="triggerWeeklyEvaluation()"
+        [disabled]="weekStatus() !== 'active'"
+        title="Manually trigger weekly player evaluation (for testing)"
+      >
+        Evaluate Bids
+      </button>
     </div>
   </div>
 
@@ -36,89 +70,197 @@
   <div class="fa-week-content">
     <!-- Available Players Section -->
     <div class="players-section">
-      <div class="section-header">
-        <h3>Available Players</h3>
-        <div class="section-actions">
-          <select
-            class="position-filter"
-            (change)="onPositionFilterChange($event)"
-            [value]="positionFilter()"
-          >
-            <option
-              *ngFor="let position of availablePositions()"
-              [value]="position"
-            >
-              {{ position === 'all' ? 'All Positions' : position }}
-            </option>
-          </select>
-          <p-iconfield iconPosition="left" class="ml-auto">
-            <p-inputicon>
-              <i class="pi pi-search"></i>
-            </p-inputicon>
-            <input
-              pInputText
-              type="text"
-              (input)="onSearchInputChange($event)"
-              placeholder="Search players..."
-              class="w-20rem"
-            />
-          </p-iconfield>
-          <span class="player-count">
-            {{ filteredPlayers().length }} of
-            {{ availablePlayers().length }} players
-          </span>
-
-          <button
-            class="btn btn-secondary btn-sm"
-            (click)="clearFilters()"
-            *ngIf="positionFilter() !== 'all' || searchQuery()"
-          >
-            Clear Filters
-          </button>
-        </div>
-      </div>
-
-      <div class="players-grid">
-        <div
-          *ngFor="let player of filteredPlayers()"
-          class="player-card"
-          [class.has-team-bid]="hasTeamBid(player.id)"
-          (click)="selectPlayer(player)"
-        >
-          <div class="player-header">
-            <div class="player-name">{{ player.name }}</div>
-            <div
-              class="player-position"
-              [style.background-color]="getPositionColor(player.position)"
-              [style.color]="'white'"
-            >
-              {{ player.position }}
+      <!-- PrimeNG Table for Players -->
+      <p-table
+        [value]="filteredPlayers()"
+        [paginator]="true"
+        [rows]="20"
+        [showCurrentPageReport]="true"
+        [tableStyle]="{ 'min-width': '50rem' }"
+        [rowHover]="true"
+        [rowsPerPageOptions]="[10, 20, 50]"
+        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} players"
+        [globalFilterFields]="['name', 'nflTeam', 'position']"
+        class="p-datatable-sm"
+      >
+        <!-- Global Search Header -->
+        <ng-template pTemplate="caption">
+          <div class="table-header">
+            <div class="table-title">
+              <h4>Available Players</h4>
+              <span class="player-count">
+                {{ filteredPlayers().length }} players available
+              </span>
+            </div>
+            <div class="flex table-search">
+              <p-select
+                class="position-filter"
+                (change)="onPositionFilterChange($event)"
+                [showClear]="true"
+                [options]="availablePositions()"
+                [optionLabel]="'Position'"
+              >
+                <ng-template pTemplate="item" let-option>
+                  {{ option === 'all' ? 'All Positions' : option }}
+                </ng-template>
+              </p-select>
+              <p-iconfield iconPosition="left" class="ml-auto">
+                <p-inputicon>
+                  <i class="pi pi-search"></i>
+                </p-inputicon>
+                <input
+                  pInputText
+                  type="text"
+                  (input)="onSearchInputChange($event)"
+                  placeholder="Search players..."
+                  class="w-20rem"
+                />
+              </p-iconfield>
             </div>
           </div>
+        </ng-template>
+        <!-- Position Column -->
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Position</th>
+            <th>Player</th>
+            <th>Age</th>
+            <th>Overall</th>
+            <th>NFL Team</th>
+            <th>Est. Min</th>
+            <th>Bids</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </ng-template>
 
-          <div class="player-details">
-            <div class="player-age">{{ player.age }} years old</div>
-            <div class="player-overall">OVR: {{ player.overall }}</div>
-            <div class="player-team">{{ player.nflTeam }}</div>
-          </div>
+        <!-- Player Rows -->
+        <ng-template pTemplate="body" let-player>
+          <tr
+            [class.has-team-bid]="hasTeamBid(player.id)"
+            class="player-row"
+            (click)="selectPlayer(player)"
+          >
+            <!-- Position -->
+            <td>
+              <p-tag
+                [value]="player.position"
+                [style]="{
+                  'background-color': getPositionColor(player.position),
+                  color: 'white'
+                }"
+                styleClass="position-tag"
+              ></p-tag>
+            </td>
 
-          <div class="player-status">
-            <span
-              class="status-indicator"
-              [class]="getPlayerStatusClass(player.status)"
-            >
-              {{ getPlayerStatusText(player.status) }}
-            </span>
-            <span class="bid-count" *ngIf="getPlayerBidCount(player.id) > 0">
-              {{ getPlayerBidCount(player.id) }} bid(s)
-            </span>
-          </div>
+            <!-- Player Name -->
+            <td>
+              <div class="player-name-cell">
+                <span class="player-name">{{ player.name }}</span>
+                <span class="bid-indicator" *ngIf="hasTeamBid(player.id)">
+                  <i
+                    class="pi pi-star-fill"
+                    style="color: var(--primary-color)"
+                  ></i>
+                </span>
+              </div>
+            </td>
 
-          <div class="player-actions">
-            <button class="btn btn-sm btn-primary">Submit Bid</button>
-          </div>
-        </div>
+            <!-- Age -->
+            <td>{{ player.age }}</td>
+
+            <!-- Overall -->
+            <td>
+              <span class="overall-badge">{{ player.overall }}</span>
+            </td>
+
+            <!-- NFL Team -->
+            <td>{{ player.nflTeam }}</td>
+
+            <!-- Est. Min -->
+            <td>
+              <span class="min-value" *ngIf="playerMinimum()">
+                {{ formatCurrency(playerMinimum() || 0) }}
+              </span>
+              <span class="no-min" *ngIf="!playerMinimum()">-</span>
+            </td>
+
+            <!-- Bid Count -->
+            <td>
+              <span class="bid-count" *ngIf="getPlayerBidCount(player.id) > 0">
+                {{ getPlayerBidCount(player.id) }}
+              </span>
+              <span class="no-bids" *ngIf="getPlayerBidCount(player.id) === 0"
+                >-</span
+              >
+            </td>
+
+            <!-- Status -->
+            <td>
+              <p-tag
+                [value]="getPlayerStatusText(player.status)"
+                [severity]="getPlayerStatusSeverity(player.status)"
+                styleClass="status-tag"
+              ></p-tag>
+            </td>
+
+            <!-- Actions -->
+            <td>
+              <p-button
+                icon="pi pi-plus"
+                label="Bid"
+                size="small"
+                severity="primary"
+                (onClick)="selectPlayer(player)"
+                styleClass="bid-button"
+              ></p-button>
+            </td>
+          </tr>
+        </ng-template>
+
+        <!-- Empty State -->
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="9" class="text-center p-4">
+              <div class="empty-state">
+                <i
+                  class="pi pi-users"
+                  style="font-size: 2rem; color: var(--text-color-secondary)"
+                ></i>
+                <p>No players found matching your criteria</p>
+                <button
+                  pButton
+                  label="Clear Filters"
+                  (click)="clearFilters()"
+                  class="p-button-text"
+                ></button>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+
+      <!-- Load More Button -->
+      @if (hasMorePlayers()) {
+      <div class="load-more-container">
+        <button
+          class="btn btn-secondary"
+          (click)="loadMorePlayers()"
+          [disabled]="isLoadingMore()"
+        >
+          @if (isLoadingMore()) {
+          <i class="pi pi-spinner pi-spin"></i>
+          Loading... } @else { Load More Players }
+        </button>
       </div>
+      }
+
+      <!-- No More Players Message -->
+      @if (!hasMorePlayers() && availablePlayers().length > 0) {
+      <div class="no-more-players">
+        <p>All available players have been loaded.</p>
+      </div>
+      }
     </div>
 
     <!-- Team Bids Section -->
@@ -189,51 +331,67 @@
 
       <div class="modal-body">
         <div class="bid-form">
-          <!-- Contract Years -->
-          <div class="form-group">
-            <label>Contract Length</label>
-            <div class="years-selector">
-              <button
-                *ngFor="let year of yearsOptions"
-                class="year-btn"
-                [class.active]="bidForm().years === year"
-                (click)="updateYears(year)"
-              >
-                {{ year }} Year{{ year > 1 ? 's' : '' }}
-              </button>
-            </div>
-          </div>
-
-          <!-- Base Salary by Year -->
-          <div class="form-group">
-            <label>Base Salary by Year</label>
-            <div class="salary-inputs">
-              <div *ngFor="let year of getSalaryYears()" class="salary-input">
-                <label>{{ year }}</label>
-                <input
-                  type="number"
-                  [value]="getBaseSalary(year)"
-                  (input)="updateBaseSalary(year, $event.target.valueAsNumber)"
-                  placeholder="0"
-                  min="0"
-                  step="100000"
-                />
+          <!-- Player Contract Information -->
+          <div class="player-contract-info">
+            <h4>Contract Information</h4>
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="label">Position:</span>
+                <span class="value">{{ selectedPlayer()?.position }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Age:</span>
+                <span class="value">{{ selectedPlayer()?.age }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Overall:</span>
+                <span class="value">{{ selectedPlayer()?.overall }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Est. Minimum:</span>
+                <span class="value min-value">
+                  @if (playerMinimum()) {
+                  {{ formatCurrency(playerMinimum() || 0) }}
+                  } @else { N/A }
+                </span>
               </div>
             </div>
+
+            <!-- Market Context -->
+            @if (marketContextSummary()) {
+            <div class="market-context-summary">
+              <h5>Market Context</h5>
+              <div class="market-items">
+                <div class="market-item">
+                  <span class="label">League Health:</span>
+                  <span
+                    class="value"
+                    [class]="marketContextSummary()?.leagueHealth"
+                  >
+                    {{ marketContextSummary()?.leagueHealth | titlecase }}
+                  </span>
+                </div>
+                <div class="market-item">
+                  <span class="label">Avg Cap Space:</span>
+                  <span class="value">{{
+                    marketContextSummary()?.averageCapSpace
+                  }}</span>
+                </div>
+              </div>
+            </div>
+            }
           </div>
 
-          <!-- Signing Bonus -->
-          <div class="form-group">
-            <label>Signing Bonus</label>
-            <input
-              type="number"
-              [value]="bidForm().signingBonus || 0"
-              (input)="updateSigningBonus($event.target.valueAsNumber)"
-              placeholder="0"
-              min="0"
-              step="100000"
-            />
-          </div>
+          <!-- Use shared ContractInputsComponent -->
+          <app-contract-inputs
+            [contractData]="bidForm()"
+            [formattedSalary]="formatCurrency(getTotalSalary())"
+            [formattedBonus]="formatCurrency(bidForm().signingBonus || 0)"
+            [mode]="'total'"
+            (yearsChanged)="updateYears($event)"
+            (salaryChanged)="updateSalary($event)"
+            (bonusChanged)="updateSigningBonus($event)"
+          ></app-contract-inputs>
 
           <!-- Contract Summary -->
           <div class="contract-summary">
@@ -247,7 +405,22 @@
               <span class="label">Average Annual Value:</span>
               <span class="value">{{ formatCurrency(calculateAAV()) }}</span>
             </div>
+            <div class="summary-item">
+              <span class="label">Years:</span>
+              <span class="value">{{ bidForm().years }}</span>
+            </div>
           </div>
+
+          <!-- Bid Warning -->
+          @if (playerMinimum() && calculateTotalValue() < (playerMinimum() || 0)) {
+          <div class="bid-warning">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span class="warning-text">
+              Warning: Your bid is {{ formatCurrency((playerMinimum() || 0) - calculateTotalValue()) }} below this player's minimum desired contract.
+              This player will likely reject your bid.
+            </span>
+          </div>
+          }
         </div>
       </div>
 
@@ -256,11 +429,20 @@
           Cancel
         </button>
         <button
-          class="btn btn-primary"
+          class="btn"
+          [class]="isBidBelowMinimum() ? 'btn-warning' : 'btn-primary'"
           (click)="submitBid()"
-          [disabled]="!isValidBid()"
+          [disabled]="!isValidBid() || isSubmitting()"
         >
-          Submit Bid
+          @if (isSubmitting()) {
+          <i class="pi pi-spinner pi-spin"></i>
+          Submitting... } @else { 
+            @if (isBidBelowMinimum()) {
+              Submit Bid Anyway
+            } @else {
+              Submit Bid
+            }
+          }
         </button>
       </div>
     </div>

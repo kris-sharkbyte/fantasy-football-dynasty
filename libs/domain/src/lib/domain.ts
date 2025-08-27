@@ -1466,3 +1466,363 @@ export class OpenFAManager {
     };
   }
 }
+
+// ============================================================================
+// ENHANCED PLAYER MINIMUM CALCULATOR WITH MARKET RIPPLE EFFECTS
+// ============================================================================
+
+export interface LeagueCapContext {
+  currentYearCap: number;
+  projectedCapGrowth: number; // 5-8% per year
+  totalTeamCapSpace: number;
+  averageTeamCapSpace: number;
+  recentSignings: ContractOffer[]; // Last 10-20 signings
+  marketBenchmarks: Record<string, number>; // Position-based market rates
+  leagueHealth: 'healthy' | 'struggling' | 'prosperous'; // Overall cap health
+}
+
+export interface MarketRippleContext {
+  similarPlayerSignings: Array<{
+    playerId: string;
+    position: string;
+    tier: 'elite' | 'starter' | 'depth';
+    contractValue: number;
+    signedAt: Date;
+    marketImpact: 'positive' | 'negative' | 'neutral';
+  }>;
+  positionMarketTrend: 'rising' | 'falling' | 'stable';
+  tierMarketTrend: 'rising' | 'falling' | 'stable';
+  recentMarketShifts: Array<{
+    position: string;
+    tier: string;
+    shiftPercentage: number;
+    trigger: string; // What caused this shift
+  }>;
+}
+
+export class EnhancedPlayerMinimumCalculator {
+  /**
+   * Calculate enhanced player minimum considering market ripple effects and league cap health
+   */
+  static calculateEnhancedMinimum(
+    player: any, // Use any to match existing pattern and access Sleeper properties
+    leagueContext: LeagueCapContext,
+    marketRipple: MarketRippleContext
+  ): number {
+    // Start with base minimum from existing calculator
+    const baseMinimum = this.calculateBaseMinimum(
+      player,
+      leagueContext.currentYearCap
+    );
+
+    // Apply market ripple adjustments
+    const marketAdjustment = this.calculateMarketRippleAdjustment(
+      player,
+      marketRipple
+    );
+
+    // Apply league cap health adjustments
+    const capHealthAdjustment =
+      this.calculateCapHealthAdjustment(leagueContext);
+
+    // Apply position-specific market trends
+    const positionTrendAdjustment = this.calculatePositionTrendAdjustment(
+      player.position,
+      marketRipple.positionMarketTrend
+    );
+
+    // Calculate final minimum with safeguards
+    const enhancedMinimum = Math.max(
+      baseMinimum,
+      baseMinimum * marketAdjustment,
+      baseMinimum * capHealthAdjustment,
+      baseMinimum * positionTrendAdjustment
+    );
+
+    // Apply minimum floor based on league cap health
+    const minimumFloor = this.calculateMinimumFloor(player, leagueContext);
+
+    return Math.max(enhancedMinimum, minimumFloor);
+  }
+
+  /**
+   * Calculate base minimum using existing ContractMinimumCalculator
+   */
+  private static calculateBaseMinimum(player: any, salaryCap: number): number {
+    const tier = ContractMinimumCalculator.determinePlayerTier(
+      player.overall,
+      player.years_exp || 0, // Use years_exp to match existing pattern
+      player.position
+    );
+
+    return ContractMinimumCalculator.calculateMinimumContract(
+      tier,
+      player.age,
+      player.position,
+      salaryCap
+    );
+  }
+
+  /**
+   * Calculate market ripple adjustment based on recent similar signings
+   */
+  private static calculateMarketRippleAdjustment(
+    player: any,
+    marketRipple: MarketRippleContext
+  ): number {
+    const playerTier = ContractMinimumCalculator.determinePlayerTier(
+      player.overall,
+      player.years_exp || 0, // Use years_exp to match existing pattern
+      player.position
+    );
+
+    // Find similar player signings (same position and tier)
+    const similarSignings = marketRipple.similarPlayerSignings.filter(
+      (signing) =>
+        signing.position === player.position && signing.tier === playerTier
+    );
+
+    if (similarSignings.length === 0) {
+      return 1.0; // No market data, no adjustment
+    }
+
+    // Calculate average contract value for similar players
+    const averageValue =
+      similarSignings.reduce((sum, signing) => sum + signing.contractValue, 0) /
+      similarSignings.length;
+
+    // Calculate what this player's base value should be
+    const baseValue = player.overall * 100000; // $100k per overall point
+
+    // If similar players are undervalued, adjust expectations up
+    if (averageValue < baseValue * 0.8) {
+      // Market is undervaluing this tier/position - apply upward pressure
+      return 1.2; // 20% increase to prevent market collapse
+    }
+
+    // If similar players are overvalued, slight downward adjustment
+    if (averageValue > baseValue * 1.2) {
+      return 0.95; // 5% decrease to prevent inflation
+    }
+
+    return 1.0; // Market is stable
+  }
+
+  /**
+   * Calculate cap health adjustment based on league financial situation
+   */
+  private static calculateCapHealthAdjustment(
+    leagueContext: LeagueCapContext
+  ): number {
+    const { leagueHealth, averageTeamCapSpace, currentYearCap } = leagueContext;
+
+    // Calculate average team cap space as percentage of cap
+    const averageCapSpacePercentage = averageTeamCapSpace / currentYearCap;
+
+    switch (leagueHealth) {
+      case 'prosperous':
+        // Teams have lots of cap space - players can demand more
+        if (averageCapSpacePercentage > 0.15) {
+          return 1.15; // 15% increase
+        }
+        return 1.05; // 5% increase
+
+      case 'healthy':
+        // Normal market conditions
+        if (averageCapSpacePercentage > 0.1) {
+          return 1.02; // 2% increase
+        }
+        return 1.0; // No adjustment
+
+      case 'struggling':
+        // Teams are tight on cap - players may need to accept less
+        if (averageCapSpacePercentage < 0.05) {
+          return 0.9; // 10% decrease
+        }
+        return 0.95; // 5% decrease
+
+      default:
+        return 1.0;
+    }
+  }
+
+  /**
+   * Calculate position-specific market trend adjustment
+   */
+  private static calculatePositionTrendAdjustment(
+    position: Position,
+    positionTrend: 'rising' | 'falling' | 'stable'
+  ): number {
+    switch (positionTrend) {
+      case 'rising':
+        return 1.1; // 10% increase for positions in demand
+      case 'falling':
+        return 0.95; // 5% decrease for positions with low demand
+      case 'stable':
+      default:
+        return 1.0; // No adjustment
+    }
+  }
+
+  /**
+   * Calculate minimum floor to prevent extreme undervaluation
+   */
+  private static calculateMinimumFloor(
+    player: any,
+    leagueContext: LeagueCapContext
+  ): number {
+    const baseMinimum = this.calculateBaseMinimum(
+      player,
+      leagueContext.currentYearCap
+    );
+
+    // Elite players should never go below 80% of their base minimum
+    const tier = ContractMinimumCalculator.determinePlayerTier(
+      player.overall,
+      player.years_exp || 0, // Use years_exp to match existing pattern
+      player.position
+    );
+
+    switch (tier) {
+      case 'elite':
+        return baseMinimum * 0.8; // Never below 80%
+      case 'starter':
+        return baseMinimum * 0.7; // Never below 70%
+      case 'depth':
+        return baseMinimum * 0.6; // Never below 60%
+      default:
+        return baseMinimum * 0.7;
+    }
+  }
+
+  /**
+   * Analyze market ripple effects from a recent signing
+   */
+  static analyzeMarketRipple(
+    signedPlayer: any, // Use any to match existing pattern and access Sleeper properties
+    contractValue: number,
+    existingRipple: MarketRippleContext
+  ): MarketRippleContext {
+    const playerTier = ContractMinimumCalculator.determinePlayerTier(
+      signedPlayer.overall,
+      signedPlayer.years_exp || 0, // Use years_exp to match existing pattern
+      signedPlayer.position
+    );
+
+    // Calculate expected value for this player
+    const expectedValue = signedPlayer.overall * 100000;
+
+    // Determine market impact
+    let marketImpact: 'positive' | 'negative' | 'neutral';
+    if (contractValue < expectedValue * 0.8) {
+      marketImpact = 'negative'; // Undervalued signing
+    } else if (contractValue > expectedValue * 1.2) {
+      marketImpact = 'positive'; // Overvalued signing
+    } else {
+      marketImpact = 'neutral'; // Fair value
+    }
+
+    // Add this signing to recent signings
+    const newSigning = {
+      playerId: signedPlayer.id,
+      position: signedPlayer.position,
+      tier: playerTier,
+      contractValue,
+      signedAt: new Date(),
+      marketImpact,
+    };
+
+    // Update market trends based on this signing
+    const updatedTrends = this.updateMarketTrends(
+      signedPlayer.position,
+      playerTier,
+      marketImpact,
+      existingRipple
+    );
+
+    return {
+      ...existingRipple,
+      similarPlayerSignings: [
+        ...existingRipple.similarPlayerSignings,
+        newSigning,
+      ],
+      positionMarketTrend: updatedTrends.positionTrend,
+      tierMarketTrend: updatedTrends.tierTrend,
+      recentMarketShifts: updatedTrends.marketShifts,
+    };
+  }
+
+  /**
+   * Update market trends based on recent signing
+   */
+  private static updateMarketTrends(
+    position: Position,
+    tier: 'elite' | 'starter' | 'depth',
+    impact: 'positive' | 'negative' | 'neutral',
+    existingRipple: MarketRippleContext
+  ): {
+    positionTrend: 'rising' | 'falling' | 'stable';
+    tierTrend: 'rising' | 'falling' | 'stable';
+    marketShifts: Array<{
+      position: string;
+      tier: string;
+      shiftPercentage: number;
+      trigger: string;
+    }>;
+  } {
+    // Calculate shift percentage based on impact
+    let shiftPercentage = 0;
+    if (impact === 'positive') shiftPercentage = 5; // 5% upward shift
+    else if (impact === 'negative') shiftPercentage = -3; // 3% downward shift
+
+    // Add market shift record
+    const marketShift = {
+      position,
+      tier,
+      shiftPercentage,
+      trigger: `Recent ${impact} signing in ${position} ${tier} tier`,
+    };
+
+    // Update trends based on recent shifts
+    const recentShifts = [...existingRipple.recentMarketShifts, marketShift];
+
+    // Calculate position trend
+    const positionShifts = recentShifts
+      .filter((shift) => shift.position === position)
+      .slice(-5); // Last 5 shifts
+
+    const positionTrend = this.calculateTrendFromShifts(positionShifts);
+
+    // Calculate tier trend
+    const tierShifts = recentShifts
+      .filter((shift) => shift.tier === tier)
+      .slice(-5); // Last 5 shifts
+
+    const tierTrend = this.calculateTrendFromShifts(tierShifts);
+
+    return {
+      positionTrend,
+      tierTrend,
+      marketShifts: recentShifts.slice(-10), // Keep last 10 shifts
+    };
+  }
+
+  /**
+   * Calculate trend from market shifts
+   */
+  private static calculateTrendFromShifts(
+    shifts: Array<{ shiftPercentage: number }>
+  ): 'rising' | 'falling' | 'stable' {
+    if (shifts.length === 0) return 'stable';
+
+    const totalShift = shifts.reduce(
+      (sum, shift) => sum + shift.shiftPercentage,
+      0
+    );
+    const averageShift = totalShift / shifts.length;
+
+    if (averageShift > 2) return 'rising';
+    if (averageShift < -2) return 'falling';
+    return 'stable';
+  }
+}
