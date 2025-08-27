@@ -1,0 +1,268 @@
+<div class="fa-week-container">
+  <!-- FA Week Header -->
+  <div class="fa-week-header">
+    <div class="week-info">
+      <h2 class="week-title">Free Agency Week {{ currentWeek() }}</h2>
+      <div class="week-status">
+        <span class="status-badge" [class]="weekStatus()">
+          {{ weekStatus() | titlecase }}
+        </span>
+        <span class="ready-teams">
+          {{ readyTeamsCount() }} / {{ totalTeamsCount() }} teams ready
+        </span>
+      </div>
+    </div>
+
+    <div class="week-actions">
+      <button
+        class="btn btn-primary"
+        (click)="markReady()"
+        [disabled]="isReadyToAdvance()"
+      >
+        Mark Ready
+      </button>
+
+      <button
+        class="btn btn-secondary"
+        (click)="advanceWeek()"
+        [disabled]="!isReadyToAdvance()"
+      >
+        Advance Week
+      </button>
+    </div>
+  </div>
+
+  <!-- FA Week Content -->
+  <div class="fa-week-content">
+    <!-- Available Players Section -->
+    <div class="players-section">
+      <div class="section-header">
+        <h3>Available Players</h3>
+        <div class="section-actions">
+          <select
+            class="position-filter"
+            (change)="onPositionFilterChange($event)"
+            [value]="positionFilter()"
+          >
+            <option
+              *ngFor="let position of availablePositions()"
+              [value]="position"
+            >
+              {{ position === 'all' ? 'All Positions' : position }}
+            </option>
+          </select>
+          <p-iconfield iconPosition="left" class="ml-auto">
+            <p-inputicon>
+              <i class="pi pi-search"></i>
+            </p-inputicon>
+            <input
+              pInputText
+              type="text"
+              (input)="onSearchInputChange($event)"
+              placeholder="Search players..."
+              class="w-20rem"
+            />
+          </p-iconfield>
+          <span class="player-count">
+            {{ filteredPlayers().length }} of
+            {{ availablePlayers().length }} players
+          </span>
+
+          <button
+            class="btn btn-secondary btn-sm"
+            (click)="clearFilters()"
+            *ngIf="positionFilter() !== 'all' || searchQuery()"
+          >
+            Clear Filters
+          </button>
+        </div>
+      </div>
+
+      <div class="players-grid">
+        <div
+          *ngFor="let player of filteredPlayers()"
+          class="player-card"
+          [class.has-team-bid]="hasTeamBid(player.id)"
+          (click)="selectPlayer(player)"
+        >
+          <div class="player-header">
+            <div class="player-name">{{ player.name }}</div>
+            <div
+              class="player-position"
+              [style.background-color]="getPositionColor(player.position)"
+              [style.color]="'white'"
+            >
+              {{ player.position }}
+            </div>
+          </div>
+
+          <div class="player-details">
+            <div class="player-age">{{ player.age }} years old</div>
+            <div class="player-overall">OVR: {{ player.overall }}</div>
+            <div class="player-team">{{ player.nflTeam }}</div>
+          </div>
+
+          <div class="player-status">
+            <span
+              class="status-indicator"
+              [class]="getPlayerStatusClass(player.status)"
+            >
+              {{ getPlayerStatusText(player.status) }}
+            </span>
+            <span class="bid-count" *ngIf="getPlayerBidCount(player.id) > 0">
+              {{ getPlayerBidCount(player.id) }} bid(s)
+            </span>
+          </div>
+
+          <div class="player-actions">
+            <button class="btn btn-sm btn-primary">Submit Bid</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Team Bids Section -->
+    <div class="bids-section">
+      <div class="section-header">
+        <h3>Your Bids</h3>
+        <span class="bid-count">{{ teamBids().length }} active</span>
+      </div>
+
+      <div class="bids-list">
+        <div
+          *ngFor="let bid of teamBids()"
+          class="bid-item"
+          [class]="bid.status"
+        >
+          <div class="bid-player">
+            <div class="player-name">{{ getPlayerName(bid.playerId) }}</div>
+            <div class="player-position">
+              {{ getPlayerPosition(bid.playerId) }}
+            </div>
+          </div>
+
+          <div class="bid-details">
+            <div class="bid-value">
+              {{ formatCurrency(bid.offer.totalValue) }}
+            </div>
+            <div class="bid-years">{{ bid.offer.years }} year(s)</div>
+            <div class="bid-aav">{{ formatCurrency(bid.offer.apy) }}/yr</div>
+          </div>
+
+          <div class="bid-status">
+            <span class="status-badge" [class]="bid.status">
+              {{ bid.status | titlecase }}
+            </span>
+            <div class="bid-feedback" *ngIf="bid.feedback">
+              {{ bid.feedback }}
+            </div>
+          </div>
+
+          <div class="bid-actions">
+            <button
+              class="btn btn-sm btn-danger"
+              (click)="cancelBid(bid.id)"
+              *ngIf="bid.status === 'pending'"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+
+        <div class="no-bids" *ngIf="teamBids().length === 0">
+          <p>No active bids</p>
+          <p class="text-muted">
+            Submit bids on available players to get started
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bid Modal -->
+  <div class="modal-overlay" *ngIf="showBidModal()" (click)="closeBidModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Submit Bid for {{ selectedPlayer()?.name }}</h3>
+        <button class="modal-close" (click)="closeBidModal()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="bid-form">
+          <!-- Contract Years -->
+          <div class="form-group">
+            <label>Contract Length</label>
+            <div class="years-selector">
+              <button
+                *ngFor="let year of yearsOptions"
+                class="year-btn"
+                [class.active]="bidForm().years === year"
+                (click)="updateYears(year)"
+              >
+                {{ year }} Year{{ year > 1 ? 's' : '' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Base Salary by Year -->
+          <div class="form-group">
+            <label>Base Salary by Year</label>
+            <div class="salary-inputs">
+              <div *ngFor="let year of getSalaryYears()" class="salary-input">
+                <label>{{ year }}</label>
+                <input
+                  type="number"
+                  [value]="getBaseSalary(year)"
+                  (input)="updateBaseSalary(year, $event.target.valueAsNumber)"
+                  placeholder="0"
+                  min="0"
+                  step="100000"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Signing Bonus -->
+          <div class="form-group">
+            <label>Signing Bonus</label>
+            <input
+              type="number"
+              [value]="bidForm().signingBonus || 0"
+              (input)="updateSigningBonus($event.target.valueAsNumber)"
+              placeholder="0"
+              min="0"
+              step="100000"
+            />
+          </div>
+
+          <!-- Contract Summary -->
+          <div class="contract-summary">
+            <div class="summary-item">
+              <span class="label">Total Value:</span>
+              <span class="value">{{
+                formatCurrency(calculateTotalValue())
+              }}</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">Average Annual Value:</span>
+              <span class="value">{{ formatCurrency(calculateAAV()) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeBidModal()">
+          Cancel
+        </button>
+        <button
+          class="btn btn-primary"
+          (click)="submitBid()"
+          [disabled]="!isValidBid()"
+        >
+          Submit Bid
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

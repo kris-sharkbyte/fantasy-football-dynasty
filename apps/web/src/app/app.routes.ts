@@ -76,6 +76,19 @@ export const routes: Routes = [
           ),
         canActivate: [selectedLeagueGuard],
       },
+      {
+        path: ':leagueId/free-agency',
+        loadComponent: () =>
+          import('./free-agency/free-agency.component').then(
+            (m) => m.FreeAgencyComponent
+          ),
+        canActivate: [selectedLeagueGuard],
+      },
+      {
+        path: ':leagueId/draft',
+        loadComponent: () =>
+          import('./draft/draft.component').then((m) => m.DraftComponent),
+      },
     ],
   },
   {
@@ -90,14 +103,7 @@ export const routes: Routes = [
       import('./players/players.component').then((m) => m.PlayersComponent),
     canActivate: [AuthGuard],
   },
-  {
-    path: 'free-agency',
-    loadComponent: () =>
-      import('./free-agency/free-agency.component').then(
-        (m) => m.FreeAgencyComponent
-      ),
-    canActivate: [AuthGuard],
-  },
+
   {
     path: 'draft/:leagueId',
     component: DraftLayout,

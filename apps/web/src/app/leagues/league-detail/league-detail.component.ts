@@ -1,12 +1,12 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink, Router } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { LeagueHeaderComponent } from '../components/league-header.component';
 import { EditTeamModalComponent } from './edit-team-modal';
 import { LeagueSettingsComponent } from '../league-settings';
 import { LeagueMembershipService } from '../../services/league-membership.service';
-
 import { LeagueService } from '../../services/league.service';
+import { FreeAgencyService } from '../../services/free-agency.service';
 
 @Component({
   selector: 'app-league-detail',
@@ -22,9 +22,9 @@ import { LeagueService } from '../../services/league.service';
   styleUrls: ['./league-detail.component.scss'],
 })
 export class LeagueDetailComponent {
-  private readonly router = inject(Router);
   private readonly leagueMembershipService = inject(LeagueMembershipService);
   private readonly leagueService = inject(LeagueService);
+  private readonly freeAgencyService = inject(FreeAgencyService);
 
   editTeamModalVisible = false;
   showSettingsView = false;
@@ -36,6 +36,15 @@ export class LeagueDetailComponent {
   readonly canManageLeague = this.leagueMembershipService.canManageLeague;
   readonly canManageDraft = this.leagueMembershipService.canManageDraft;
   readonly canViewAllTeams = this.leagueMembershipService.canViewAllTeams;
+
+  // Free Agency status
+  readonly currentFAWeek = this.freeAgencyService.currentFAWeek;
+  readonly isFAWeekPhase = this.freeAgencyService.isFAWeekPhase;
+  readonly isOpenFAPhase = this.freeAgencyService.isOpenFAPhase;
+  readonly weekStatus = this.freeAgencyService.weekStatus;
+  readonly readyTeamsCount = this.freeAgencyService.readyTeamsCount;
+  readonly totalTeamsCount = this.freeAgencyService.totalTeamsCount;
+  readonly isReadyToAdvance = this.freeAgencyService.isReadyToAdvance;
 
   openEditTeamModal(): void {
     this.editTeamModalVisible = true;
@@ -50,20 +59,18 @@ export class LeagueDetailComponent {
   }
 
   /**
-   * Navigate to draft room
+   * Advance to next FA week (commissioner only)
    */
-  goToDraft(): void {
-    if (this.league()) {
-      this.router.navigate(['/draft', this.league()!.id]);
-    }
-  }
-
-  /**
-   * Navigate to user's roster for this league
-   */
-  goToMyRoster(): void {
-    if (this.league()) {
-      this.router.navigate(['/leagues', this.league()!.id, 'roster']);
+  async advanceFAWeek(): Promise<void> {
+    try {
+      const success = await this.freeAgencyService.advanceToNextWeek();
+      if (success) {
+        console.log('FA week advanced successfully');
+      } else {
+        console.error('Failed to advance FA week');
+      }
+    } catch (error) {
+      console.error('Error advancing FA week:', error);
     }
   }
 }

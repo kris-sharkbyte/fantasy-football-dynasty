@@ -1,62 +1,141 @@
 .league-content {
-  background: var(--bg-secondary);
-  border-radius: 1rem;
-  padding: 2rem;
-  border: 1px solid var(--border-primary);
+  padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .info-section {
-  margin-bottom: 2rem;
+  background: var(--surface-card);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+  h2 {
+    margin: 0 0 1rem 0;
+    color: var(--text-color);
+    font-size: 1.5rem;
+  }
+
+  p {
+    margin: 0;
+    color: var(--text-color-secondary);
+    line-height: 1.6;
+  }
 }
 
-.info-section h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 1rem 0;
+.fa-status-section {
+  background: var(--surface-card);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid var(--primary-color);
+
+  h3 {
+    margin: 0 0 1rem 0;
+    color: var(--text-color);
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .fa-week-info,
+  .open-fa-info {
+    p {
+      margin: 0.5rem 0;
+      color: var(--text-color-secondary);
+      line-height: 1.5;
+
+      strong {
+        color: var(--text-color);
+      }
+    }
+  }
+
+  .commissioner-controls {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--surface-border);
+
+    button {
+      width: 100%;
+      max-width: 400px;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: var(--primary-color);
+      color: var(--primary-color-text);
+
+      &:hover:not(:disabled) {
+        background: var(--primary-600);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+  }
 }
 
-.info-section p {
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-.actions {
+.settings-section {
   display: flex;
-  gap: 1rem;
   justify-content: flex-start;
-  flex-wrap: wrap;
+  margin-top: 2rem;
+
+  button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--surface-200);
+    color: var(--text-color);
+
+    &:hover:not(:disabled) {
+      background: var(--surface-300);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
 }
 
-.btn-secondary {
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 1px solid var(--border-primary);
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  font-size: 1rem;
-}
+// Responsive design
+@media (max-width: 768px) {
+  .league-content {
+    padding: 0.5rem;
+  }
 
-.btn-primary {
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
-  background: #3b82f6;
-  color: white;
-  font-size: 1rem;
-}
+  .fa-status-section {
+    .commissioner-controls button {
+      max-width: 100%;
+    }
+  }
 
-.btn-primary:hover {
-  background: #2563eb;
-}
+  .settings-section {
+    justify-content: center;
 
-.btn-secondary:hover {
-  background: var(--bg-primary);
-  color: var(--text-primary);
+    button {
+      width: 100%;
+      max-width: 300px;
+    }
+  }
 }

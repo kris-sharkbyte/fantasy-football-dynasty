@@ -118,6 +118,13 @@ export class PlayerDataService {
   }
 
   /**
+   * Get all players as an array
+   */
+  getAllPlayers(): SleeperPlayer[] {
+    return Object.values(this._players());
+  }
+
+  /**
    * Search players with filters
    */
   searchPlayers(filters: PlayerSearchFilters = {}): SleeperPlayer[] {

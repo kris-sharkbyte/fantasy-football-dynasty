@@ -6,6 +6,8 @@ import {
   signal,
   input,
   inject,
+  OnInit,
+  computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
@@ -13,7 +15,7 @@ import { MenuModule } from 'primeng/menu';
 import { MenuItem } from 'primeng/api';
 import { TabsModule } from 'primeng/tabs';
 import { LeagueService } from '../../services/league.service';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-league-header',
@@ -45,14 +47,16 @@ import { Router } from '@angular/router';
       </div>
     </div>
 
-    <p-tabs value="0" scrollable>
+    <p-tabs [value]="activeTabIndex()" scrollable>
       <p-tablist>
-        <p-tab value="0"> League Info </p-tab>
-        <p-tab value="1" (click)="goToMyRoster()"> My Roster </p-tab>
-
-        <p-tab value="2"> Draft Room </p-tab>
-
-        <p-tab value="3"> Free Agents </p-tab>
+        <p-tab value="0" (click)="navigateToTab('league-info')">
+          League Info
+        </p-tab>
+        <p-tab value="1" (click)="navigateToTab('roster')"> My Roster </p-tab>
+        <p-tab value="2" (click)="navigateToTab('draft')"> Draft Room </p-tab>
+        <p-tab value="3" (click)="navigateToTab('free-agency')">
+          Free Agents
+        </p-tab>
       </p-tablist>
     </p-tabs>
   `,
@@ -124,12 +128,29 @@ import { Router } from '@angular/router';
     `,
   ],
 })
-export class LeagueHeaderComponent {
+export class LeagueHeaderComponent implements OnInit {
   private readonly leagueService = inject(LeagueService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+
   public league = this.leagueService.selectedLeague;
   public leagueId = this.leagueService.selectedLeagueId;
   @Output() openEditTeam = new EventEmitter<void>();
+
+  // Computed active tab based on current route
+  public activeTabIndex = computed(() => {
+    const currentRoute = this.router.url;
+    const leagueId = this.leagueId();
+
+    if (!leagueId) return 0;
+
+    if (currentRoute.includes(`/leagues/${leagueId}/roster`)) return 1;
+    if (currentRoute.includes(`/draft/${leagueId}`)) return 2;
+    if (currentRoute.includes(`/leagues/${leagueId}/free-agency`)) return 3;
+
+    // Default to league info (0) for league detail page
+    return 0;
+  });
 
   settingsMenuItems: MenuItem[] = [
     {
@@ -167,6 +188,10 @@ export class LeagueHeaderComponent {
     },
   ];
 
+  ngOnInit(): void {
+    // Component is ready
+  }
+
   toggleSettingsMenu(event: Event): void {
     // The menu will be shown by PrimeNG automatically
   }
@@ -175,9 +200,23 @@ export class LeagueHeaderComponent {
     this.openEditTeam.emit();
   }
 
-  goToMyRoster(): void {
-    if (this.league()) {
-      this.router.navigate(['/leagues', this.league()!.id, 'roster']);
+  navigateToTab(tabName: string): void {
+    const leagueId = this.leagueId();
+    if (!leagueId) return;
+
+    switch (tabName) {
+      case 'league-info':
+        this.router.navigate(['/leagues', leagueId]);
+        break;
+      case 'roster':
+        this.router.navigate(['/leagues', leagueId, 'roster']);
+        break;
+      case 'draft':
+        this.router.navigate(['/draft', leagueId]);
+        break;
+      case 'free-agency':
+        this.router.navigate(['/leagues', leagueId, 'free-agency']);
+        break;
     }
   }
 }

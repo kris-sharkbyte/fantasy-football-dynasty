@@ -1,0 +1,211 @@
+<div class="open-fa-container">
+  <!-- Open FA Header -->
+  <div class="open-fa-header">
+    <div class="header-info">
+      <h2 class="header-title">Open Free Agency</h2>
+      <p class="header-description">
+        Sign any unsigned player immediately to a 1-year auto-priced contract.
+        Prices are market-discounted for quick signings.
+      </p>
+    </div>
+
+    <div class="header-stats">
+      <div class="stat-item">
+        <span class="stat-label">Available Players</span>
+        <span class="stat-value">{{ filteredPlayers().length }}</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Discount Applied</span>
+        <span class="stat-value">20%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters Section -->
+  <div class="filters-section">
+    <div class="search-filter">
+      <input
+        type="text"
+        placeholder="Search players by name or team..."
+        class="search-input"
+        [value]="searchQuery()"
+        (input)="updateSearchQuery($event)"
+      />
+    </div>
+
+    <div class="position-filter">
+      <select
+        class="position-filter"
+        (change)="onPositionFilterChange($event)"
+        [value]="positionFilter()"
+      >
+        <option value="">All Positions</option>
+        <option *ngFor="let position of positionOptions" [value]="position">
+          {{ position }}
+        </option>
+      </select>
+    </div>
+
+    <div class="filter-actions">
+      <button class="btn btn-secondary" (click)="clearFilters()">
+        Clear Filters
+      </button>
+    </div>
+  </div>
+
+  <!-- Players Grid -->
+  <div class="players-section">
+    <div class="section-header">
+      <h3>Available Players</h3>
+      <span class="player-count">
+        {{ filteredPlayers().length }} of
+        {{ availablePlayers().length }} players
+      </span>
+    </div>
+
+    <div class="players-grid">
+      <div
+        *ngFor="let player of filteredPlayers()"
+        class="player-card"
+        (click)="selectPlayer(player)"
+      >
+        <div class="player-header">
+          <div class="player-name">{{ player.name }}</div>
+          <div
+            class="player-position"
+            [style.background-color]="getPositionColor(player.position)"
+            [style.color]="'white'"
+          >
+            {{ player.position }}
+          </div>
+        </div>
+
+        <div class="player-details">
+          <div class="player-age">{{ player.age }} years old</div>
+          <div class="player-overall">OVR: {{ player.overall }}</div>
+          <div class="player-team">{{ player.nflTeam }}</div>
+        </div>
+
+        <div class="player-pricing">
+          <div class="market-price">
+            <span class="price-label">Market Price:</span>
+            <span class="price-value">{{
+              formatCurrency(getEstimatedMarketPrice(player))
+            }}</span>
+          </div>
+          <div class="discounted-price">
+            <span class="price-label">Your Price:</span>
+            <span class="price-value discounted">{{
+              formatCurrency(getDiscountedPrice(player))
+            }}</span>
+          </div>
+        </div>
+
+        <div class="player-actions">
+          <button class="btn btn-primary">Sign Player</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="no-players" *ngIf="filteredPlayers().length === 0">
+      <div class="no-players-content">
+        <h4>No Players Available</h4>
+        <p>Try adjusting your search criteria or position filters.</p>
+        <button class="btn btn-secondary" (click)="clearFilters()">
+          Clear All Filters
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Signing Modal -->
+  <div
+    class="modal-overlay"
+    *ngIf="showSigningModal()"
+    (click)="closeSigningModal()"
+  >
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Sign {{ selectedPlayer()?.name }}</h3>
+        <button class="modal-close" (click)="closeSigningModal()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="player-summary">
+          <div class="player-info">
+            <div class="player-name">{{ selectedPlayer()?.name }}</div>
+            <div class="player-details">
+              <span class="position">{{ selectedPlayer()?.position }}</span>
+              <span class="age">{{ selectedPlayer()?.age }} years old</span>
+              <span class="overall">OVR: {{ selectedPlayer()?.overall }}</span>
+            </div>
+          </div>
+
+          <div class="contract-details">
+            <div class="contract-term">
+              <span class="label">Contract Length:</span>
+              <span class="value">1 Year</span>
+            </div>
+            <div class="contract-salary">
+              <span class="label">Base Salary:</span>
+              <span class="value">{{
+                formatCurrency(getDiscountedPrice(selectedPlayer()!))
+              }}</span>
+            </div>
+            <div class="contract-bonus">
+              <span class="label">Signing Bonus:</span>
+              <span class="value">$0</span>
+            </div>
+            <div class="contract-guarantees">
+              <span class="label">Guarantees:</span>
+              <span class="value">None</span>
+            </div>
+          </div>
+
+          <div class="pricing-breakdown">
+            <div class="breakdown-item">
+              <span class="label">Market Price:</span>
+              <span class="value">{{
+                formatCurrency(getEstimatedMarketPrice(selectedPlayer()!))
+              }}</span>
+            </div>
+            <div class="breakdown-item discount">
+              <span class="label">Open FA Discount (20%):</span>
+              <span class="value"
+                >-{{
+                  formatCurrency(
+                    getEstimatedMarketPrice(selectedPlayer()!) -
+                      getDiscountedPrice(selectedPlayer()!)
+                  )
+                }}</span
+              >
+            </div>
+            <div class="breakdown-item total">
+              <span class="label">Your Price:</span>
+              <span class="value">{{
+                formatCurrency(getDiscountedPrice(selectedPlayer()!))
+              }}</span>
+            </div>
+          </div>
+
+          <div class="signing-note">
+            <p>
+              <strong>Note:</strong> This is an immediate signing with no
+              negotiation. The player will be added to your roster immediately
+              upon confirmation.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeSigningModal()">
+          Cancel
+        </button>
+        <button class="btn btn-primary" (click)="processSigning()">
+          Sign Player
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

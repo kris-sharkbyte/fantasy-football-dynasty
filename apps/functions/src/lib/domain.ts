@@ -13,7 +13,7 @@ import {
   MarketImpact,
   ContractOffer,
   OpenFASigning,
-} from '@fantasy-football-dynasty/types';
+} from './types';
 
 export class CapMath {
   /**

@@ -7,22 +7,49 @@
       <p>League details and management will go here...</p>
     </div>
 
-    <div class="actions">
-      <button class="btn-primary" (click)="goToDraft()">
-        🏈 Enter Draft Room
-      </button>
-      <button class="btn-secondary" (click)="goToMyRoster()">
-        👥 View My Roster
-      </button>
-      @if (canManageLeague()) {
+    <!-- Free Agency Status Section -->
+    @if (isFAWeekPhase() || isOpenFAPhase()) {
+    <div class="fa-status-section">
+      <h3>🏈 Free Agency Status</h3>
+      @if (isFAWeekPhase()) {
+      <div class="fa-week-info">
+        <p>
+          <strong>Week {{ currentFAWeek()?.weekNumber || 0 }}</strong> -
+          {{ weekStatus() }}
+        </p>
+        <p>Teams Ready: {{ readyTeamsCount() }} / {{ totalTeamsCount() }}</p>
+        @if (canManageLeague()) {
+        <div class="commissioner-controls">
+          <button
+            class="btn-primary"
+            (click)="advanceFAWeek()"
+            [disabled]="!isReadyToAdvance()"
+          >
+            @if (isReadyToAdvance()) { 🚀 Advance to Next Week } @else { ⏳
+            Waiting for Teams ({{ readyTeamsCount() }}/{{ totalTeamsCount() }})
+            }
+          </button>
+        </div>
+        }
+      </div>
+      } @else if (isOpenFAPhase()) {
+      <div class="open-fa-info">
+        <p>
+          <strong>Open Free Agency</strong> - Players can be signed immediately
+        </p>
+      </div>
+      }
+    </div>
+    }
+
+    <!-- Settings Section -->
+    @if (canManageLeague()) {
+    <div class="settings-section">
       <button class="btn-secondary" (click)="showSettings()">
         ⚙️ League Settings
       </button>
-      }
-      <button class="btn-secondary" routerLink="/leagues">
-        Back to Leagues
-      </button>
     </div>
+    }
   </div>
 </div>
 

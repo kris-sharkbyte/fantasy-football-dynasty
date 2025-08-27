@@ -1,10 +1,22 @@
-<div class="space-y-8">
-  <h1 class="text-3xl font-bold text-secondary-900">Free Agency</h1>
+<div class="free-agency-container">
+  <app-league-header></app-league-header>
 
-  <div class="text-center py-12">
-    <p class="text-lg text-secondary-600">
-      Free agency bidding system coming soon...
-    </p>
+  <!-- Phase-based rendering -->
+  @if (isFAWeekPhase()) {
+  <app-fa-week></app-fa-week>
+  }
+  <!-- open FA phase -->
+  @if (isOpenFAPhase()) {
+  <app-open-fa></app-open-fa>
+  }
+
+  <!-- Loading state -->
+  @if (!isFAWeekPhase() && !isOpenFAPhase()) {
+  <div class="loading-state">
+    <div class="loading-content">
+      <h2>Loading Free Agency...</h2>
+      <p>Please wait while we load the current free agency phase.</p>
+    </div>
   </div>
+  }
 </div>
-
