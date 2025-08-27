@@ -1,21 +1,10 @@
-import {
-  Component,
-  signal,
-  computed,
-  inject,
-  Input,
-  OnInit,
-} from '@angular/core';
+import { Component, signal, computed, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
-import { InputTextModule } from 'primeng/inputtext';
-import { SelectButtonModule } from 'primeng/selectbutton';
-import { ProgressBarModule } from 'primeng/progressbar';
-import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { MessageModule } from 'primeng/message';
 
 import { Contract, Position, Guarantee } from '@fantasy-football-dynasty/types';
 import { TeamService } from '../../services/team.service';
@@ -40,13 +29,19 @@ import { NegotiationService } from '../../services/negotiation.service';
 import { NumberFormatService } from '../../services/number-format.service';
 import { LeagueService } from '../../services/league.service';
 
-export interface ContractFormData {
-  years: number;
-  baseSalary: Record<number, number>;
-  signingBonus: number;
-  guarantees: Guarantee[];
-  noTradeClause: boolean;
-}
+// Import child components
+import {
+  PlayerProfileComponent,
+  OfferStatusComponent,
+  ContractInputsComponent,
+  TeamAnalysisComponent,
+  NegotiationPanelComponent,
+  type ContractFormData,
+  type TeamDepthPlayer,
+  type PlayerMotivation,
+  type NegotiationSession,
+  type NegotiationHistoryItem,
+} from './components';
 
 export interface ContractValidation {
   isValid: boolean;
@@ -66,14 +61,16 @@ export interface ContractValidation {
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     CardModule,
     ButtonModule,
-    InputTextModule,
-    SelectButtonModule,
-    ProgressBarModule,
-    MessageModule,
     ProgressSpinnerModule,
+    MessageModule,
+    // Child components
+    PlayerProfileComponent,
+    OfferStatusComponent,
+    ContractInputsComponent,
+    TeamAnalysisComponent,
+    NegotiationPanelComponent,
   ],
   templateUrl: './negotiation.component.html',
   styleUrls: ['./negotiation.component.scss'],
@@ -111,8 +108,6 @@ export class NegotiationComponent implements OnInit {
     years: 1,
     baseSalary: { 1: 0 },
     signingBonus: 0,
-    guarantees: [],
-    noTradeClause: false,
   };
 
   // Formatted display values for inputs
@@ -200,16 +195,6 @@ export class NegotiationComponent implements OnInit {
   }
 
   /**
-   * Get player name for display
-   */
-  getPlayerName(): string {
-    const player = this.playerDataService.getPlayer(this.playerId());
-    return player
-      ? `${player.first_name} ${player.last_name}`
-      : 'Unknown Player';
-  }
-
-  /**
    * Get player data for validation
    */
   getPlayerData(): SleeperPlayer | null {
@@ -235,11 +220,6 @@ export class NegotiationComponent implements OnInit {
     });
 
     this.contractData.baseSalary = newBaseSalary;
-
-    // Update guarantee years if they're out of range
-    this.contractData.guarantees = this.contractData.guarantees.filter(
-      (guarantee) => guarantee.year <= this.contractData.years
-    );
   }
 
   /**
@@ -266,10 +246,7 @@ export class NegotiationComponent implements OnInit {
    * Calculate total guaranteed amount
    */
   getGuaranteedAmount(): number {
-    return this.contractData.guarantees.reduce(
-      (sum, guarantee) => sum + guarantee.amount,
-      0
-    );
+    return 0; // TODO: Implement guarantees
   }
 
   /**
@@ -287,8 +264,8 @@ export class NegotiationComponent implements OnInit {
       endYear: new Date().getFullYear() + this.contractData.years - 1,
       baseSalary: this.contractData.baseSalary,
       signingBonus: this.contractData.signingBonus,
-      guarantees: this.contractData.guarantees,
-      noTradeClause: this.contractData.noTradeClause,
+      guarantees: [],
+      noTradeClause: false,
     };
 
     // Basic contract validation
@@ -419,13 +396,13 @@ export class NegotiationComponent implements OnInit {
 
     const expectedValue = this.getExpectedValue();
     const offeredValue = this.getTotalValue();
-    
+
     // If no expected value, return medium risk
     if (expectedValue === 0) return 50;
-    
+
     // Calculate how close the offer is to expected value (0-100%)
     const ratio = offeredValue / expectedValue;
-    
+
     if (ratio >= 1.0) {
       // Offer is at or above expected value - low risk
       return Math.max(0, 100 - Math.min(100, (ratio - 1.0) * 200));
@@ -436,36 +413,9 @@ export class NegotiationComponent implements OnInit {
   }
 
   /**
-   * Get risk level text (LOW, MEDIUM, HIGH)
-   */
-  getRiskLevel(): string {
-    const riskPercentage = this.getRiskPercentage();
-    
-    if (riskPercentage <= 25) return 'LOW';
-    if (riskPercentage <= 60) return 'MEDIUM';
-    return 'HIGH';
-  }
-
-  /**
-   * Get risk color class for styling
-   */
-  getRiskColor(): string {
-    const riskPercentage = this.getRiskPercentage();
-    
-    if (riskPercentage <= 25) return 'low-risk';
-    if (riskPercentage <= 60) return 'medium-risk';
-    return 'high-risk';
-  }
-
-  /**
    * Get team depth for the same position
    */
-  getTeamDepth(): Array<{
-    overall: number;
-    number: string;
-    position: string;
-    age: number;
-  }> {
+  getTeamDepth(): TeamDepthPlayer[] {
     const player = this.getPlayerData();
     if (!player) return [];
 
@@ -506,40 +456,13 @@ export class NegotiationComponent implements OnInit {
   }
 
   /**
-   * Get cap hit for a specific year
-   */
-  getCapHit(year: number): number {
-    const baseSalary = this.contractData.baseSalary[year] || 0;
-    const proratedBonus =
-      this.contractData.signingBonus / this.contractData.years;
-    return baseSalary + proratedBonus;
-  }
-
-  /**
-   * Get total cap hit across all years
-   */
-  getTotalCapHit(): number {
-    return this.getContractYears().reduce((total, year) => {
-      return total + this.getCapHit(year);
-    }, 0);
-  }
-
-  /**
    * Get player motivations based on personality
    */
-  getPlayerMotivations(): Array<{
-    title: string;
-    detail: string;
-    impact: 'high' | 'medium' | 'low';
-  }> {
+  getPlayerMotivations(): PlayerMotivation[] {
     const personality = this.playerPersonality();
     if (!personality) return this.getDefaultMotivations();
 
-    const motivations: Array<{
-      title: string;
-      detail: string;
-      impact: 'high' | 'medium' | 'low';
-    }> = [];
+    const motivations: PlayerMotivation[] = [];
 
     motivations.push({
       title: 'SCHEME FIT',
@@ -589,11 +512,7 @@ export class NegotiationComponent implements OnInit {
   /**
    * Get default motivations when personality is not available
    */
-  private getDefaultMotivations(): Array<{
-    title: string;
-    detail: string;
-    impact: 'high' | 'medium' | 'low';
-  }> {
+  private getDefaultMotivations(): PlayerMotivation[] {
     return [
       {
         title: 'SCHEME FIT',
@@ -668,7 +587,7 @@ export class NegotiationComponent implements OnInit {
       gtdPct: this.getGuaranteedAmount() / this.getTotalValue(),
       years: this.contractData.years,
       bonusPct: this.contractData.signingBonus / this.getTotalValue(),
-      noTradeClause: this.contractData.noTradeClause,
+      noTradeClause: false,
     };
 
     const result = this.negotiationService.submitOffer(offer);
@@ -694,66 +613,10 @@ export class NegotiationComponent implements OnInit {
   }
 
   /**
-   * Accept a counter-offer from the player
-   */
-  acceptCounter(counter: Offer): void {
-    const success = this.negotiationService.acceptCounter(counter);
-    if (success) {
-      console.log('Counter accepted!');
-      this.negotiationService.endNegotiation();
-      // TODO: Create the contract and redirect
-    }
-  }
-
-  /**
-   * Decline a counter-offer
-   */
-  declineCounter(): void {
-    this.negotiationService.declineCounter();
-    console.log('Counter declined');
-  }
-
-  /**
    * End the current negotiation
    */
   endNegotiation(): void {
     this.negotiationService.endNegotiation();
-  }
-
-  /**
-   * Get the player's reservation value (minimum acceptable)
-   */
-  getPlayerReservation(): {
-    aav: number;
-    gtdPct: number;
-    years: number;
-  } | null {
-    const session = this.currentSession();
-    return session?.reservation || null;
-  }
-
-  /**
-   * Get the player's ask anchor (opening position)
-   */
-  getPlayerAskAnchor(): { aav: number; gtdPct: number; years: number } | null {
-    const session = this.currentSession();
-    return session?.askAnchor || null;
-  }
-
-  /**
-   * Check if current offer is close to player's reservation
-   */
-  isOfferCloseToReservation(): boolean {
-    const reservation = this.getPlayerReservation();
-    if (!reservation) return false;
-
-    const currentAPY = this.getAPY();
-    const currentGtdPct = this.getGuaranteedAmount() / this.getTotalValue();
-
-    const aavRatio = currentAPY / reservation.aav;
-    const gtdRatio = currentGtdPct / reservation.gtdPct;
-
-    return aavRatio >= 0.9 && gtdRatio >= 0.85;
   }
 
   // ============================================================================
@@ -763,19 +626,17 @@ export class NegotiationComponent implements OnInit {
   /**
    * Update salary when formatted input changes
    */
-  onSalaryInputChange(formattedValue: string): void {
-    const numericValue = this.numberFormatService.parseCurrency(formattedValue);
-    this.contractData.baseSalary[1] = numericValue;
-    this.formattedSalary = formattedValue;
+  onSalaryChange(amount: number): void {
+    this.contractData.baseSalary[1] = amount;
+    this.formattedSalary = this.getFormattedSalary();
   }
 
   /**
    * Update bonus when formatted input changes
    */
-  onBonusInputChange(formattedValue: string): void {
-    const numericValue = this.numberFormatService.parseCurrency(formattedValue);
-    this.contractData.signingBonus = numericValue;
-    this.formattedBonus = formattedValue;
+  onBonusChange(amount: number): void {
+    this.contractData.signingBonus = amount;
+    this.formattedBonus = this.getFormattedBonus();
   }
 
   /**
@@ -794,46 +655,6 @@ export class NegotiationComponent implements OnInit {
     return this.numberFormatService.formatCurrencyShort(
       this.contractData.signingBonus || 0
     );
-  }
-
-  /**
-   * Increment salary by specified amount
-   */
-  incrementSalary(amount: number): void {
-    const currentSalary = this.contractData.baseSalary[1] || 0;
-    const newSalary = currentSalary + amount;
-    this.contractData.baseSalary[1] = newSalary;
-    this.formattedSalary = this.numberFormatService.formatCurrencyShort(newSalary);
-  }
-
-  /**
-   * Decrement salary by specified amount
-   */
-  decrementSalary(amount: number): void {
-    const currentSalary = this.contractData.baseSalary[1] || 0;
-    const newSalary = Math.max(0, currentSalary - amount);
-    this.contractData.baseSalary[1] = newSalary;
-    this.formattedSalary = this.numberFormatService.formatCurrencyShort(newSalary);
-  }
-
-  /**
-   * Increment bonus by specified amount
-   */
-  incrementBonus(amount: number): void {
-    const currentBonus = this.contractData.signingBonus || 0;
-    const newBonus = currentBonus + amount;
-    this.contractData.signingBonus = newBonus;
-    this.formattedBonus = this.numberFormatService.formatCurrencyShort(newBonus);
-  }
-
-  /**
-   * Decrement bonus by specified amount
-   */
-  decrementBonus(amount: number): void {
-    const currentBonus = this.contractData.signingBonus || 0;
-    const newBonus = Math.max(0, currentBonus - amount);
-    this.contractData.signingBonus = newBonus;
-    this.formattedBonus = this.numberFormatService.formatCurrencyShort(newBonus);
   }
 
   /**

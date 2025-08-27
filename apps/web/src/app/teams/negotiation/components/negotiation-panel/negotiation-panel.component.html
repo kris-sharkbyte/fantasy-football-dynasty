@@ -1,0 +1,83 @@
+<p-card class="negotiation-panel" [class.active]="isNegotiating()">
+  <div class="panel-header">
+    <h3>NEGOTIATION</h3>
+    <button
+      pButton
+      label="START NEGOTIATION"
+      (click)="onStartNegotiation()"
+      *ngIf="!isNegotiating()"
+      class="p-button-primary"
+    ></button>
+    <div class="negotiation-status" *ngIf="isNegotiating()">
+      <span class="round">Round {{ currentRound() }}</span>
+      <span class="patience">Patience: {{ remainingPatience() }}</span>
+    </div>
+  </div>
+
+  <div class="panel-content" *ngIf="!isNegotiating()">
+    <p>
+      Click "START NEGOTIATION" to begin contract talks with this player's
+      agent.
+    </p>
+  </div>
+
+  <div class="player-demands" *ngIf="isNegotiating() && currentSession()">
+    <div class="demand-item">
+      <span class="demand-label">Reservation (Min):</span>
+      <span class="demand-value">
+        {{ formatCurrency(currentSession()!.reservation.aav) }}/yr
+      </span>
+    </div>
+    <div class="demand-item">
+      <span class="demand-label">Ask Anchor:</span>
+      <span class="demand-value">
+        {{ formatCurrency(currentSession()!.askAnchor.aav) }}/yr
+      </span>
+    </div>
+    <div class="demand-item">
+      <span class="demand-label">Guarantees:</span>
+      <span class="demand-value">
+        {{ formatPercentage(currentSession()!.reservation.gtdPct) }}
+      </span>
+    </div>
+  </div>
+
+  <div class="negotiation-actions" *ngIf="isNegotiating()">
+    <button
+      pButton
+      label="SUBMIT OFFER"
+      (click)="onSubmitOffer()"
+      [disabled]="!isFormValid()"
+      class="p-button-success"
+    ></button>
+    <button
+      pButton
+      label="END TALKS"
+      (click)="onEndNegotiation()"
+      class="p-button-danger"
+    ></button>
+  </div>
+
+  <div
+    class="negotiation-history"
+    *ngIf="isNegotiating() && negotiationHistory().length > 0"
+  >
+    <h4>Negotiation History</h4>
+    <div
+      class="history-item"
+      *ngFor="let item of negotiationHistory(); let i = index"
+    >
+      <div class="history-type" [class]="item.type">
+        {{ item.type.toUpperCase() }}
+      </div>
+      <div class="history-details">
+        <span>{{ formatCurrency(item.offer.aav) }}/yr</span>
+        <span>{{ formatPercentage(item.offer.gtdPct) }} gtd</span>
+        <span>{{ item.offer.years }} years</span>
+      </div>
+      <div class="history-message" *ngIf="item.message">
+        {{ item.message }}
+      </div>
+    </div>
+  </div>
+</p-card>

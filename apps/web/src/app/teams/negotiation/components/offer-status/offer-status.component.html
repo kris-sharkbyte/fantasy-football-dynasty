@@ -1,0 +1,21 @@
+<p-card class="offer-status">
+  <div class="risk-bar">
+    <p-progressBar
+      [value]="riskPercentage()"
+      [showValue]="false"
+      [class]="riskColor()"
+    ></p-progressBar>
+  </div>
+  <div class="risk-label" [class]="riskColor()">{{ riskLevel() }} RISK</div>
+  <div class="risk-details">
+    <div class="risk-point positive" *ngIf="isLowRisk()">
+      + Offer is competitive
+    </div>
+    <div class="risk-point neutral" *ngIf="isMediumRisk()">
+      ~ Offer is close to market value
+    </div>
+    <div class="risk-point negative" *ngIf="isHighRisk()">
+      - Player may reject this offer
+    </div>
+  </div>
+</p-card>

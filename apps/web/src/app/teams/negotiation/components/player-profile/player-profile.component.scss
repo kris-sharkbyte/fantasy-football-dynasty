@@ -1,0 +1,140 @@
+.player-profile {
+  .player-header {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+
+    .player-photo {
+      position: relative;
+      width: 80px;
+      height: 80px;
+
+      .photo-placeholder {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          135deg,
+          var(--primary-color),
+          var(--primary-600)
+        );
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 2rem;
+      }
+
+      .nflpa-badge {
+        position: absolute;
+        top: -5px;
+        left: -5px;
+        background-color: var(--red-500);
+        color: white;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+      }
+    }
+
+    .player-info {
+      flex: 1;
+
+      .player-name {
+        margin: 0 0 0.5rem 0;
+        color: var(--text-color);
+        font-size: 1.5rem;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .player-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        margin-bottom: 1rem;
+
+        .position-number {
+          color: var(--text-color);
+          font-weight: 600;
+          font-size: 1rem;
+        }
+
+        .age-college {
+          color: var(--text-color-secondary);
+          font-size: 0.875rem;
+        }
+      }
+
+      .player-rating {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+
+        .rating-icon {
+          color: var(--yellow-500);
+          font-size: 1.25rem;
+        }
+
+        .rating-value {
+          color: var(--text-color);
+          font-weight: 600;
+          font-size: 1.125rem;
+        }
+      }
+    }
+  }
+
+  .expected-value {
+    background-color: var(--surface-section);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    text-align: center;
+
+    .value-label {
+      color: var(--text-color-secondary);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+    }
+
+    .value-amount,
+    .value-apy {
+      color: var(--yellow-500);
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .value-amount {
+      font-size: 1.25rem;
+    }
+    .value-apy {
+      font-size: 1rem;
+    }
+  }
+
+  .player-tags {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+
+    .tag-label {
+      color: var(--text-color-secondary);
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .tag-value {
+      color: var(--yellow-500);
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+  }
+}

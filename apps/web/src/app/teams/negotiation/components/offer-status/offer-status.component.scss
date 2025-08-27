@@ -1,0 +1,81 @@
+.offer-status {
+  .risk-bar {
+    margin-bottom: 1rem;
+
+    ::ng-deep .p-progressbar {
+      &.low-risk {
+        .p-progressbar-value {
+          background: linear-gradient(
+            90deg,
+            var(--green-500),
+            var(--green-600)
+          );
+        }
+      }
+
+      &.medium-risk {
+        .p-progressbar-value {
+          background: linear-gradient(
+            90deg,
+            var(--yellow-500),
+            var(--yellow-600)
+          );
+        }
+      }
+
+      &.high-risk {
+        .p-progressbar-value {
+          background: linear-gradient(90deg, var(--red-500), var(--red-600));
+        }
+      }
+    }
+  }
+
+  .risk-label {
+    color: var(--text-color);
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 1rem;
+
+    &.low-risk {
+      color: var(--green-500);
+    }
+
+    &.medium-risk {
+      color: var(--yellow-500);
+    }
+
+    &.high-risk {
+      color: var(--red-500);
+    }
+  }
+
+  .risk-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    .risk-point {
+      font-size: 0.875rem;
+      padding: 0.5rem;
+      border-radius: 4px;
+      text-align: center;
+
+      &.positive {
+        background-color: var(--green-900);
+        color: var(--green-100);
+      }
+
+      &.neutral {
+        background-color: var(--yellow-900);
+        color: var(--yellow-100);
+      }
+
+      &.negative {
+        background-color: var(--red-900);
+        color: var(--red-100);
+      }
+    }
+  }
+}

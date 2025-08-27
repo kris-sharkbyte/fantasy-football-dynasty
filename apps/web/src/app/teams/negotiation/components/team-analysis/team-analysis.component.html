@@ -1,0 +1,66 @@
+<!-- Team Position Depth -->
+<p-card class="team-depth">
+  <div class="section-header">
+    <div class="team-logo">
+      <i class="pi pi-home"></i>
+    </div>
+    <h3>TEAM POSITION DEPTH</h3>
+  </div>
+  <div class="depth-list">
+    <div class="depth-item" *ngFor="let player of teamDepth(); let i = index">
+      <div class="depth-rating">{{ player.overall }} OVR</div>
+      <div class="depth-number">#{{ player.number }} {{ player.position }}</div>
+      <div class="depth-age">AGE: {{ player.age }}</div>
+    </div>
+  </div>
+</p-card>
+
+<!-- Offer Breakdown -->
+<p-card class="offer-breakdown">
+  <div class="cap-space">REMAINING CAP: {{ formattedRemainingCap() }}</div>
+  <h3>OFFER BREAKDOWN</h3>
+  <div class="breakdown-table">
+    <div class="table-header">
+      <span>YEAR</span>
+      <span>SALARY</span>
+      <span>CAP HIT</span>
+    </div>
+    <div class="table-row" *ngFor="let year of contractYears(); let i = index">
+      <span>{{ 2023 + year - 1 }}</span>
+      <span>{{ formattedBaseSalary(year) }}</span>
+      <span>{{ formattedCapHit(year) }}</span>
+    </div>
+    <div class="table-row total">
+      <span>Total</span>
+      <span>{{ formattedTotalValue() }}</span>
+      <span>{{ formattedTotalCapHit() }}</span>
+    </div>
+  </div>
+</p-card>
+
+<!-- Player Motivations -->
+<p-card class="player-motivations">
+  <div class="section-header">
+    <h3>PLAYER MOTIVATIONS</h3>
+    <span class="impact-label">IMPACT</span>
+  </div>
+  <div
+    class="motivation-item"
+    *ngFor="let motivation of playerMotivations(); let i = index"
+  >
+    <div class="motivation-text">
+      <div class="motivation-title">{{ motivation.title }}</div>
+      <div class="motivation-detail">{{ motivation.detail }}</div>
+    </div>
+    <div class="motivation-bar" [class]="motivation.impact"></div>
+  </div>
+</p-card>
+
+<!-- Interest Level -->
+<p-card class="interest-level">
+  <h3>INTEREST IN YOUR TEAM</h3>
+  <div class="interest-container">
+    <span class="interest-label">INTEREST LEVEL</span>
+    <div class="interest-bar" [class]="interestLevel()"></div>
+  </div>
+</p-card>

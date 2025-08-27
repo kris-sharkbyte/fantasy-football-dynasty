@@ -1,0 +1,38 @@
+<p-card class="player-profile">
+  <div class="player-header">
+    <div class="player-photo">
+      <div class="photo-placeholder">
+        <i class="pi pi-user"></i>
+      </div>
+      <div class="nflpa-badge">
+        <i class="pi pi-shield"></i>
+      </div>
+    </div>
+    <div class="player-info">
+      <h2 class="player-name">{{ playerName() }}</h2>
+      <div class="player-details">
+        <span class="position-number">{{ positionNumber() }}</span>
+        <span class="age-college">{{ ageCollege() }}</span>
+      </div>
+      <div class="player-rating">
+        <div class="rating-icon">
+          <i class="pi pi-star"></i>
+        </div>
+        <div class="rating-value">{{ playerRating() }} OVR</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="expected-value">
+    <div class="value-label">EXPECTED VALUE</div>
+    <div class="value-amount">
+      {{ formattedExpectedValue() }} / {{ contractYears() }} YEAR
+    </div>
+    <div class="value-apy">{{ formattedExpectedValuePerYear() }} PER YEAR</div>
+  </div>
+
+  <div class="player-tags">
+    <span class="tag-label">TAGS:</span>
+    <span class="tag-value">{{ playerTag() }}</span>
+  </div>
+</p-card>
