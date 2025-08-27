@@ -9,7 +9,11 @@ import { DialogModule } from 'primeng/dialog';
 import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
-import { Position, RosterSlot } from '@fantasy-football-dynasty/types';
+import {
+  Position,
+  RosterSlot,
+  Contract,
+} from '@fantasy-football-dynasty/types';
 import {
   LeagueMembershipService,
   LeagueMember,
@@ -20,6 +24,7 @@ import {
 } from '../../services/player-data.service';
 import { LeagueService } from '../../services/league.service';
 import { AuthService } from '../../services/auth.service';
+import { ContractCreationComponent } from '../../teams/contract-creation/contract-creation.component';
 
 @Component({
   selector: 'app-my-roster',
@@ -34,6 +39,7 @@ import { AuthService } from '../../services/auth.service';
     DialogModule,
     MessageModule,
     ProgressSpinnerModule,
+    ContractCreationComponent,
   ],
   templateUrl: './my-roster.component.html',
   styleUrls: ['./my-roster.component.scss'],
@@ -84,6 +90,12 @@ export class MyRosterComponent implements OnInit {
     });
   });
 
+  // Contract creation properties
+  public showContractCreationModal = false;
+  public selectedPlayerForContract: SleeperPlayer | null = null;
+  public salaryCap = 200000000; // Default 200M cap
+  public existingContracts: Contract[] = []; // TODO: Load from service
+
   async ngOnInit(): Promise<void> {
     try {
       this._isLoading.set(true);
@@ -105,6 +117,9 @@ export class MyRosterComponent implements OnInit {
 
       // Get current user's membership for this league
       await this.loadMyMembership(leagueId);
+
+      // Load league rules for salary cap
+      await this.loadLeagueRules(leagueId);
     } catch (error) {
       console.error('Error initializing MyRosterComponent:', error);
       this._error.set(
@@ -141,6 +156,21 @@ export class MyRosterComponent implements OnInit {
   }
 
   /**
+   * Load league rules to get salary cap information
+   */
+  private async loadLeagueRules(leagueId: string): Promise<void> {
+    try {
+      const league = this.leagueService.selectedLeague();
+      if (league?.rules?.cap?.salaryCap) {
+        this.salaryCap = league.rules.cap.salaryCap;
+      }
+    } catch (error) {
+      console.error('Error loading league rules:', error);
+      // Keep default salary cap
+    }
+  }
+
+  /**
    * Open contract creation modal for a player
    */
   openContractModal(player: SleeperPlayer): void {
@@ -154,6 +184,42 @@ export class MyRosterComponent implements OnInit {
   closeContractModal(): void {
     this.showContractModal = false;
     this._selectedPlayer.set(null);
+  }
+
+  /**
+   * Open contract creation modal for a specific player
+   */
+  openContractCreationModal(player: SleeperPlayer): void {
+    this.selectedPlayerForContract = player;
+    this.showContractCreationModal = true;
+  }
+
+  /**
+   * Close contract creation modal
+   */
+  closeContractCreationModal(): void {
+    this.showContractCreationModal = false;
+    this.selectedPlayerForContract = null;
+  }
+
+  /**
+   * Handle successful contract creation
+   */
+  onContractCreated(contract: Contract): void {
+    console.log('Contract created successfully:', contract);
+    // TODO: Add contract to player's roster
+    // TODO: Update team cap space
+    this.closeContractCreationModal();
+
+    // Show success message or refresh data
+    // For now, just close the modal
+  }
+
+  /**
+   * Handle contract creation cancellation
+   */
+  onContractCancelled(): void {
+    this.closeContractCreationModal();
   }
 
   /**

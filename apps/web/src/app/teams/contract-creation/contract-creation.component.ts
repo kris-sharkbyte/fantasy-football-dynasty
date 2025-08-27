@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { Contract, Position, Guarantee } from '@fantasy-football-dynasty/types';
 import { TeamService } from '../../services/team.service';
 import { PlayerDataService, SleeperPlayer } from '../../services/player-data.service';
+import { ContractMinimumCalculator, CapMath, ContractValidator } from '@fantasy-football-dynasty/domain';
+import { ThemeService } from '../../services/theme.service';
 
 export interface ContractFormData {
   years: number;
@@ -11,6 +13,19 @@ export interface ContractFormData {
   signingBonus: number;
   guarantees: Guarantee[];
   noTradeClause: boolean;
+}
+
+export interface ContractValidation {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+  minimumRequired: number;
+  capImpact: {
+    canAfford: boolean;
+    currentCapHit: number;
+    newCapHit: number;
+    remainingCap: number;
+  };
 }
 
 @Component({
@@ -25,9 +40,12 @@ export class ContractCreationComponent {
   @Input() teamId: string = '';
   @Input() onSuccess: (contract: Contract) => void = () => {};
   @Input() onCancel: () => void = () => {};
+  @Input() salaryCap: number = 200000000; // Default 200M cap
+  @Input() existingContracts: Contract[] = []; // For cap calculations
 
   private readonly playerDataService = inject(PlayerDataService);
   private readonly teamService = inject(TeamService);
+  private readonly themeService = inject(ThemeService);
 
   private _isCreating = signal(false);
   private _error = signal<string | null>(null);
@@ -35,6 +53,8 @@ export class ContractCreationComponent {
   // Public readonly signals
   public isCreating = this._isCreating.asReadonly();
   public error = this._error.asReadonly();
+  public currentTheme = this.themeService.currentTheme;
+  public isDarkMode = this.themeService.isDarkMode;
 
   // Contract form data
   contractData: ContractFormData = {
@@ -45,12 +65,22 @@ export class ContractCreationComponent {
     noTradeClause: false,
   };
 
+  // Computed validation
+  public contractValidation = computed(() => this.validateContract());
+
   /**
    * Get player name for display
    */
   getPlayerName(): string {
     const player = this.playerDataService.getPlayer(this.playerId);
     return player ? `${player.first_name} ${player.last_name}` : 'Unknown Player';
+  }
+
+  /**
+   * Get player data for validation
+   */
+  getPlayerData(): SleeperPlayer | null {
+    return this.playerDataService.getPlayer(this.playerId);
   }
 
   /**
@@ -123,14 +153,100 @@ export class ContractCreationComponent {
   }
 
   /**
+   * Validate the contract comprehensively
+   */
+  private validateContract(): ContractValidation {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Create a contract object for validation
+    const contract: Omit<Contract, 'id' | 'createdAt'> = {
+      playerId: this.playerId,
+      teamId: this.teamId,
+      startYear: new Date().getFullYear(),
+      endYear: new Date().getFullYear() + this.contractData.years - 1,
+      baseSalary: this.contractData.baseSalary,
+      signingBonus: this.contractData.signingBonus,
+      guarantees: this.contractData.guarantees,
+      noTradeClause: this.contractData.noTradeClause,
+    };
+
+    // Basic contract validation
+    const contractErrors = ContractValidator.validateContract(contract as Contract);
+    errors.push(...contractErrors);
+
+    // Minimum contract validation
+    const player = this.getPlayerData();
+    if (player) {
+      // Determine if player is a rookie (0 years experience)
+      const isRookie = player.years_exp === 0;
+      
+      // For rookies, we'd need draft round info - for now, assume round 3 minimum
+      const draftRound = isRookie ? 3 : undefined;
+      
+      const minimumValidation = ContractMinimumCalculator.validateContractMinimum(
+        contract as Contract,
+        {
+          age: player.age,
+          position: player.position as Position,
+          overall: player.search_rank || 70, // Use search rank as proxy for overall
+          yearsExp: player.years_exp
+        },
+        this.salaryCap,
+        isRookie,
+        draftRound
+      );
+
+      if (!minimumValidation.isValid) {
+        errors.push(minimumValidation.message);
+      }
+    }
+
+    // Cap space validation
+    const currentYear = new Date().getFullYear();
+    const capImpact = CapMath.canAffordContractByYear(
+      { id: this.teamId, capSpace: this.salaryCap } as any, // Simplified team object
+      contract as Contract,
+      this.existingContracts,
+      currentYear,
+      this.salaryCap
+    );
+
+    if (!capImpact.canAfford) {
+      errors.push(`Contract exceeds salary cap by $${((capImpact.newCapHit - capImpact.remainingCap) / 1000000).toFixed(1)}M`);
+    }
+
+    // Warnings for high-value contracts
+    if (this.getTotalValue() > this.salaryCap * 0.15) {
+      warnings.push('This contract represents more than 15% of the salary cap');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+      minimumRequired: player ? ContractMinimumCalculator.validateContractMinimum(
+        contract as Contract,
+        {
+          age: player.age,
+          position: player.position as Position,
+          overall: player.search_rank || 70,
+          yearsExp: player.years_exp
+        },
+        this.salaryCap,
+        player.years_exp === 0,
+        player.years_exp === 0 ? 3 : undefined
+      ).minimumRequired : 0,
+      capImpact
+    };
+  }
+
+  /**
    * Check if form is valid
    */
   isFormValid(): boolean {
-    // Check if all required fields are filled
-    const hasBaseSalary = Object.values(this.contractData.baseSalary)
-      .every(salary => salary > 0);
-    
-    return this.contractData.years > 0 && hasBaseSalary;
+    const validation = this.contractValidation();
+    return validation.isValid;
   }
 
   /**

@@ -1,5 +1,58 @@
-<div class="contract-creation">
+<div class="contract-creation" [class.theme-dark]="isDarkMode()" [class.theme-light]="!isDarkMode()">
   <h3>Create Contract for {{ getPlayerName() }}</h3>
+  
+  <!-- Validation Display -->
+  <div class="validation-section" *ngIf="contractValidation()">
+    <!-- Errors -->
+    <div class="validation-errors" *ngIf="contractValidation().errors.length > 0">
+      <h4 class="error-title">Contract Issues</h4>
+      <ul class="error-list">
+        <li *ngFor="let error of contractValidation().errors" class="error-item">
+          {{ error }}
+        </li>
+      </ul>
+    </div>
+
+    <!-- Warnings -->
+    <div class="validation-warnings" *ngIf="contractValidation().warnings.length > 0">
+      <h4 class="warning-title">Warnings</h4>
+      <ul class="warning-list">
+        <li *ngFor="let warning of contractValidation().warnings" class="warning-item">
+          {{ warning }}
+        </li>
+      </ul>
+    </div>
+
+    <!-- Minimum Contract Requirements -->
+    <div class="minimum-requirements" *ngIf="contractValidation().minimumRequired > 0">
+      <h4 class="minimum-title">Minimum Contract Requirements</h4>
+      <div class="minimum-info">
+        <span class="label">Minimum Total Value:</span>
+        <span class="value">${{ (contractValidation().minimumRequired / 1000000).toFixed(1) }}M</span>
+      </div>
+    </div>
+
+    <!-- Cap Impact -->
+    <div class="cap-impact" *ngIf="contractValidation().capImpact">
+      <h4 class="cap-title">Salary Cap Impact</h4>
+      <div class="cap-info">
+        <div class="cap-row">
+          <span class="label">Current Year Cap Hit:</span>
+          <span class="value">${{ (contractValidation().capImpact.currentCapHit / 1000000).toFixed(1) }}M</span>
+        </div>
+        <div class="cap-row">
+          <span class="label">New Contract Cap Hit:</span>
+          <span class="value">${{ (contractValidation().capImpact.newCapHit / 1000000).toFixed(1) }}M</span>
+        </div>
+        <div class="cap-row">
+          <span class="label">Remaining Cap Space:</span>
+          <span class="value" [class.warning]="contractValidation().capImpact.remainingCap < 10000000">
+            ${{ (contractValidation().capImpact.remainingCap / 1000000).toFixed(1) }}M
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
   
   <form (ngSubmit)="createContract()" #contractForm="ngForm">
     <!-- Contract Length -->
@@ -144,7 +197,7 @@
     <div class="form-actions">
       <button 
         type="submit" 
-        [disabled]="!contractForm.valid"
+        [disabled]="!isFormValid()"
         class="btn btn-primary"
       >
         Create Contract

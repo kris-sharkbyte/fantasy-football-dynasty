@@ -192,20 +192,40 @@
     }
   }
 
+  /* Contract Details Styles */
   .contract-details {
-    p {
-      margin: 0 0 1rem 0;
-      color: #374151;
-      font-size: 1rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: var(--surface-section);
+    border-radius: 8px;
+    border: 1px solid var(--surface-border);
+
+    .contract-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--surface-border);
+
+      h4 {
+        margin: 0;
+        color: var(--text-color);
+        font-size: 1.1rem;
+        font-weight: 600;
+      }
     }
 
-    ul {
-      margin: 0 0 1rem 0;
-      padding-left: 1.5rem;
-      color: #6b7280;
+    .contract-info {
+      p {
+        margin: 0.5rem 0;
+        color: var(--text-color-secondary);
+        font-size: 0.9rem;
 
-      li {
-        margin-bottom: 0.5rem;
+        strong {
+          color: var(--text-color);
+          font-weight: 600;
+        }
       }
     }
   }
