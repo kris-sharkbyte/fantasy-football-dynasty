@@ -1,0 +1,831 @@
+.negotiation-page {
+  background-color: var(--surface-ground);
+  color: var(--text-color);
+  min-height: 100vh;
+  padding: 1rem;
+
+  .loading-container,
+  .error-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 50vh;
+    gap: 1rem;
+
+    p {
+      color: var(--text-color-secondary);
+      font-size: 1.125rem;
+    }
+  }
+
+  .negotiation-content {
+    max-width: 1400px;
+    margin: 0 auto;
+
+    .page-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background-color: var(--surface-card);
+      border-radius: 12px;
+      border: 1px solid var(--surface-border);
+
+      h1 {
+        margin: 0;
+        color: var(--text-color);
+        font-size: 1.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .player-info {
+        margin-left: auto;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.25rem;
+
+        .player-name {
+          color: var(--text-color);
+          font-weight: 600;
+          font-size: 1.125rem;
+        }
+
+        .player-position {
+          color: var(--text-color-secondary);
+          font-size: 0.875rem;
+        }
+      }
+    }
+
+    .negotiation-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    // Common card styles
+    .left-column > p-card,
+    .right-column > p-card {
+      margin-bottom: 1.5rem;
+    }
+
+    // Left Column Styles
+    .left-column {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+
+      .player-profile {
+        .player-header {
+          display: flex;
+          gap: 1rem;
+          margin-bottom: 1.5rem;
+
+          .player-photo {
+            position: relative;
+            width: 80px;
+            height: 80px;
+
+            .photo-placeholder {
+              width: 100%;
+              height: 100%;
+              background: linear-gradient(
+                135deg,
+                var(--primary-color),
+                var(--primary-600)
+              );
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-size: 2rem;
+            }
+
+            .nflpa-badge {
+              position: absolute;
+              top: -5px;
+              left: -5px;
+              background-color: var(--red-500);
+              color: white;
+              border-radius: 50%;
+              width: 24px;
+              height: 24px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 0.75rem;
+            }
+          }
+
+          .player-info {
+            flex: 1;
+
+            .player-name {
+              margin: 0 0 0.5rem 0;
+              color: var(--text-color);
+              font-size: 1.5rem;
+              font-weight: 700;
+              text-transform: uppercase;
+            }
+
+            .player-details {
+              display: flex;
+              flex-direction: column;
+              gap: 0.25rem;
+              margin-bottom: 1rem;
+
+              .position-number {
+                color: var(--text-color);
+                font-weight: 600;
+                font-size: 1rem;
+              }
+
+              .age-college {
+                color: var(--text-color-secondary);
+                font-size: 0.875rem;
+              }
+            }
+
+            .player-rating {
+              display: flex;
+              align-items: center;
+              gap: 0.5rem;
+
+              .rating-icon {
+                color: var(--yellow-500);
+                font-size: 1.25rem;
+              }
+
+              .rating-value {
+                color: var(--text-color);
+                font-weight: 600;
+                font-size: 1.125rem;
+              }
+            }
+          }
+        }
+
+        .expected-value {
+          background-color: var(--surface-section);
+          border-radius: 8px;
+          padding: 1rem;
+          margin-bottom: 1rem;
+          text-align: center;
+
+          .value-label {
+            color: var(--text-color-secondary);
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+          }
+
+          .value-amount,
+          .value-apy {
+            color: var(--yellow-500);
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+          }
+
+          .value-amount {
+            font-size: 1.25rem;
+          }
+          .value-apy {
+            font-size: 1rem;
+          }
+        }
+
+        .player-tags {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+
+          .tag-label {
+            color: var(--text-color-secondary);
+            font-size: 0.875rem;
+            font-weight: 600;
+          }
+
+          .tag-value {
+            color: var(--yellow-500);
+            font-weight: 600;
+            font-size: 0.875rem;
+          }
+        }
+      }
+
+      .offer-status {
+        .risk-bar {
+          margin-bottom: 1rem;
+
+          ::ng-deep .p-progressbar {
+            &.low-risk {
+              .p-progressbar-value {
+                background: linear-gradient(90deg, var(--green-500), var(--green-600));
+              }
+            }
+
+            &.medium-risk {
+              .p-progressbar-value {
+                background: linear-gradient(90deg, var(--yellow-500), var(--yellow-600));
+              }
+            }
+
+            &.high-risk {
+              .p-progressbar-value {
+                background: linear-gradient(90deg, var(--red-500), var(--red-600));
+              }
+            }
+          }
+        }
+
+        .risk-label {
+          color: var(--text-color);
+          font-size: 1.25rem;
+          font-weight: 700;
+          text-align: center;
+          margin-bottom: 1rem;
+
+          &.low-risk {
+            color: var(--green-500);
+          }
+
+          &.medium-risk {
+            color: var(--yellow-500);
+          }
+
+          &.high-risk {
+            color: var(--red-500);
+          }
+        }
+
+        .risk-details {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+
+          .risk-point {
+            font-size: 0.875rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+            text-align: center;
+
+            &.positive {
+              background-color: var(--green-900);
+              color: var(--green-100);
+            }
+
+            &.neutral {
+              background-color: var(--yellow-900);
+              color: var(--yellow-100);
+            }
+
+            &.negative {
+              background-color: var(--red-900);
+              color: var(--red-100);
+            }
+          }
+        }
+      }
+
+      .contract-inputs {
+        h3 {
+          margin: 0 0 1rem 0;
+          color: var(--text-color);
+          font-size: 1rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .input-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 1.5rem;
+
+          .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+
+            label {
+              color: var(--text-color);
+              font-weight: 600;
+              font-size: 0.875rem;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+
+            .input-with-buttons {
+              display: flex;
+              align-items: center;
+              gap: 0.25rem;
+
+              .increment-btn {
+                width: 2rem;
+                height: 2rem;
+                padding: 0;
+                border-radius: 4px;
+                color: var(--text-color-secondary);
+                background-color: var(--surface-ground);
+                border: 1px solid var(--surface-border);
+
+                &:hover {
+                  background-color: var(--surface-hover);
+                  color: var(--text-color);
+                }
+
+                &:active {
+                  background-color: var(--surface-active);
+                }
+              }
+
+              .formatted-input {
+                flex: 1;
+                min-width: 0;
+                padding: 0.75rem;
+                border: 1px solid var(--surface-border);
+                border-radius: 6px;
+                background-color: var(--surface-ground);
+                color: var(--text-color);
+                font-size: 1rem;
+                font-weight: 600;
+                font-family: 'Courier New', monospace;
+                text-align: right;
+
+                &:focus {
+                  outline: none;
+                  border-color: var(--primary-color);
+                  box-shadow: 0 0 0 2px var(--primary-color-alpha-20);
+                }
+
+                &::placeholder {
+                  color: var(--text-color-secondary);
+                  font-weight: 400;
+                }
+              }
+            }
+
+            .form-control {
+              padding: 0.75rem;
+              border: 1px solid var(--surface-border);
+              border-radius: 6px;
+              background-color: var(--surface-ground);
+              color: var(--text-color);
+              font-size: 1rem;
+              font-weight: 600;
+              font-family: 'Courier New', monospace;
+              text-align: right;
+
+              &:focus {
+                outline: none;
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 2px var(--primary-color-alpha-20);
+              }
+
+              &::placeholder {
+                color: var(--text-color-secondary);
+                font-weight: 400;
+              }
+            }
+          }
+        }
+      }
+
+      .negotiation-panel {
+        &.active {
+          border-color: var(--primary-color);
+          background-color: var(--surface-section);
+
+          ::ng-deep .p-card-header h3 {
+            color: var(--primary-color);
+          }
+        }
+
+        .panel-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+
+          h3 {
+            margin: 0;
+            color: var(--text-color);
+            font-size: 1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .negotiation-status {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+
+            .round {
+              color: var(--primary-color);
+            }
+
+            .patience {
+              color: var(--yellow-500);
+            }
+          }
+        }
+
+        .panel-content {
+          color: var(--text-color-secondary);
+          font-size: 0.875rem;
+          text-align: center;
+          padding: 1rem 0;
+        }
+
+        .player-demands {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 1rem;
+          margin-bottom: 1.5rem;
+
+          .demand-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem;
+            background-color: var(--surface-ground);
+            border-radius: 8px;
+            border: 1px solid var(--surface-border);
+
+            .demand-label {
+              color: var(--text-color-secondary);
+              font-size: 0.75rem;
+              font-weight: 600;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              margin-bottom: 0.5rem;
+              text-align: center;
+            }
+
+            .demand-value {
+              color: var(--primary-color);
+              font-size: 1.125rem;
+              font-weight: 700;
+            }
+          }
+        }
+
+        .negotiation-actions {
+          display: flex;
+          gap: 1rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .negotiation-history {
+          h4 {
+            color: var(--text-color);
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 1rem 0;
+          }
+
+          .history-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 1rem;
+            background-color: var(--surface-ground);
+            border-radius: 8px;
+            border: 1px solid var(--surface-border);
+            margin-bottom: 0.75rem;
+
+            .history-type {
+              font-size: 0.75rem;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              padding: 0.25rem 0.5rem;
+              border-radius: 4px;
+              align-self: flex-start;
+
+              &.offer {
+                background-color: var(--blue-900);
+                color: var(--blue-100);
+              }
+
+              &.counter {
+                background-color: var(--yellow-900);
+                color: var(--yellow-100);
+              }
+
+              &.accept {
+                background-color: var(--green-900);
+                color: var(--green-100);
+              }
+
+              &.decline {
+                background-color: var(--red-900);
+                color: var(--red-100);
+              }
+            }
+
+            .history-details {
+              display: flex;
+              gap: 1rem;
+              font-size: 0.875rem;
+              color: var(--text-color);
+
+              span {
+                font-weight: 600;
+              }
+            }
+
+            .history-message {
+              font-size: 0.875rem;
+              color: var(--text-color-secondary);
+              font-style: italic;
+              padding: 0.5rem;
+              background-color: var(--surface-card);
+              border-radius: 4px;
+              border-left: 3px solid var(--primary-color);
+            }
+          }
+        }
+      }
+    }
+
+    // Right Column Styles
+    .right-column {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+
+        .team-logo {
+          color: var(--primary-color);
+          font-size: 1.5rem;
+        }
+
+        h3 {
+          margin: 0;
+          color: var(--yellow-500);
+          font-size: 1rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .impact-label {
+          color: var(--text-color-secondary);
+          font-size: 0.75rem;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+      }
+
+      .team-depth {
+        .depth-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+
+          .depth-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background-color: var(--surface-section);
+            border-radius: 6px;
+
+            .depth-rating {
+              color: var(--text-color);
+              font-weight: 600;
+              font-size: 0.875rem;
+            }
+
+            .depth-number {
+              color: var(--text-color-secondary);
+              font-size: 0.875rem;
+            }
+
+            .depth-age {
+              color: var(--text-color-secondary);
+              font-size: 0.75rem;
+            }
+          }
+        }
+      }
+
+      .offer-breakdown {
+        .cap-space {
+          color: var(--text-color);
+          font-weight: 600;
+          font-size: 0.875rem;
+          margin-bottom: 1rem;
+          text-align: center;
+          padding: 0.5rem;
+          background-color: var(--surface-section);
+          border-radius: 6px;
+        }
+
+        .breakdown-table {
+          .table-header,
+          .table-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--surface-border);
+            color: var(--text-color);
+          }
+
+          .table-header {
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .table-row {
+            &:last-child {
+              border-bottom: none;
+            }
+
+            &.total {
+              font-weight: 600;
+              color: var(--primary-color);
+              background-color: var(--surface-section);
+              margin: 0 -1.5rem;
+              padding: 0.75rem 1.5rem;
+            }
+          }
+        }
+      }
+
+      .player-motivations {
+        .motivation-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1rem 0;
+          border-bottom: 1px solid var(--surface-border);
+
+          &:last-child {
+            border-bottom: none;
+          }
+
+          .motivation-text {
+            flex: 1;
+
+            .motivation-title {
+              color: var(--text-color);
+              font-weight: 600;
+              font-size: 0.875rem;
+              margin-bottom: 0.25rem;
+            }
+
+            .motivation-detail {
+              color: var(--text-color-secondary);
+              font-size: 0.75rem;
+            }
+          }
+
+          .motivation-bar {
+            width: 60px;
+            height: 8px;
+            border-radius: 4px;
+
+            &.high {
+              background-color: var(--green-500);
+            }
+            &.medium {
+              background-color: var(--yellow-500);
+            }
+            &.low {
+              background-color: var(--red-500);
+            }
+          }
+        }
+      }
+
+      .interest-level {
+        .interest-container {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 1rem;
+
+          .interest-label {
+            color: var(--text-color-secondary);
+            font-size: 0.875rem;
+            font-weight: 600;
+          }
+
+          .interest-bar {
+            width: 60px;
+            height: 8px;
+            border-radius: 4px;
+
+            &.high {
+              background-color: var(--green-500);
+            }
+            &.medium {
+              background-color: var(--yellow-500);
+            }
+            &.low {
+              background-color: var(--red-500);
+            }
+          }
+        }
+      }
+    }
+
+    // Validation Section
+    .validation-section {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      background-color: var(--surface-card);
+      border-radius: 12px;
+      border: 1px solid var(--surface-border);
+
+      .validation-errors,
+      .validation-warnings {
+        margin-bottom: 1rem;
+
+        h4 {
+          color: var(--text-color);
+          margin: 0 0 1rem 0;
+          font-size: 1.125rem;
+          font-weight: 600;
+        }
+
+        ul {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+
+          li {
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+          }
+        }
+      }
+
+      .validation-errors {
+        h4 {
+          color: var(--red-500);
+        }
+        li {
+          background-color: var(--red-900);
+          color: var(--red-100);
+          border: 1px solid var(--red-700);
+        }
+      }
+
+      .validation-warnings {
+        h4 {
+          color: var(--yellow-500);
+        }
+        li {
+          background-color: var(--yellow-900);
+          color: var(--yellow-100);
+          border: 1px solid var(--yellow-700);
+        }
+      }
+    }
+  }
+}
+
+// Responsive Design
+@media (max-width: 1024px) {
+  .negotiation-page .negotiation-content .negotiation-layout {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .negotiation-page {
+    padding: 0.5rem;
+
+    .negotiation-content {
+      .left-column .contract-inputs .input-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  }
+}

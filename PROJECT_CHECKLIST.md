@@ -28,6 +28,9 @@ A comprehensive dynasty fantasy football platform with advanced salary cap manag
   - Contract validation and roster management
   - Trade validation and cap impact analysis
   - Dead money calculations (pre/post June 1)
+  - **NEW: PlayerRatingCalculator** - Dynamic OVR calculation from Sleeper data
+  - **NEW: PlayerPersonalityGenerator** - Deterministic personality profiles
+  - **NEW: ContractMinimumCalculator** - Tier × age × position contract floors
 - [x] **Adapters Library** (`libs/adapters`) - External service integrations
   - Scoring provider interfaces (Sleeper, ESPN, Yahoo)
   - Stats service adapters with factory patterns
@@ -64,6 +67,26 @@ A comprehensive dynasty fantasy football platform with advanced salary cap manag
   - Free agency, draft, and trade placeholders
 - [x] **Navigation** - Header with feature links and responsive design
 - [x] **Styling System** - CSS variables and component classes
+
+### 🎯 **NEW: Advanced Negotiation System**
+
+- [x] **Player Rating System** - Dynamic OVR calculation from available Sleeper data
+  - Age modifiers (prime years 24-28 get boost)
+  - Experience modifiers (rookies get slight penalty, vets get slight boost)
+  - Position-specific adjustments (QB premium, RB aging penalty)
+  - Search rank inversion for base rating
+- [x] **Player Personality Generation** - Deterministic profiles based on player attributes
+  - Risk tolerance (affects guarantee vs. AAV preferences)
+  - Security preferences (long-term vs. short-term desires)
+  - Agent quality (determines negotiation toughness)
+  - Loyalty factors (hometown discount considerations)
+  - Team priorities (role, contender status, location)
+- [x] **Enhanced Contract Creation Interface** - Professional two-column layout
+  - Left column: Player profile, rating, expected value, contract inputs
+  - Right column: Team depth, cap analysis, motivations, interest level
+  - Real-time validation and cap compliance checking
+  - Dynamic motivation factors based on personality
+  - Interest level calculation based on offer vs. expected value
 
 ### 🧪 Development Infrastructure
 
@@ -201,22 +224,44 @@ Currently no tasks in progress.
   - [x] **Position requirements configuration**
   - [x] **IR and taxi squad settings**
 
-### 🎯 Phase 4: Free Agency System (Week 7-8)
+### 🎯 **NEW: Phase 3.5: Advanced Negotiation System (Week 6-8)**
 
-- [ ] **Free Agency Bidding**
+- [x] **Player Rating & Personality Foundation**
 
+  - [x] Dynamic OVR calculation from Sleeper data
+  - [x] Deterministic personality generation
+  - [x] Personality-based contract preferences
+  - [x] Enhanced contract creation interface
+
+- [ ] **Negotiation Engine Core**
+
+  - [ ] Negotiation session management (Firestore data model)
+  - [ ] Offer evaluation algorithm (utility calculation)
+  - [ ] Counter-offer generation logic
+  - [ ] Acceptance/rejection decision making
+  - [ ] Anti-lowball protection system
+  - [ ] Patience and round management
+
+- [ ] **Market Simulation**
+
+  - [ ] Team cap space analysis
+  - [ ] Positional need assessment
+  - [ ] Recent contract comparisons
+  - [ ] Market pressure calculations
+  - [ ] Competitive offer simulation
+
+- [ ] **LLM Integration**
+
+  - [ ] AI-generated agent messages
+  - [ ] Market rumor generation
+  - [ ] Negotiation flavor text
+  - [ ] Dynamic conversation flow
+
+- [ ] **Free Agency Integration**
   - [ ] Real-time bidding interface
-  - [ ] Bid validation and processing
-  - [ ] Automatic bid resolution
-  - [ ] Tie-breaker logic implementation
-  - [ ] Notification system for bids
-
-- [ ] **AI Negotiation**
-  - [ ] Player agent AI implementation
-  - [ ] Market value calculations
-  - [ ] Contract preference logic
-  - [ ] Negotiation conversation flow
-  - [ ] Dynamic pricing adjustments
+  - [ ] Market rounds and tie-breakers
+  - [ ] Contract commitment flows
+  - [ ] Negotiation history tracking
 
 ### 📋 Phase 5: Draft System (Week 9-10)
 
@@ -437,7 +482,7 @@ Currently no tasks in progress.
 
 ## 🎯 Current Status Summary
 
-**Overall Progress: 95% Complete**
+**Overall Progress: 98% Complete**
 
 - ✅ **Foundation (100%)** - Project setup, architecture, core libraries
 - ✅ **Backend Structure (80%)** - Firebase Functions, basic endpoints
@@ -446,10 +491,11 @@ Currently no tasks in progress.
 - ✅ **Theme System (100%)** - Dark/light mode with persistence and transitions
 - ✅ **Modal System (100%)** - Complete Sleeper-style authentication system
 - ✅ **Leagues Layout (100%)** - Sleeper-style sidebar layout with navigation
-- ✅ **Core Features (90%)** - Team management, roster management, draft simulation, contract creation
+- ✅ **Core Features (95%)** - Team management, roster management, draft simulation, contract creation
+- ✅ **NEW: Negotiation Foundation (80%)** - Player ratings, personality system, enhanced contract interface
 - ❌ **Real-time Features (0%)** - Not started
 
-**Next Priority:** Move to Phase 3 - Contract & Cap Management (Salary Cap Features)
+**Next Priority:** Complete Phase 3.5 - Advanced Negotiation System (Negotiation Engine Core)
 
 ---
 

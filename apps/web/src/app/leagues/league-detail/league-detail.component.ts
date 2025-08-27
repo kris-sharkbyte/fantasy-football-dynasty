@@ -1,10 +1,9 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
-import { LeagueHeaderComponent } from './components/league-header.component';
+import { LeagueHeaderComponent } from '../components/league-header.component';
 import { EditTeamModalComponent } from './edit-team-modal';
 import { LeagueSettingsComponent } from '../league-settings';
-import { League, LeaguePhase } from '@fantasy-football-dynasty/types';
 import { LeagueMembershipService } from '../../services/league-membership.service';
 
 import { LeagueService } from '../../services/league.service';

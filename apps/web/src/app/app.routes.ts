@@ -53,7 +53,7 @@ export const routes: Routes = [
           ),
       },
       {
-        path: ':id',
+        path: ':leagueId',
         loadComponent: () =>
           import('./leagues/league-detail/league-detail.component').then(
             (m) => m.LeagueDetailComponent
@@ -61,10 +61,18 @@ export const routes: Routes = [
         canActivate: [selectedLeagueGuard],
       },
       {
-        path: ':id/roster',
+        path: ':leagueId/roster',
         loadComponent: () =>
           import('./leagues/my-roster/my-roster.component').then(
             (m) => m.MyRosterComponent
+          ),
+        canActivate: [selectedLeagueGuard],
+      },
+      {
+        path: ':leagueId/negotiate/:playerId',
+        loadComponent: () =>
+          import('./teams/negotiation/negotiation.component').then(
+            (m) => m.NegotiationComponent
           ),
         canActivate: [selectedLeagueGuard],
       },

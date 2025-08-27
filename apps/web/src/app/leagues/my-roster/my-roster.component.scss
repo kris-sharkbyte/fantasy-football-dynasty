@@ -3,33 +3,6 @@
   margin: 0 auto;
   padding: 2rem;
 
-  .roster-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
-    border-bottom: 2px solid #e5e7eb;
-
-    h1 {
-      margin: 0;
-      color: #1f2937;
-      font-size: 2.5rem;
-      font-weight: 700;
-    }
-
-    .league-info {
-      margin: 0;
-      color: #6b7280;
-      font-size: 1.1rem;
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 1rem;
-    }
-  }
-
   .loading-container {
     display: flex;
     flex-direction: column;

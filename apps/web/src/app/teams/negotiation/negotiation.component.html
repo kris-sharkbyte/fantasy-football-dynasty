@@ -1,0 +1,428 @@
+<div
+  class="negotiation-page"
+  [class.theme-dark]="isDarkMode()"
+  [class.theme-light]="!isDarkMode()"
+>
+  <!-- Loading State -->
+  <div class="loading-container" *ngIf="isLoading()">
+    <p-progressSpinner></p-progressSpinner>
+    <p>Loading negotiation...</p>
+  </div>
+
+  <!-- Error State -->
+  <div class="error-container" *ngIf="error() && !isLoading()">
+    <p-message severity="error" [text]="error() || ''"></p-message>
+    <button
+      pButton
+      label="Go Back"
+      (click)="goBack()"
+      class="p-button-secondary"
+    ></button>
+  </div>
+
+  <!-- Main Content -->
+  <div class="negotiation-content" *ngIf="!isLoading() && !error()">
+    <!-- Header -->
+    <div class="page-header">
+      <button
+        pButton
+        icon="pi pi-arrow-left"
+        (click)="goBack()"
+        class="p-button-text"
+      ></button>
+      <h1>Contract Negotiation</h1>
+      <div class="player-info">
+        <span class="player-name">{{ getPlayerName() }}</span>
+        <span class="player-position"
+          >{{ getPlayerData()?.position }} #{{ getPlayerData()?.number }}</span
+        >
+      </div>
+    </div>
+
+    <div class="negotiation-layout">
+      <!-- Left Column - Player Profile & Contract Inputs -->
+      <div class="left-column">
+        <!-- Player Profile Section -->
+        <p-card class="player-profile">
+          <div class="player-header">
+            <div class="player-photo">
+              <div class="photo-placeholder">
+                <i class="pi pi-user"></i>
+              </div>
+              <div class="nflpa-badge">
+                <i class="pi pi-shield"></i>
+              </div>
+            </div>
+            <div class="player-info">
+              <h2 class="player-name">{{ getPlayerName() }}</h2>
+              <div class="player-details">
+                <span class="position-number"
+                  >#{{ getPlayerData()?.number || '00' }}
+                  {{ getPlayerData()?.position }}</span
+                >
+                <span class="age-college"
+                  >AGE: {{ getPlayerData()?.age }}, COLLEGE:
+                  {{ getPlayerData()?.college || 'Unknown' }}</span
+                >
+              </div>
+              <div class="player-rating">
+                <div class="rating-icon">
+                  <i class="pi pi-star"></i>
+                </div>
+                <div class="rating-value">{{ playerRating() }} OVR</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="expected-value">
+            <div class="value-label">EXPECTED VALUE</div>
+            <div class="value-amount">
+              {{ numberFormatService.formatCurrency(getExpectedValue()) }} /
+              {{ contractData.years }} YEAR
+            </div>
+            <div class="value-apy">
+              {{ numberFormatService.formatCurrency(getExpectedValue()) }} PER
+              YEAR
+            </div>
+          </div>
+
+          <div class="player-tags">
+            <span class="tag-label">TAGS:</span>
+            <span class="tag-value">{{ getPlayerTag() }}</span>
+          </div>
+        </p-card>
+
+        <!-- Offer Status Section -->
+        <p-card class="offer-status">
+          <div class="risk-bar">
+            <p-progressBar
+              [value]="getRiskPercentage()"
+              [showValue]="false"
+              [class]="getRiskColor()"
+            ></p-progressBar>
+          </div>
+          <div class="risk-label" [class]="getRiskColor()">
+            {{ getRiskLevel() }} RISK
+          </div>
+          <div class="risk-details">
+            <div class="risk-point positive" *ngIf="getRiskPercentage() <= 25">
+              + Offer is competitive
+            </div>
+            <div class="risk-point neutral" *ngIf="getRiskPercentage() > 25 && getRiskPercentage() <= 60">
+              ~ Offer is close to market value
+            </div>
+            <div class="risk-point negative" *ngIf="getRiskPercentage() > 60">
+              - Player may reject this offer
+            </div>
+          </div>
+        </p-card>
+
+        <!-- Contract Inputs Section -->
+        <p-card class="contract-inputs">
+          <h3>CONTRACT TERMS</h3>
+          <div class="input-grid">
+            <div class="input-group">
+              <label for="years">Years</label>
+              <select
+                id="years"
+                [(ngModel)]="contractData.years"
+                (change)="updateBaseSalaryYears()"
+                class="form-control"
+              >
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+              </select>
+            </div>
+
+            <div class="input-group">
+              <label for="salary">Base Salary</label>
+              <div class="input-with-buttons">
+                <button
+                  pButton
+                  icon="pi pi-minus"
+                  (click)="decrementSalary(100000)"
+                  class="p-button-text p-button-sm increment-btn"
+                  title="Decrease by 100K"
+                ></button>
+                <input
+                  type="text"
+                  id="salary"
+                  [value]="formattedSalary"
+                  (input)="onSalaryInputChange($any($event.target).value)"
+                  placeholder="0"
+                  class="form-control formatted-input"
+                  [readonly]="true"
+                />
+
+                <button
+                  pButton
+                  icon="pi pi-plus"
+                  (click)="incrementSalary(100000)"
+                  class="p-button-text p-button-sm increment-btn"
+                  title="Increase by 100K"
+                ></button>
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label for="bonus">Signing Bonus</label>
+              <div class="input-with-buttons">
+                <button
+                  pButton
+                  icon="pi pi-minus"
+                  (click)="decrementBonus(1000000)"
+                  class="p-button-text p-button-sm increment-btn"
+                  title="Decrease by 100K"
+                ></button>
+                <input
+                  type="text"
+                  id="bonus"
+                  [value]="formattedBonus"
+                  (input)="onBonusInputChange($any($event.target).value)"
+                  placeholder="0"
+                  class="form-control formatted-input"
+                />
+                <button
+                  pButton
+                  icon="pi pi-plus"
+                  (click)="incrementBonus(100000)"
+                  class="p-button-text p-button-sm increment-btn"
+                  title="Increase by 100K"
+                ></button>
+              </div>
+            </div>
+          </div>
+        </p-card>
+
+        <!-- Negotiation Panel -->
+        <p-card class="negotiation-panel" [class.active]="isNegotiating()">
+          <div class="panel-header">
+            <h3>NEGOTIATION</h3>
+            <button
+              pButton
+              label="START NEGOTIATION"
+              (click)="startNegotiation()"
+              *ngIf="!isNegotiating()"
+              class="p-button-primary"
+            ></button>
+            <div class="negotiation-status" *ngIf="isNegotiating()">
+              <span class="round">Round {{ currentRound() }}</span>
+              <span class="patience">Patience: {{ remainingPatience() }}</span>
+            </div>
+          </div>
+
+          <div class="panel-content" *ngIf="!isNegotiating()">
+            <p>
+              Click "START NEGOTIATION" to begin contract talks with this
+              player's agent.
+            </p>
+          </div>
+
+          <div class="player-demands" *ngIf="isNegotiating()">
+            <div class="demand-item">
+              <span class="demand-label">Reservation (Min):</span>
+              <span class="demand-value"
+                >{{
+                  numberFormatService.formatCurrency(
+                    getPlayerReservation()?.aav || 0
+                  )
+                }}/yr</span
+              >
+            </div>
+            <div class="demand-item">
+              <span class="demand-label">Ask Anchor:</span>
+              <span class="demand-value"
+                >{{
+                  numberFormatService.formatCurrency(
+                    getPlayerAskAnchor()?.aav || 0
+                  )
+                }}/yr</span
+              >
+            </div>
+            <div class="demand-item">
+              <span class="demand-label">Guarantees:</span>
+              <span class="demand-value">{{
+                numberFormatService.formatPercentage(
+                  getPlayerReservation()?.gtdPct || 0
+                )
+              }}</span>
+            </div>
+          </div>
+
+          <div class="negotiation-actions" *ngIf="isNegotiating()">
+            <button
+              pButton
+              label="SUBMIT OFFER"
+              (click)="submitOffer()"
+              [disabled]="!isFormValid()"
+              class="p-button-success"
+            ></button>
+            <button
+              pButton
+              label="END TALKS"
+              (click)="endNegotiation()"
+              class="p-button-danger"
+            ></button>
+          </div>
+
+          <div
+            class="negotiation-history"
+            *ngIf="isNegotiating() && negotiationHistory().length > 0"
+          >
+            <h4>Negotiation History</h4>
+            <div
+              class="history-item"
+              *ngFor="let item of negotiationHistory(); let i = index"
+            >
+              <div class="history-type" [class]="item.type">
+                {{ item.type.toUpperCase() }}
+              </div>
+              <div class="history-details">
+                <span
+                  >{{
+                    numberFormatService.formatCurrency(item.offer.aav)
+                  }}/yr</span
+                >
+                <span
+                  >{{
+                    numberFormatService.formatPercentage(item.offer.gtdPct)
+                  }}
+                  gtd</span
+                >
+                <span>{{ item.offer.years }} years</span>
+              </div>
+              <div class="history-message" *ngIf="item.message">
+                {{ item.message }}
+              </div>
+            </div>
+          </div>
+        </p-card>
+      </div>
+
+      <!-- Right Column - Team & Analysis -->
+      <div class="right-column">
+        <!-- Team Position Depth -->
+        <p-card class="team-depth">
+          <div class="section-header">
+            <div class="team-logo">
+              <i class="pi pi-home"></i>
+            </div>
+            <h3>TEAM POSITION DEPTH</h3>
+          </div>
+          <div class="depth-list">
+            <div
+              class="depth-item"
+              *ngFor="let player of getTeamDepth(); let i = index"
+            >
+              <div class="depth-rating">{{ player.overall }} OVR</div>
+              <div class="depth-number">
+                #{{ player.number }} {{ player.position }}
+              </div>
+              <div class="depth-age">AGE: {{ player.age }}</div>
+            </div>
+          </div>
+        </p-card>
+
+        <!-- Offer Breakdown -->
+        <p-card class="offer-breakdown">
+          <div class="cap-space">
+            REMAINING CAP:
+            {{ numberFormatService.formatCurrency(getRemainingCap()) }}
+          </div>
+          <h3>OFFER BREAKDOWN</h3>
+          <div class="breakdown-table">
+            <div class="table-header">
+              <span>YEAR</span>
+              <span>SALARY</span>
+              <span>CAP HIT</span>
+            </div>
+            <div
+              class="table-row"
+              *ngFor="let year of getContractYears(); let i = index"
+            >
+              <span>{{ 2023 + year - 1 }}</span>
+              <span>{{
+                numberFormatService.formatCurrency(
+                  contractData.baseSalary[year] || 0
+                )
+              }}</span>
+              <span>{{
+                numberFormatService.formatCurrency(getCapHit(year))
+              }}</span>
+            </div>
+            <div class="table-row total">
+              <span>Total</span>
+              <span>{{
+                numberFormatService.formatCurrency(getTotalValue())
+              }}</span>
+              <span>{{
+                numberFormatService.formatCurrency(getTotalCapHit())
+              }}</span>
+            </div>
+          </div>
+        </p-card>
+
+        <!-- Player Motivations -->
+        <p-card class="player-motivations">
+          <div class="section-header">
+            <h3>PLAYER MOTIVATIONS</h3>
+            <span class="impact-label">IMPACT</span>
+          </div>
+          <div
+            class="motivation-item"
+            *ngFor="let motivation of getPlayerMotivations(); let i = index"
+          >
+            <div class="motivation-text">
+              <div class="motivation-title">{{ motivation.title }}</div>
+              <div class="motivation-detail">{{ motivation.detail }}</div>
+            </div>
+            <div class="motivation-bar" [class]="motivation.impact"></div>
+          </div>
+        </p-card>
+
+        <!-- Interest Level -->
+        <p-card class="interest-level">
+          <h3>INTEREST IN YOUR TEAM</h3>
+          <div class="interest-container">
+            <span class="interest-label">INTEREST LEVEL</span>
+            <div class="interest-bar" [class]="getInterestLevel()"></div>
+          </div>
+        </p-card>
+      </div>
+    </div>
+
+    <!-- Validation Display -->
+    <div
+      class="validation-section"
+      *ngIf="
+        contractValidation() &&
+        (contractValidation().errors.length > 0 ||
+          contractValidation().warnings.length > 0)
+      "
+    >
+      <div
+        class="validation-errors"
+        *ngIf="contractValidation().errors.length > 0"
+      >
+        <h4>Contract Issues</h4>
+        <ul>
+          <li *ngFor="let error of contractValidation().errors">{{ error }}</li>
+        </ul>
+      </div>
+      <div
+        class="validation-warnings"
+        *ngIf="contractValidation().warnings.length > 0"
+      >
+        <h4>Warnings</h4>
+        <ul>
+          <li *ngFor="let warning of contractValidation().warnings">
+            {{ warning }}
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

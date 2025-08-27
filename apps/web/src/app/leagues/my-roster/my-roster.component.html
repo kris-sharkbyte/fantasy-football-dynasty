@@ -1,21 +1,7 @@
 <div class="my-roster-container">
+  <app-league-header></app-league-header>
+
   <!-- Header -->
-  <div class="roster-header">
-    <h1>My Roster</h1>
-    <p class="league-info">
-      @if (league()) {
-      {{ league()?.name }}
-      }
-    </p>
-    <div class="header-actions">
-      <p-button
-        label="Back to League"
-        icon="pi pi-arrow-left"
-        severity="secondary"
-        [routerLink]="['/leagues', leagueId()]"
-      ></p-button>
-    </div>
-  </div>
 
   <!-- Loading State -->
   @if (isLoading()) {
@@ -129,7 +115,7 @@
                   icon="pi pi-file-edit"
                   size="small"
                   severity="primary"
-                  (onClick)="openContractModal(rosterSlot.player)"
+                  (onClick)="goToContractCreation(rosterSlot.player)"
                 ></p-button>
                 }
               </div>
@@ -223,25 +209,5 @@
         (onClick)="closeContractModal()"
       ></p-button>
     </ng-template>
-  </p-dialog>
-
-  <!-- Contract Creation Modal -->
-  <p-dialog
-    [(visible)]="showContractCreationModal"
-    [modal]="true"
-    [style]="{ width: '90vw', maxWidth: '800px' }"
-    [draggable]="false"
-    [resizable]="false"
-    header="Create Contract"
-  >
-    <app-contract-creation
-      *ngIf="selectedPlayerForContract"
-      [playerId]="selectedPlayerForContract.player_id"
-      [teamId]="myMember()?.teamId || ''"
-      [salaryCap]="salaryCap"
-      [existingContracts]="existingContracts"
-      [onSuccess]="onContractCreated"
-      [onCancel]="onContractCancelled"
-    ></app-contract-creation>
   </p-dialog>
 </div>

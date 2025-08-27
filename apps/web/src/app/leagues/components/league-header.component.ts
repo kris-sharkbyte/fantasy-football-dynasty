@@ -5,21 +5,25 @@ import {
   EventEmitter,
   signal,
   input,
+  inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { MenuModule } from 'primeng/menu';
 import { MenuItem } from 'primeng/api';
+import { TabsModule } from 'primeng/tabs';
+import { LeagueService } from '../../services/league.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-league-header',
   standalone: true,
-  imports: [CommonModule, ButtonModule, MenuModule],
+  imports: [CommonModule, ButtonModule, MenuModule, TabsModule],
   template: `
     <div class="league-header">
       <div class="league-info">
-        <h1 class="league-name">{{ leagueName() }}</h1>
-        <p class="league-subtitle">{{ leagueSubtitle() }}</p>
+        <h1 class="league-name">{{ league()?.name }}</h1>
+        <p class="league-subtitle">{{ league()?.description }}</p>
       </div>
 
       <div class="league-actions">
@@ -40,6 +44,17 @@ import { MenuItem } from 'primeng/api';
         ></p-menu>
       </div>
     </div>
+
+    <p-tabs value="0" scrollable>
+      <p-tablist>
+        <p-tab value="0"> League Info </p-tab>
+        <p-tab value="1" (click)="goToMyRoster()"> My Roster </p-tab>
+
+        <p-tab value="2"> Draft Room </p-tab>
+
+        <p-tab value="3"> Free Agents </p-tab>
+      </p-tablist>
+    </p-tabs>
   `,
   styles: [
     `
@@ -110,8 +125,10 @@ import { MenuItem } from 'primeng/api';
   ],
 })
 export class LeagueHeaderComponent {
-  leagueName = input<string>('');
-  leagueSubtitle = input<string>('');
+  private readonly leagueService = inject(LeagueService);
+  private readonly router = inject(Router);
+  public league = this.leagueService.selectedLeague;
+  public leagueId = this.leagueService.selectedLeagueId;
   @Output() openEditTeam = new EventEmitter<void>();
 
   settingsMenuItems: MenuItem[] = [
@@ -156,5 +173,11 @@ export class LeagueHeaderComponent {
 
   openEditTeamModal(): void {
     this.openEditTeam.emit();
+  }
+
+  goToMyRoster(): void {
+    if (this.league()) {
+      this.router.navigate(['/leagues', this.league()!.id, 'roster']);
+    }
   }
 }

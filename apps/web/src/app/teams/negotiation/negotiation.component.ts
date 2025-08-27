@@ -1,8 +1,25 @@
-import { Component, signal, computed, inject, Input } from '@angular/core';
+import {
+  Component,
+  signal,
+  computed,
+  inject,
+  Input,
+  OnInit,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router, ActivatedRoute } from '@angular/router';
+import { CardModule } from 'primeng/card';
+import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
+import { SelectButtonModule } from 'primeng/selectbutton';
+import { ProgressBarModule } from 'primeng/progressbar';
+import { MessageModule } from 'primeng/message';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+
 import { Contract, Position, Guarantee } from '@fantasy-football-dynasty/types';
 import { TeamService } from '../../services/team.service';
+import { LeagueMembershipService } from '../../services/league-membership.service';
 import {
   PlayerDataService,
   SleeperPlayer,
@@ -21,6 +38,7 @@ import {
 import { ThemeService } from '../../services/theme.service';
 import { NegotiationService } from '../../services/negotiation.service';
 import { NumberFormatService } from '../../services/number-format.service';
+import { LeagueService } from '../../services/league.service';
 
 export interface ContractFormData {
   years: number;
@@ -44,31 +62,46 @@ export interface ContractValidation {
 }
 
 @Component({
-  selector: 'app-contract-creation',
+  selector: 'app-negotiation',
   standalone: true,
-  imports: [CommonModule, FormsModule],
-  templateUrl: './contract-creation.component.html',
-  styleUrls: ['./contract-creation.component.scss'],
+  imports: [
+    CommonModule,
+    FormsModule,
+    CardModule,
+    ButtonModule,
+    InputTextModule,
+    SelectButtonModule,
+    ProgressBarModule,
+    MessageModule,
+    ProgressSpinnerModule,
+  ],
+  templateUrl: './negotiation.component.html',
+  styleUrls: ['./negotiation.component.scss'],
 })
-export class ContractCreationComponent {
-  @Input() playerId: string = '';
-  @Input() teamId: string = '';
-  @Input() onSuccess: (contract: Contract) => void = () => {};
-  @Input() onCancel: () => void = () => {};
-  @Input() salaryCap: number = 200000000; // Default 200M cap
-  @Input() existingContracts: Contract[] = []; // For cap calculations
-
+export class NegotiationComponent implements OnInit {
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly playerDataService = inject(PlayerDataService);
   private readonly teamService = inject(TeamService);
+  private readonly leagueService = inject(LeagueService);
   private readonly themeService = inject(ThemeService);
   private readonly negotiationService = inject(NegotiationService);
   public readonly numberFormatService = inject(NumberFormatService);
+  private readonly leagueMembershipService = inject(LeagueMembershipService);
 
-  private _isCreating = signal(false);
+  // Route parameters
+  private _playerId = signal<string>('');
+  private _teamId = signal<string>('');
+
+  // Component state
+  private _isLoading = signal(true);
   private _error = signal<string | null>(null);
 
   // Public readonly signals
-  public isCreating = this._isCreating.asReadonly();
+  public playerId = this._playerId.asReadonly();
+  public teamId = this._teamId.asReadonly();
+  public leagueId = this.leagueService.selectedLeagueId;
+  public isLoading = this._isLoading.asReadonly();
   public error = this._error.asReadonly();
   public currentTheme = this.themeService.currentTheme;
   public isDarkMode = this.themeService.isDarkMode;
@@ -110,11 +143,67 @@ export class ContractCreationComponent {
   public negotiationHistory = this.negotiationService.negotiationHistory;
   public currentSession = this.negotiationService.currentSession;
 
+  // League settings
+  public salaryCap = 200000000; // Default 200M cap
+  public existingContracts: Contract[] = []; // TODO: Load from service
+
+  async ngOnInit(): Promise<void> {
+    try {
+      this._isLoading.set(true);
+      this._error.set(null);
+
+      // Get route parameters
+      const params = this.route.snapshot.paramMap;
+      const playerId = params.get('playerId');
+      const leagueId = this.leagueId();
+
+      if (!playerId || !leagueId) {
+        throw new Error('Missing required route parameters');
+      }
+
+      this._playerId.set(playerId);
+
+      // Get teamId from league membership
+      const memberships = this.leagueMembershipService.userMemberships();
+      const myMembership = memberships.find(
+        (m) => m.leagueId === leagueId && m.isActive
+      );
+
+      if (!myMembership?.teamId) {
+        throw new Error('Team not found for current user');
+      }
+
+      this._teamId.set(myMembership.teamId);
+
+      // Load players if not already loaded
+      if (!this.playerDataService.hasPlayers()) {
+        await this.playerDataService.loadPlayers();
+      }
+
+      // Verify player exists
+      const player = this.playerDataService.getPlayer(playerId);
+      if (!player) {
+        throw new Error('Player not found');
+      }
+
+      // Initialize formatted inputs
+      this.formattedSalary = this.getFormattedSalary();
+      this.formattedBonus = this.getFormattedBonus();
+    } catch (error) {
+      console.error('Error initializing NegotiationComponent:', error);
+      this._error.set(
+        error instanceof Error ? error.message : 'Failed to load negotiation'
+      );
+    } finally {
+      this._isLoading.set(false);
+    }
+  }
+
   /**
    * Get player name for display
    */
   getPlayerName(): string {
-    const player = this.playerDataService.getPlayer(this.playerId);
+    const player = this.playerDataService.getPlayer(this.playerId());
     return player
       ? `${player.first_name} ${player.last_name}`
       : 'Unknown Player';
@@ -124,7 +213,7 @@ export class ContractCreationComponent {
    * Get player data for validation
    */
   getPlayerData(): SleeperPlayer | null {
-    return this.playerDataService.getPlayer(this.playerId);
+    return this.playerDataService.getPlayer(this.playerId());
   }
 
   /**
@@ -151,25 +240,6 @@ export class ContractCreationComponent {
     this.contractData.guarantees = this.contractData.guarantees.filter(
       (guarantee) => guarantee.year <= this.contractData.years
     );
-  }
-
-  /**
-   * Add a new guarantee
-   */
-  addGuarantee(): void {
-    const years = this.getContractYears();
-    this.contractData.guarantees.push({
-      type: 'full',
-      amount: 0,
-      year: years[0],
-    });
-  }
-
-  /**
-   * Remove a guarantee
-   */
-  removeGuarantee(index: number): void {
-    this.contractData.guarantees.splice(index, 1);
   }
 
   /**
@@ -211,8 +281,8 @@ export class ContractCreationComponent {
 
     // Create a contract object for validation
     const contract: Omit<Contract, 'id' | 'createdAt'> = {
-      playerId: this.playerId,
-      teamId: this.teamId,
+      playerId: this.playerId(),
+      teamId: this.teamId(),
       startYear: new Date().getFullYear(),
       endYear: new Date().getFullYear() + this.contractData.years - 1,
       baseSalary: this.contractData.baseSalary,
@@ -230,10 +300,7 @@ export class ContractCreationComponent {
     // Minimum contract validation
     const player = this.getPlayerData();
     if (player) {
-      // Determine if player is a rookie (0 years experience)
       const isRookie = player.years_exp === 0;
-
-      // For rookies, we'd need draft round info - for now, assume round 3 minimum
       const draftRound = isRookie ? 3 : undefined;
 
       const minimumValidation =
@@ -242,7 +309,7 @@ export class ContractCreationComponent {
           {
             age: player.age,
             position: player.position as Position,
-            overall: player.search_rank || 70, // Use search rank as proxy for overall
+            overall: player.search_rank || 70,
             yearsExp: player.years_exp,
           },
           this.salaryCap,
@@ -258,7 +325,7 @@ export class ContractCreationComponent {
     // Cap space validation
     const currentYear = new Date().getFullYear();
     const capImpact = CapMath.canAffordContractByYear(
-      { id: this.teamId, capSpace: this.salaryCap } as any, // Simplified team object
+      { id: this.teamId(), capSpace: this.salaryCap } as any,
       contract as Contract,
       this.existingContracts,
       currentYear,
@@ -267,10 +334,9 @@ export class ContractCreationComponent {
 
     if (!capImpact.canAfford) {
       errors.push(
-        `Contract exceeds salary cap by $${(
-          (capImpact.newCapHit - capImpact.remainingCap) /
-          1000000
-        ).toFixed(1)}M`
+        `Contract exceeds salary cap by ${this.numberFormatService.formatCurrency(
+          capImpact.newCapHit - capImpact.remainingCap
+        )}`
       );
     }
 
@@ -310,63 +376,19 @@ export class ContractCreationComponent {
   }
 
   /**
-   * Create the contract
-   */
-  async createContract(): Promise<void> {
-    if (!this.isFormValid()) return;
-
-    try {
-      this._isCreating.set(true);
-      this._error.set(null);
-
-      // Create contract object
-      const contract: Omit<Contract, 'id' | 'createdAt'> = {
-        playerId: this.playerId,
-        teamId: this.teamId,
-        startYear: new Date().getFullYear(),
-        endYear: new Date().getFullYear() + this.contractData.years - 1,
-        baseSalary: this.contractData.baseSalary,
-        signingBonus: this.contractData.signingBonus,
-        guarantees: this.contractData.guarantees,
-        noTradeClause: this.contractData.noTradeClause,
-      };
-
-      // TODO: Save contract to database
-      // For now, just call the success callback
-      this.onSuccess(contract as Contract);
-    } catch (error) {
-      console.error('Error creating contract:', error);
-      this._error.set(
-        error instanceof Error ? error.message : 'Failed to create contract'
-      );
-    } finally {
-      this._isCreating.set(false);
-    }
-  }
-
-  /**
-   * Cancel contract creation
-   */
-  cancel(): void {
-    this.onCancel();
-  }
-
-  /**
    * Get expected contract value based on player tier and market
    */
   getExpectedValue(): number {
     const player = this.getPlayerData();
     if (!player) return 8000000; // Default 8M
 
-    // Use calculated OVR rating
     const ovr = this.playerRating();
     const baseValue = ovr * 100000; // 70 OVR = 7M base
 
-    // Apply personality modifiers
     const personality = this.playerPersonality();
     if (personality) {
-      const riskModifier = 1 + personality.riskTolerance * 0.2; // Risk-takers want more
-      const securityModifier = 1 + personality.securityPref * 0.15; // Security lovers want longer deals
+      const riskModifier = 1 + personality.riskTolerance * 0.2;
+      const securityModifier = 1 + personality.securityPref * 0.15;
       return Math.round(baseValue * riskModifier * securityModifier);
     }
 
@@ -389,6 +411,7 @@ export class ContractCreationComponent {
 
   /**
    * Get risk percentage for the offer
+   * Returns 0-100 where 0 = low risk (green), 100 = high risk (red)
    */
   getRiskPercentage(): number {
     const player = this.getPlayerData();
@@ -396,10 +419,42 @@ export class ContractCreationComponent {
 
     const expectedValue = this.getExpectedValue();
     const offeredValue = this.getTotalValue();
-    const difference = Math.abs(expectedValue - offeredValue);
-    const percentage = (difference / expectedValue) * 100;
+    
+    // If no expected value, return medium risk
+    if (expectedValue === 0) return 50;
+    
+    // Calculate how close the offer is to expected value (0-100%)
+    const ratio = offeredValue / expectedValue;
+    
+    if (ratio >= 1.0) {
+      // Offer is at or above expected value - low risk
+      return Math.max(0, 100 - Math.min(100, (ratio - 1.0) * 200));
+    } else {
+      // Offer is below expected value - higher risk the further below
+      return Math.min(100, (1.0 - ratio) * 100);
+    }
+  }
 
-    return Math.min(percentage, 100);
+  /**
+   * Get risk level text (LOW, MEDIUM, HIGH)
+   */
+  getRiskLevel(): string {
+    const riskPercentage = this.getRiskPercentage();
+    
+    if (riskPercentage <= 25) return 'LOW';
+    if (riskPercentage <= 60) return 'MEDIUM';
+    return 'HIGH';
+  }
+
+  /**
+   * Get risk color class for styling
+   */
+  getRiskColor(): string {
+    const riskPercentage = this.getRiskPercentage();
+    
+    if (riskPercentage <= 25) return 'low-risk';
+    if (riskPercentage <= 60) return 'medium-risk';
+    return 'high-risk';
   }
 
   /**
@@ -414,26 +469,24 @@ export class ContractCreationComponent {
     const player = this.getPlayerData();
     if (!player) return [];
 
-    // Generate realistic depth data based on the selected player's position
     const position = player.position;
     const baseOVR = this.playerRating();
 
-    // Create depth players with realistic ratings (slightly lower than starter)
     return [
       {
-        overall: Math.max(50, baseOVR - 8), // Backup
+        overall: Math.max(50, baseOVR - 8),
         number: String(Math.floor(Math.random() * 99) + 1),
         position: position,
         age: Math.max(22, player.age - 2),
       },
       {
-        overall: Math.max(50, baseOVR - 12), // Depth
+        overall: Math.max(50, baseOVR - 12),
         number: String(Math.floor(Math.random() * 99) + 1),
         position: position,
         age: Math.max(22, player.age + 1),
       },
       {
-        overall: Math.max(50, baseOVR - 15), // Practice squad level
+        overall: Math.max(50, baseOVR - 15),
         number: String(Math.floor(Math.random() * 99) + 1),
         position: position,
         age: Math.max(22, player.age - 1),
@@ -472,39 +525,6 @@ export class ContractCreationComponent {
   }
 
   /**
-   * Get position multiplier for value calculation
-   */
-  private getPositionMultiplier(position: Position): number {
-    switch (position) {
-      case 'QB':
-        return 1.5;
-      case 'RB':
-        return 0.8;
-      case 'WR':
-        return 1.0;
-      case 'TE':
-        return 0.7;
-      case 'K':
-        return 0.3;
-      case 'DEF':
-        return 0.5;
-      default:
-        return 1.0;
-    }
-  }
-
-  /**
-   * Get experience multiplier for value calculation
-   */
-  private getExperienceMultiplier(yearsExp: number): number {
-    if (yearsExp === 0) return 0.6; // Rookie
-    if (yearsExp <= 2) return 0.8; // Young player
-    if (yearsExp <= 4) return 1.0; // Prime
-    if (yearsExp <= 6) return 0.9; // Veteran
-    return 0.7; // Aging veteran
-  }
-
-  /**
    * Get player motivations based on personality
    */
   getPlayerMotivations(): Array<{
@@ -521,14 +541,12 @@ export class ContractCreationComponent {
       impact: 'high' | 'medium' | 'low';
     }> = [];
 
-    // Scheme fit (always high for most players)
     motivations.push({
       title: 'SCHEME FIT',
       detail: 'MIN: Base 3-4',
       impact: 'high',
     });
 
-    // Team QB status (based on loyalty and money vs role preference)
     if (personality.moneyVsRole > 0.6) {
       motivations.push({
         title: 'TEAM HAS FRANCHISE QB',
@@ -543,7 +561,6 @@ export class ContractCreationComponent {
       });
     }
 
-    // Coach record (based on security preference)
     if (personality.securityPref > 0.7) {
       motivations.push({
         title: 'HEAD COACH HISTORIC RECORD',
@@ -558,7 +575,6 @@ export class ContractCreationComponent {
       });
     }
 
-    // Add role preference if player values it
     if (personality.moneyVsRole < 0.5) {
       motivations.push({
         title: 'STARTING ROLE GUARANTEE',
@@ -608,7 +624,6 @@ export class ContractCreationComponent {
     const offeredValue = this.getTotalValue();
     const valueRatio = offeredValue / expectedValue;
 
-    // Base interest on value ratio
     if (valueRatio >= 1.1) return 'high';
     if (valueRatio >= 0.9) return 'medium';
     return 'low';
@@ -622,17 +637,16 @@ export class ContractCreationComponent {
    * Start a negotiation session for the current player
    */
   startNegotiation(): void {
-    if (!this.playerId || !this.teamId) {
+    if (!this.playerId() || !this.teamId()) {
       console.error('Cannot start negotiation: missing playerId or teamId');
       return;
     }
 
-    // Get league rules (for now, use default - will be enhanced later)
-    const leagueRules = { maxYears: 5 }; // Default to 5 years
+    const leagueRules = { maxYears: 5 };
 
     const session = this.negotiationService.startNegotiation(
-      this.playerId,
-      this.teamId,
+      this.playerId(),
+      this.teamId(),
       leagueRules
     );
     if (session) {
@@ -649,7 +663,6 @@ export class ContractCreationComponent {
       return;
     }
 
-    // Convert contract data to offer format
     const offer: Offer = {
       aav: this.getAPY(),
       gtdPct: this.getGuaranteedAmount() / this.getTotalValue(),
@@ -658,7 +671,6 @@ export class ContractCreationComponent {
       noTradeClause: this.contractData.noTradeClause,
     };
 
-    // Submit offer through negotiation service
     const result = this.negotiationService.submitOffer(offer);
     if (result) {
       this.handleNegotiationResult(result);
@@ -671,8 +683,8 @@ export class ContractCreationComponent {
   private handleNegotiationResult(result: NegotiationResult): void {
     if (result.accepted) {
       console.log('Offer accepted!', result.message);
-      // TODO: Create the contract and close negotiation
       this.negotiationService.endNegotiation();
+      // TODO: Create the contract and redirect
     } else if (result.counter) {
       console.log('Counter received:', result.counter);
       // TODO: Show counter offer to user
@@ -688,8 +700,8 @@ export class ContractCreationComponent {
     const success = this.negotiationService.acceptCounter(counter);
     if (success) {
       console.log('Counter accepted!');
-      // TODO: Create the contract and close negotiation
       this.negotiationService.endNegotiation();
+      // TODO: Create the contract and redirect
     }
   }
 
@@ -785,11 +797,49 @@ export class ContractCreationComponent {
   }
 
   /**
-   * Initialize formatted inputs
+   * Increment salary by specified amount
    */
-  ngOnInit(): void {
-    // Initialize formatted inputs
-    this.formattedSalary = this.getFormattedSalary();
-    this.formattedBonus = this.getFormattedBonus();
+  incrementSalary(amount: number): void {
+    const currentSalary = this.contractData.baseSalary[1] || 0;
+    const newSalary = currentSalary + amount;
+    this.contractData.baseSalary[1] = newSalary;
+    this.formattedSalary = this.numberFormatService.formatCurrencyShort(newSalary);
+  }
+
+  /**
+   * Decrement salary by specified amount
+   */
+  decrementSalary(amount: number): void {
+    const currentSalary = this.contractData.baseSalary[1] || 0;
+    const newSalary = Math.max(0, currentSalary - amount);
+    this.contractData.baseSalary[1] = newSalary;
+    this.formattedSalary = this.numberFormatService.formatCurrencyShort(newSalary);
+  }
+
+  /**
+   * Increment bonus by specified amount
+   */
+  incrementBonus(amount: number): void {
+    const currentBonus = this.contractData.signingBonus || 0;
+    const newBonus = currentBonus + amount;
+    this.contractData.signingBonus = newBonus;
+    this.formattedBonus = this.numberFormatService.formatCurrencyShort(newBonus);
+  }
+
+  /**
+   * Decrement bonus by specified amount
+   */
+  decrementBonus(amount: number): void {
+    const currentBonus = this.contractData.signingBonus || 0;
+    const newBonus = Math.max(0, currentBonus - amount);
+    this.contractData.signingBonus = newBonus;
+    this.formattedBonus = this.numberFormatService.formatCurrencyShort(newBonus);
+  }
+
+  /**
+   * Go back to roster
+   */
+  goBack(): void {
+    this.router.navigate(['/leagues', this.leagueId(), 'roster']);
   }
 }

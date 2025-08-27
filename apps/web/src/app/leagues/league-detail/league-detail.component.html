@@ -1,9 +1,5 @@
-<div class="league-detail-container">
-  <app-league-header
-    [leagueName]="league()?.name || 'Loading...'"
-    [leagueSubtitle]="league()?.description || 'Loading...'"
-    (openEditTeam)="openEditTeamModal()"
-  ></app-league-header>
+<div>
+  <app-league-header (openEditTeam)="openEditTeamModal()"></app-league-header>
 
   <div class="league-content">
     <div class="info-section">

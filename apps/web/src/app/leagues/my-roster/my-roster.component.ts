@@ -24,7 +24,8 @@ import {
 } from '../../services/player-data.service';
 import { LeagueService } from '../../services/league.service';
 import { AuthService } from '../../services/auth.service';
-import { ContractCreationComponent } from '../../teams/contract-creation/contract-creation.component';
+import { Router } from '@angular/router';
+import { LeagueHeaderComponent } from '../components/league-header.component';
 
 @Component({
   selector: 'app-my-roster',
@@ -39,7 +40,7 @@ import { ContractCreationComponent } from '../../teams/contract-creation/contrac
     DialogModule,
     MessageModule,
     ProgressSpinnerModule,
-    ContractCreationComponent,
+    LeagueHeaderComponent,
   ],
   templateUrl: './my-roster.component.html',
   styleUrls: ['./my-roster.component.scss'],
@@ -49,18 +50,17 @@ export class MyRosterComponent implements OnInit {
   private readonly leagueMembershipService = inject(LeagueMembershipService);
   private readonly playerDataService = inject(PlayerDataService);
   private readonly leagueService = inject(LeagueService);
-  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
 
   // Component state
-  private _leagueId = signal<string>('');
-  private _myMember = signal<LeagueMember | null>(null);
+
   private _isLoading = signal(true);
   private _error = signal<string | null>(null);
   private _selectedPlayer = signal<SleeperPlayer | null>(null);
 
   // Public signals
-  public leagueId = this._leagueId.asReadonly();
-  public myMember = this._myMember.asReadonly();
+  public leagueId = this.leagueService.selectedLeagueId;
+  public myMember = signal<LeagueMember | null>(null);
   public isLoading = this._isLoading.asReadonly();
   public error = this._error.asReadonly();
   public selectedPlayer = this._selectedPlayer.asReadonly();
@@ -72,7 +72,7 @@ export class MyRosterComponent implements OnInit {
   public league = computed(() => this.leagueService.selectedLeague());
   public hasPlayers = computed(() => this.playerDataService.hasPlayers());
   public rosterWithPlayers = computed(() => {
-    const member = this._myMember();
+    const member = this.myMember();
     if (!member?.roster || !this.hasPlayers()) return [];
 
     return member.roster.map((slot: RosterSlot) => {
@@ -91,8 +91,6 @@ export class MyRosterComponent implements OnInit {
   });
 
   // Contract creation properties
-  public showContractCreationModal = false;
-  public selectedPlayerForContract: SleeperPlayer | null = null;
   public salaryCap = 200000000; // Default 200M cap
   public existingContracts: Contract[] = []; // TODO: Load from service
 
@@ -102,7 +100,8 @@ export class MyRosterComponent implements OnInit {
       this._error.set(null);
 
       // Get league ID from route
-      const leagueId = this.route.snapshot.paramMap.get('id');
+      const leagueId = this.leagueId();
+      console.log('League ID:', leagueId);
       if (!leagueId) {
         throw new Error('No league ID provided');
       }
@@ -152,7 +151,7 @@ export class MyRosterComponent implements OnInit {
       throw new Error('League membership not found');
     }
 
-    this._myMember.set(myMembership);
+    this.myMember.set(myMembership);
   }
 
   /**
@@ -187,39 +186,18 @@ export class MyRosterComponent implements OnInit {
   }
 
   /**
-   * Open contract creation modal for a specific player
+   * Navigate to negotiation page for a specific player
    */
   openContractCreationModal(player: SleeperPlayer): void {
-    this.selectedPlayerForContract = player;
-    this.showContractCreationModal = true;
-  }
-
-  /**
-   * Close contract creation modal
-   */
-  closeContractCreationModal(): void {
-    this.showContractCreationModal = false;
-    this.selectedPlayerForContract = null;
-  }
-
-  /**
-   * Handle successful contract creation
-   */
-  onContractCreated(contract: Contract): void {
-    console.log('Contract created successfully:', contract);
-    // TODO: Add contract to player's roster
-    // TODO: Update team cap space
-    this.closeContractCreationModal();
-
-    // Show success message or refresh data
-    // For now, just close the modal
-  }
-
-  /**
-   * Handle contract creation cancellation
-   */
-  onContractCancelled(): void {
-    this.closeContractCreationModal();
+    const leagueId = this.route.snapshot.paramMap.get('id');
+    if (leagueId) {
+      this.router.navigate([
+        '/leagues',
+        leagueId,
+        'negotiate',
+        player.player_id,
+      ]);
+    }
   }
 
   /**
@@ -252,5 +230,14 @@ export class MyRosterComponent implements OnInit {
    */
   getStatusDisplayName(status: string): string {
     return status.charAt(0).toUpperCase() + status.slice(1);
+  }
+
+  goToContractCreation(player: SleeperPlayer): void {
+    this.router.navigate([
+      '/leagues',
+      this.leagueId(),
+      'negotiate',
+      player.player_id,
+    ]);
   }
 }
