@@ -66,6 +66,29 @@
     </div>
   </div>
 
+  <!-- Salary Cap Section -->
+  <div class="salary-cap-section">
+    <div class="cap-info">
+      <div class="cap-item">
+        <span class="label">Salary Cap:</span>
+        <span class="value">{{ formatCurrency(currentTeamCap()) }}</span>
+      </div>
+      <div class="cap-item">
+        <span class="label">Active Bids:</span>
+        <span class="value">{{ formatCurrency(totalBidsValue()) }}</span>
+      </div>
+      <div class="cap-item">
+        <span class="label">Remaining Cap:</span>
+        <span
+          class="value"
+          [class]="remainingCapSpace() < 0 ? 'negative' : 'positive'"
+        >
+          {{ formatCurrency(remainingCapSpace()) }}
+        </span>
+      </div>
+    </div>
+  </div>
+
   <!-- FA Week Content -->
   <div class="fa-week-content">
     <!-- Available Players Section -->
@@ -94,16 +117,26 @@
             </div>
             <div class="flex table-search">
               <p-select
-                class="position-filter"
-                (change)="onPositionFilterChange($event)"
+                class="w-56"
+                [options]="availablePositionGroups()"
+                [group]="true"
+                optionLabel="label"
                 [showClear]="true"
-                [options]="availablePositions()"
-                [optionLabel]="'Position'"
+                placeholder="All Positions"
+                [(ngModel)]="positionFilter"
+                (onChange)="onPositionFilterChange($event.value)"
               >
+                <!-- Optional: custom group header template -->
+                <ng-template pTemplate="group" let-group>
+                  {{ group.label }}
+                </ng-template>
+
+                <!-- Optional: customize how each item renders -->
                 <ng-template pTemplate="item" let-option>
-                  {{ option === 'all' ? 'All Positions' : option }}
+                  {{ option.label }}
                 </ng-template>
               </p-select>
+
               <p-iconfield iconPosition="left" class="ml-auto">
                 <p-inputicon>
                   <i class="pi pi-search"></i>
@@ -179,10 +212,17 @@
 
             <!-- Est. Min -->
             <td>
-              <span class="min-value" *ngIf="playerMinimum()">
-                {{ formatCurrency(playerMinimum() || 0) }}
+              <span
+                class="min-value"
+                *ngIf="getPlayerMinimumForDisplay(player.id)"
+              >
+                {{ formatCurrency(getPlayerMinimumForDisplay(player.id) || 0) }}
               </span>
-              <span class="no-min" *ngIf="!playerMinimum()">-</span>
+              <span
+                class="no-min"
+                *ngIf="!getPlayerMinimumForDisplay(player.id)"
+                >-</span
+              >
             </td>
 
             <!-- Bid Count -->
@@ -211,7 +251,7 @@
                 label="Bid"
                 size="small"
                 severity="primary"
-                (onClick)="selectPlayer(player)"
+                (click)="selectPlayer(player)"
                 styleClass="bid-button"
               ></p-button>
             </td>
@@ -322,7 +362,8 @@
   </div>
 
   <!-- Bid Modal -->
-  <div class="modal-overlay" *ngIf="showBidModal()" (click)="closeBidModal()">
+  @if (showBidModal() && selectedPlayer() && bidForm() && bidForm().years > 0) {
+  <div class="modal-overlay" (click)="closeBidModal()">
     <div class="modal-content" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h3>Submit Bid for {{ selectedPlayer()?.name }}</h3>
@@ -383,14 +424,16 @@
           </div>
 
           <!-- Use shared ContractInputsComponent -->
+          @if (bidForm() && bidForm().years && bidForm().baseSalary !==
+          undefined && bidForm().signingBonus !== undefined) {
           <app-contract-inputs
-            [contractData]="bidForm()"
-            [formattedSalary]="formatCurrency(getTotalSalary())"
-            [formattedBonus]="formatCurrency(bidForm().signingBonus || 0)"
+            [years]="bidForm().years"
+            [baseSalary]="bidForm().baseSalary"
+            [signingBonus]="bidForm().signingBonus || 0"
             [mode]="'total'"
-            (yearsChanged)="updateYears($event)"
-            (salaryChanged)="updateSalary($event)"
-            (bonusChanged)="updateSigningBonus($event)"
+            (yearsChange)="onYearsChange($event)"
+            (baseSalaryChange)="onBaseSalaryChange($event)"
+            (signingBonusChange)="onSigningBonusChange($event)"
           ></app-contract-inputs>
 
           <!-- Contract Summary -->
@@ -410,14 +453,26 @@
               <span class="value">{{ bidForm().years }}</span>
             </div>
           </div>
+          } @else {
+          <!-- Loading state while form initializes -->
+          <div class="form-loading">
+            <i class="pi pi-spinner pi-spin"></i>
+            <span>Preparing bid form...</span>
+          </div>
+          }
 
           <!-- Bid Warning -->
-          @if (playerMinimum() && calculateTotalValue() < (playerMinimum() || 0)) {
+          @if (playerMinimum() && calculateTotalValue() < (playerMinimum() ||
+          0)) {
           <div class="bid-warning">
             <i class="pi pi-exclamation-triangle"></i>
             <span class="warning-text">
-              Warning: Your bid is {{ formatCurrency((playerMinimum() || 0) - calculateTotalValue()) }} below this player's minimum desired contract.
-              This player will likely reject your bid.
+              Warning: Your bid is
+              {{
+                formatCurrency((playerMinimum() || 0) - calculateTotalValue())
+              }}
+              below this player's minimum desired contract. This player will
+              likely reject your bid.
             </span>
           </div>
           }
@@ -436,15 +491,11 @@
         >
           @if (isSubmitting()) {
           <i class="pi pi-spinner pi-spin"></i>
-          Submitting... } @else { 
-            @if (isBidBelowMinimum()) {
-              Submit Bid Anyway
-            } @else {
-              Submit Bid
-            }
-          }
+          Submitting... } @else { @if (isBidBelowMinimum()) { Submit Bid Anyway
+          } @else { Submit Bid } }
         </button>
       </div>
     </div>
   </div>
+  }
 </div>

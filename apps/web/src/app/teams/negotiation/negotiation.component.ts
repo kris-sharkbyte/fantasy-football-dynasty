@@ -36,7 +36,6 @@ import {
   ContractInputsComponent,
   TeamAnalysisComponent,
   NegotiationPanelComponent,
-  type ContractFormData,
   type TeamDepthPlayer,
   type PlayerMotivation,
   type NegotiationSession,
@@ -104,7 +103,11 @@ export class NegotiationComponent implements OnInit {
   public isDarkMode = this.themeService.isDarkMode;
 
   // Contract form data
-  contractData: ContractFormData = {
+  contractData: {
+    years: number;
+    baseSalary: Record<number, number>;
+    signingBonus: number;
+  } = {
     years: 1,
     baseSalary: { 1: 0 },
     signingBonus: 0,
@@ -227,7 +230,7 @@ export class NegotiationComponent implements OnInit {
    */
   getTotalValue(): number {
     const baseSalaryTotal = Object.values(this.contractData.baseSalary).reduce(
-      (sum, salary) => sum + salary,
+      (sum: number, salary: number) => sum + salary,
       0
     );
     return baseSalaryTotal + this.contractData.signingBonus;
@@ -553,7 +556,7 @@ export class NegotiationComponent implements OnInit {
   // ============================================================================
 
   /**
-   * Start a negotiation session for the current player
+   * Start a new negotiation session
    */
   startNegotiation(): void {
     if (!this.playerId() || !this.teamId()) {
@@ -561,7 +564,10 @@ export class NegotiationComponent implements OnInit {
       return;
     }
 
-    const leagueRules = { maxYears: 5 };
+    const league = this.leagueService.selectedLeague();
+    const leagueRules = { 
+      maxYears: league?.rules?.contracts?.maxYears || 5 
+    };
 
     const session = this.negotiationService.startNegotiation(
       this.playerId(),
@@ -622,6 +628,30 @@ export class NegotiationComponent implements OnInit {
   // ============================================================================
   // FORMATTED INPUT HANDLING
   // ============================================================================
+
+  /**
+   * Update years when contract inputs change
+   */
+  onYearsChange(newYears: number): void {
+    this.contractData.years = newYears;
+    this.updateBaseSalaryYears();
+  }
+
+  /**
+   * Update base salary when contract inputs change
+   */
+  onBaseSalaryChange(newSalary: number): void {
+    this.contractData.baseSalary[1] = newSalary;
+    this.formattedSalary = this.getFormattedSalary();
+  }
+
+  /**
+   * Update signing bonus when contract inputs change
+   */
+  onSigningBonusChange(newBonus: number): void {
+    this.contractData.signingBonus = newBonus;
+    this.formattedBonus = this.getFormattedBonus();
+  }
 
   /**
    * Update salary when formatted input changes

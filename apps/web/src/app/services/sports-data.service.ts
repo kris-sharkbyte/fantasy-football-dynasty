@@ -114,35 +114,51 @@ export class SportsDataService {
   private async loadPlayerStats(): Promise<void> {
     try {
       console.log('SportsDataService: Starting to load player stats...');
-      
+
       // Add timeout to prevent hanging on large files
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Player stats loading timeout')), 30000); // 30 second timeout
+        setTimeout(
+          () => reject(new Error('Player stats loading timeout')),
+          30000
+        ); // 30 second timeout
       });
 
       const statsPromise = this.http
         .get<PlayerStats[]>('/players-stats-2024.sportsdata.json')
         .toPromise();
 
-      const stats = await Promise.race([statsPromise, timeoutPromise]) as PlayerStats[];
-      
-      console.log('SportsDataService: HTTP response received for player stats:', stats);
-      
+      const stats = (await Promise.race([
+        statsPromise,
+        timeoutPromise,
+      ])) as PlayerStats[];
+
+      console.log(
+        'SportsDataService: HTTP response received for player stats:',
+        stats
+      );
+
       if (stats && Array.isArray(stats)) {
-        console.log('SportsDataService: Player stats loaded successfully, count:', stats.length);
+        console.log(
+          'SportsDataService: Player stats loaded successfully, count:',
+          stats.length
+        );
         this._playerStats.set(stats);
         console.log(`Loaded ${stats.length} player stats`);
       } else {
-        console.warn('SportsDataService: Player stats response was null/undefined or not an array');
+        console.warn(
+          'SportsDataService: Player stats response was null/undefined or not an array'
+        );
         console.warn('Response type:', typeof stats);
         console.warn('Response:', stats);
       }
     } catch (error) {
       console.error('Error loading player stats:', error);
-      
+
       // If it's a timeout, try to load a smaller subset or handle gracefully
       if (error instanceof Error && error.message.includes('timeout')) {
-        console.warn('Player stats loading timed out - this may be due to file size');
+        console.warn(
+          'Player stats loading timed out - this may be due to file size'
+        );
         // Set empty array to prevent blocking the rest of the system
         this._playerStats.set([]);
       }
@@ -160,22 +176,24 @@ export class SportsDataService {
     console.log('SportsDataService: Creating enhanced players with:', {
       playersCount: players.length,
       statsCount: stats.length,
-      teamsCount: teams.length
+      teamsCount: teams.length,
     });
 
     // Debug: Check Active property values
-    const activeCount = players.filter(p => p.Active).length;
-    const inactiveCount = players.filter(p => !p.Active).length;
+    const activeCount = players.filter((p) => p.Status == 'Active').length;
+    const inactiveCount = players.filter((p) => p.Status != 'Active').length;
     console.log('SportsDataService: Player Active status:', {
       activeCount,
       inactiveCount,
-      totalPlayers: players.length
+      totalPlayers: players.length,
     });
 
     // If no stats are available, create players with default values
     if (!stats || stats.length === 0) {
-      console.warn('SportsDataService: No player stats available, creating players with default values');
-      
+      console.warn(
+        'SportsDataService: No player stats available, creating players with default values'
+      );
+
       const enhancedPlayers: EnhancedSportsPlayer[] = players.map((player) => {
         // Find team info
         const teamInfo = teams.find((t) => t.Key === player.Team);
@@ -206,7 +224,9 @@ export class SportsDataService {
       });
 
       this._enhancedPlayers.set(enhancedPlayers);
-      console.log(`Created ${enhancedPlayers.length} enhanced players with default values (no stats available)`);
+      console.log(
+        `Created ${enhancedPlayers.length} enhanced players with default values (no stats available)`
+      );
       return;
     }
 
@@ -480,7 +500,7 @@ export class SportsDataService {
       teamsCount: this._teams().length,
       playersCount: this._players().length,
       statsCount: this._playerStats().length,
-      enhancedCount: this._enhancedPlayers().length
+      enhancedCount: this._enhancedPlayers().length,
     });
 
     // We consider data loaded if we have teams, players, and enhanced players
@@ -505,22 +525,23 @@ export class SportsDataService {
     }
 
     // Debug: Check Active property values in enhanced players
-    const activeCount = allPlayers.filter(p => p.Active).length;
-    const inactiveCount = allPlayers.filter(p => !p.Active).length;
+    const activeCount = allPlayers.filter((p) => p.Active).length;
+    const inactiveCount = allPlayers.filter((p) => !p.Active).length;
     console.log('SportsDataService: Enhanced Player Active status:', {
       activeCount,
       inactiveCount,
-      totalPlayers: allPlayers.length
+      totalPlayers: allPlayers.length,
     });
 
     // Debug: Show first few players and their Active status
     const firstFewPlayers = allPlayers.slice(0, 5);
-    console.log('SportsDataService: First few players Active status:', 
-      firstFewPlayers.map(p => ({
+    console.log(
+      'SportsDataService: First few players Active status:',
+      firstFewPlayers.map((p) => ({
         name: p.Name,
         position: p.Position,
         active: p.Active,
-        team: p.Team
+        team: p.Team,
       }))
     );
 

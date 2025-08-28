@@ -1,6 +1,5 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { LeagueHeaderComponent } from '../components/league-header.component';
 import { EditTeamModalComponent } from './edit-team-modal';
 import { LeagueSettingsComponent } from '../league-settings';
@@ -13,7 +12,6 @@ import { FreeAgencyService } from '../../services/free-agency.service';
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
     LeagueHeaderComponent,
     EditTeamModalComponent,
     LeagueSettingsComponent,

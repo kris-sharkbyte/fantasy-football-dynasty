@@ -61,13 +61,13 @@
 
         <!-- Contract Inputs Component -->
         <app-contract-inputs
-          [contractData]="contractData"
-          [formattedSalary]="formattedSalary"
-          [formattedBonus]="formattedBonus"
-          [mode]="'individual'"
-          (yearsChanged)="updateBaseSalaryYears()"
-          (salaryChanged)="onSalaryChange($event)"
-          (bonusChanged)="onBonusChange($event)"
+          [years]="contractData.years"
+          [baseSalary]="contractData.baseSalary[1] || 0"
+          [signingBonus]="contractData.signingBonus"
+          [mode]="'yearly'"
+          (yearsChange)="onYearsChange($event)"
+          (baseSalaryChange)="onBaseSalaryChange($event)"
+          (signingBonusChange)="onSigningBonusChange($event)"
         ></app-contract-inputs>
 
         <!-- Negotiation Panel Component -->

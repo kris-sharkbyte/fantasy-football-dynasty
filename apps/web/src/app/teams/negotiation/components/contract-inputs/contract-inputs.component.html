@@ -1,76 +1,75 @@
-<p-card class="contract-inputs">
-  <h3>CONTRACT TERMS</h3>
-  <div class="input-grid">
-    <div class="input-group">
-      <label for="years">Years</label>
-      <select
-        id="years"
-        [value]="contractData().years"
-        (change)="onYearsChange(+$any($event.target).value)"
-        class="form-control"
-      >
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-      </select>
-    </div>
+<div class="contract-inputs">
+  <h3>Contract Details</h3>
 
-    <div class="input-group">
-      <label for="salary">Base Salary</label>
-      <div class="input-with-buttons">
-        <button
-          pButton
-          icon="pi pi-minus"
-          (click)="decrementSalary(100000)"
-          class="p-button-text p-button-sm increment-btn"
-          title="Decrease by 100K"
-        ></button>
-        <input
-          type="text"
-          id="salary"
-          [value]="formattedSalary()"
-          readonly
-          placeholder="0"
-          class="form-control formatted-input"
-        />
-        <button
-          pButton
-          icon="pi pi-plus"
-          (click)="incrementSalary(100000)"
-          class="p-button-text p-button-sm increment-btn"
-          title="Increase by 100K"
-        ></button>
-      </div>
-    </div>
+  <div class="input-group">
+    <label for="years">Years:</label>
+    <p-select
+      class="w-full"
+      [options]="yearsOptions()"
+      optionLabel="label"
+      optionValue="value"
+      (onChange)="updateYears($event.value)"
+    >
+    </p-select>
+  </div>
 
-    <div class="input-group">
-      <label for="bonus">Signing Bonus</label>
-      <div class="input-with-buttons">
-        <button
-          pButton
-          icon="pi pi-minus"
-          (click)="decrementBonus(100000)"
-          class="p-button-text p-button-sm increment-btn"
-          title="Decrease by 100K"
-        ></button>
-        <input
-          type="text"
-          id="bonus"
-          [value]="formattedBonus()"
-          readonly
-          placeholder="0"
-          class="form-control formatted-input"
-        />
-        <button
-          pButton
-          icon="pi pi-plus"
-          (click)="incrementBonus(100000)"
-          class="p-button-text p-button-sm increment-btn"
-          title="Increase by 100K"
-        ></button>
-      </div>
+  <div class="flex gap-2 flex-col w-full">
+    <label for="baseSalary">Base Salary:</label>
+    <div class="flex gap-2">
+      <button
+        pButton
+        icon="pi pi-minus"
+        (mousedown)="onMouseDown('decrement', 'salary', 100000)"
+        (mouseup)="onMouseUp()"
+        (mouseleave)="onMouseLeave()"
+        title="Hold for rapid decrease"
+      ></button>
+      <input
+        pInputText
+        type="text"
+        id="baseSalary"
+        [value]="formattedSalary()"
+        readonly
+        class="salary-input flex-1"
+      />
+      <button
+        pButton
+        icon="pi pi-plus"
+        (mousedown)="onMouseDown('increment', 'salary', 100000)"
+        (mouseup)="onMouseUp()"
+        (mouseleave)="onMouseLeave()"
+        title="Hold for rapid increase"
+      ></button>
     </div>
   </div>
-</p-card>
+
+  <div class="flex gap-2 flex-col w-full">
+    <label for="signingBonus">Signing Bonus:</label>
+    <div class="flex gap-2">
+      <button
+        pButton
+        icon="pi pi-minus"
+        (mousedown)="onMouseDown('decrement', 'bonus', 100000)"
+        (mouseup)="onMouseUp()"
+        (mouseleave)="onMouseLeave()"
+        title="Hold for rapid decrease"
+      ></button>
+      <input
+        pInputText
+        type="text"
+        id="signingBonus"
+        [value]="formattedBonus()"
+        readonly
+        class="bonus-input flex-1"
+      />
+      <button
+        pButton
+        icon="pi pi-plus"
+        (mousedown)="onMouseDown('increment', 'bonus', 100000)"
+        (mouseup)="onMouseUp()"
+        (mouseleave)="onMouseLeave()"
+        title="Hold for rapid increase"
+      ></button>
+    </div>
+  </div>
+</div>

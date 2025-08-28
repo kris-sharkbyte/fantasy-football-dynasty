@@ -1,103 +1,31 @@
-.contract-inputs {
-  h3 {
-    margin: 0 0 1rem 0;
-    color: var(--text-color);
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: var(--text-color-secondary);
+  gap: 0.5rem;
+
+  i {
+    font-size: 1.5rem;
+  }
+
+  span {
     font-size: 1rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
   }
+}
 
-  .input-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
+.salary-controls,
+.bonus-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
 
-    .input-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-
-      label {
-        color: var(--text-color);
-        font-weight: 600;
-        font-size: 0.875rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-
-      .input-with-buttons {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-
-        .increment-btn {
-          width: 2rem;
-          height: 2rem;
-          padding: 0;
-          border-radius: 4px;
-          color: var(--text-color-secondary);
-          background-color: var(--surface-ground);
-          border: 1px solid var(--surface-border);
-
-          &:hover {
-            background-color: var(--surface-hover);
-            color: var(--text-color);
-          }
-
-          &:active {
-            background-color: var(--surface-active);
-          }
-        }
-
-        .formatted-input {
-          flex: 1;
-          min-width: 0;
-          padding: 0.75rem;
-          border: 1px solid var(--surface-border);
-          border-radius: 6px;
-          background-color: var(--surface-ground);
-          color: var(--text-color);
-          font-size: 1rem;
-          font-weight: 600;
-          font-family: 'Courier New', monospace;
-          text-align: right;
-
-          &:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 2px var(--primary-color-alpha-20);
-          }
-
-          &::placeholder {
-            color: var(--text-color-secondary);
-            font-weight: 400;
-          }
-        }
-      }
-
-      .form-control {
-        padding: 0.75rem;
-        border: 1px solid var(--surface-border);
-        border-radius: 6px;
-        background-color: var(--surface-ground);
-        color: var(--text-color);
-        font-size: 1rem;
-        font-weight: 600;
-        font-family: 'Courier New', monospace;
-        text-align: right;
-
-        &:focus {
-          outline: none;
-          border-color: var(--primary-color);
-          box-shadow: 0 0 0 2px var(--primary-color-alpha-20);
-        }
-
-        &::placeholder {
-          color: var(--text-color-secondary);
-          font-weight: 400;
-        }
-      }
-    }
-  }
+.salary-input,
+.bonus-input {
+  min-width: 120px;
+  text-align: center;
+  font-weight: 600;
 }

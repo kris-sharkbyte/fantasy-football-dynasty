@@ -61,17 +61,6 @@ export const selectedLeagueGuard: CanActivateFn = async (route, state) => {
         router.navigate(['/leagues']);
         return false;
       }
-    } else {
-      // For other routes, user needs canViewAllTeams permission
-      const canViewAllTeams = await leagueMembershipService.hasLeaguePermission(
-        leagueId,
-        'canViewAllTeams'
-      );
-      if (!canViewAllTeams) {
-        console.error('User does not have access to league:', leagueId);
-        router.navigate(['/leagues']);
-        return false;
-      }
     }
 
     console.log('Selected league guard: Access granted for league:', leagueId);

@@ -27,3 +27,110 @@ How We should prefer to code
 - when doing style review the global.scss and /theme before adding new styles so that everything shares a theme
 
 - When you create a component with inputs you should always use input() signals as this is the modern Angular 17+ approach and is becoming the standard.
+
+-- Angular templates can access private members, so duplicating each signal as a public read-only one is noise.
+
+-- asReadonly() is valuable when you want to enforce write protection across class boundaries—i.e., services that multiple components inject. Inside a single component, you already control all writes.
+
+## Extra best-practice notes (Angular 20 + signals)
+
+    -- Name writable signals with a leading underscore (_foo) and keep them private. Expose a minimal intent-based API (methods) for writes, not raw .set() calls sprinkled everywhere.
+
+    -- Prefer computed to assemble a small vm object for templates—cuts bindings and change points.
+
+    -- Use input() / output() signal APIs for component inputs/outputs; they play nicely with the signal model.
+
+    -- For side effects (fetching, syncing), use effect() and let Angular auto-dispose via the inject context; avoid manual subscriptions.
+
+    -- Keep signals immutable where possible (e.g., replace arrays/objects with new instances on update) to make change origins obvious.
+
+    -- Avoid any; define small interfaces (Bid, MarketSummary) so templates stay type-safe.
+
+    -- Only promote state to a service “store” when:
+        - multiple components/screens need it,
+        - it must outlive a component,
+        - or you need cross-feature coordination.
+
+# Angular 20 Service Best Practices
+
+## General Principles
+
+- **Keep services lean and intent-based**: expose domain actions (`markTeamReady`, `submitBid`) rather than raw setters.
+- **Prefer `asReadonly()` in services**, not in components. Services often share state across consumers, so write-protection matters.
+- **Use typed interfaces** instead of `any` to ensure strong contracts and safer refactors.
+- **Normalize error handling**: pick one approach (either throw errors or return null/false) and stick with it across all methods.
+- **Remove dead/duplicate code paths** to reduce confusion and maintenance burden.
+
+---
+
+## Initialization
+
+- **Avoid async logic in constructors**. Use an explicit `init()` or react to signals/inputs with `effect()`.
+- **Initialize state only when needed** (e.g. after `selectedLeague` is known), rather than preemptively in the constructor.
+
+---
+
+## State Management
+
+- **Use private writable signals** internally, expose public readonly signals for consumers.
+- **Group template-relevant values into `vm = computed(...)`** to simplify component bindings.
+- **Expose intent methods** for writes, don’t leak `.set()`/`.update()` calls into components.
+
+---
+
+## Firestore Access
+
+- **Always use `serverTimestamp()`** for created/updated dates instead of `new Date()` (avoids client clock drift).
+- **Use typed Firestore converters** to enforce schema at the boundary.
+- **Be index-aware**: queries with `where(..., 'in', [...])` + `orderBy` need composite indexes.
+- **Use transactions** (`runTransaction`) for atomic operations, especially when enforcing limits (e.g. max concurrent bids).
+- **Generate IDs with `doc(collection(...)).id`** instead of deriving IDs manually from state.
+
+---
+
+## Real-Time Listeners
+
+- **Auto-manage subscriptions** with `DestroyRef` and reactive `effect()` rather than storing arrays of unsubscribe functions.
+- **Recreate listeners** when their key dependencies (like `leagueId` or `weekNumber`) change.
+- **Clean up properly** — root services live for the app’s lifetime, but feature-scoped services should tear down listeners on destroy.
+
+---
+
+## Domain Logic
+
+- **Centralize evaluation/simulation logic** in a dedicated domain module (e.g. `FAWeekManager`).
+- **Guard math/edge cases** in calculations (avoid divide-by-zero, cap demand scores 0–1).
+- **Keep defaults immutable**: define `readonly defaultSettings` to prevent accidental mutation.
+
+---
+
+## Data Loading & Queries
+
+- **Avoid `any[]` for collections**: define lightweight interfaces even for mock data.
+- **Paginate with cursors** (`orderBy` + `startAfter`) instead of slicing arrays client-side for scale.
+- **Cap search results** and filter invalid players up front to keep queries performant.
+
+---
+
+## Logging & Observability
+
+- **Replace `console.log`** with a `LoggerService` that can be silenced or routed in production.
+- **Log with context tags** (`[FA]`, `[Team]`) for easier debugging.
+
+---
+
+## Security & Consistency
+
+- **Design with Firestore security rules in mind**: enforce max concurrent bids, ownership checks, and valid state transitions server-side.
+- **Rely on server timestamps and transactions** to guarantee consistency across clients.
+
+---
+
+## Things to Avoid
+
+- ❌ Async/Firestore calls inside service constructors.
+- ❌ Holding long-lived arrays of unsubscribe functions.
+- ❌ Returning a mix of `throw`, `null`, and `false` for error cases.
+- ❌ Using `any` in state signals or service APIs.
+- ❌ Duplicating unused or legacy methods (e.g. older evaluation paths).
+- ❌ Assuming component patterns (public+private signal mirrors) are necessary in services.

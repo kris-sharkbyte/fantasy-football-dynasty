@@ -978,3 +978,62 @@
     line-height: 1.4;
   }
 }
+
+.form-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: var(--text-color-secondary);
+  gap: 0.5rem;
+
+  i {
+    font-size: 1.5rem;
+  }
+
+  span {
+    font-size: 1rem;
+  }
+}
+
+.salary-cap-section {
+  background: var(--surface-card);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--card-shadow);
+
+  .cap-info {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+    justify-content: center;
+
+    .cap-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+
+      .label {
+        font-size: 0.875rem;
+        color: var(--text-color-secondary);
+        font-weight: 500;
+      }
+
+      .value {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-color);
+
+        &.positive {
+          color: var(--green-500);
+        }
+
+        &.negative {
+          color: var(--red-500);
+        }
+      }
+    }
+  }
+}
