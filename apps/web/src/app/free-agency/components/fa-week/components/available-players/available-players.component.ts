@@ -323,16 +323,57 @@ export class AvailablePlayersComponent {
   }
 
   /**
-   * Format currency for display
+   * Format currency
    */
-  public formatCurrency(value: number): string {
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    } else if (value >= 1000) {
-      return `$${(value / 1000).toFixed(0)}K`;
-    } else {
-      return `$${value.toLocaleString()}`;
+  formatCurrency(amount: number): string {
+    if (amount >= 1000000) {
+      return `$${(amount / 1000000).toFixed(1)}M`;
+    } else if (amount >= 1000) {
+      return `$${(amount / 1000).toFixed(0)}K`;
     }
+    return `$${amount.toLocaleString()}`;
+  }
+
+  /**
+   * Check if player has market trend indicator
+   */
+  getMarketTrendIndicator(player: any): boolean {
+    // TODO: Implement market ripple context integration
+    // For now, return false until we integrate with the market ripple system
+    return false;
+  }
+
+  /**
+   * Get market trend icon class
+   */
+  getMarketTrendIcon(player: any): string {
+    // TODO: Implement based on market ripple context
+    return 'pi pi-arrow-up';
+  }
+
+  /**
+   * Get market trend direction
+   */
+  getMarketTrendDirection(player: any): 'up' | 'down' | 'stable' {
+    // TODO: Implement based on market ripple context
+    return 'stable';
+  }
+
+  /**
+   * Get market trend percentage
+   */
+  getMarketTrendPercentage(player: any): string {
+    // TODO: Implement based on market ripple context
+    return '+0%';
+  }
+
+  /**
+   * Get market context description
+   */
+  getMarketContext(player: any): string | null {
+    // TODO: Implement based on market ripple context
+    // Example: "WR market rising", "Recent overpayment", etc.
+    return null;
   }
 
   /**

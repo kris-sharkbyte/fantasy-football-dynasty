@@ -1,49 +1,140 @@
-<div class="bids-section">
-  <div class="section-header">
-    <h3>Your Bids</h3>
-    <span class="bid-count">{{ teamBids().length }} active</span>
+<div class="bg-gray-900 rounded-lg p-6 mb-8">
+  <!-- Header Section -->
+  <div class="flex justify-between items-center mb-6">
+    <h3 class="text-xl font-semibold text-white">Your Bids</h3>
+    <span
+      class="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium"
+    >
+      {{ teamBids().length }} active
+    </span>
   </div>
 
-  <div class="bids-list">
-    <div *ngFor="let bid of teamBids()" class="bid-item" [class]="bid.status">
-      <div class="bid-player">
-        <div class="player-name">{{ getPlayerName(bid.playerId) }}</div>
-        <div class="player-position">
-          {{ getPlayerPosition(bid.playerId) }}
-        </div>
-      </div>
+  <!-- Bids List -->
+  <div class="space-y-4">
+    <div
+      *ngFor="let bid of teamBids()"
+      class="bg-gray-800 rounded-lg p-4 border-l-4 transition-all duration-200 hover:shadow-lg hover:shadow-gray-700/50"
+      [ngClass]="{
+        'border-blue-500': bid.status === 'pending',
+        'border-green-500': bid.status === 'accepted',
+        'border-orange-500': bid.status === 'shortlisted',
+        'border-red-500': bid.status === 'rejected'
+      }"
+    >
+      <!-- Bid Content Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+        <!-- Player Info with Photo -->
+        <div class="md:col-span-1">
+          <div class="flex items-center space-x-3">
+            <!-- Player Photo -->
+            <div
+              class="w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex-shrink-0"
+            >
+              <img
+                *ngIf="getPlayerPhotoUrl(bid.playerId)"
+                [src]="getPlayerPhotoUrl(bid.playerId)"
+                [alt]="getPlayerName(bid.playerId)"
+                class="w-full h-full object-cover"
+                (error)="onImageError($event)"
+              />
+              <div
+                *ngIf="!getPlayerPhotoUrl(bid.playerId)"
+                class="w-full h-full bg-gray-600 flex items-center justify-center text-gray-400 text-xs font-medium"
+              >
+                {{ getPlayerInitials(bid.playerId) }}
+              </div>
+            </div>
 
-      <div class="bid-details">
-        <div class="bid-value">
-          {{ formatCurrency(bid.offer.totalValue) }}
+            <!-- Player Details -->
+            <div class="flex-1 min-w-0">
+              <div class="text-white font-semibold text-lg mb-1 truncate">
+                {{ getPlayerName(bid.playerId) }}
+              </div>
+              <div class="text-gray-400 text-sm">
+                {{ getPlayerPosition(bid.playerId) }}
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="bid-years">{{ bid.offer.years }} year(s)</div>
-        <div class="bid-aav">{{ formatCurrency(bid.offer.apy) }}/yr</div>
-      </div>
 
-      <div class="bid-status">
-        <span class="status-badge" [class]="bid.status">
-          {{ bid.status | titlecase }}
-        </span>
-        <div class="bid-feedback" *ngIf="bid.feedback">
-          {{ bid.feedback }}
+        <!-- Contract Details -->
+        <div class="md:col-span-1 text-center">
+          <div class="text-white font-bold text-xl mb-1">
+            {{ formatCurrency(bid.offer.totalValue) }}
+          </div>
+          <div class="text-gray-400 text-sm mb-1">
+            {{ bid.offer.years }} year(s)
+          </div>
+          <div class="text-green-400 font-medium text-sm">
+            {{ formatCurrency(bid.offer.apy) }}/yr
+          </div>
         </div>
-      </div>
 
-      <div class="bid-actions">
-        <button
-          class="btn btn-sm btn-danger"
-          (click)="cancelBid(bid.id)"
-          *ngIf="bid.status === 'pending'"
-        >
-          Cancel
-        </button>
+        <!-- Status and Feedback -->
+        <div class="md:col-span-1 text-center">
+          <!-- Status Badge -->
+          <p-badge
+            [value]="bid.status | titlecase"
+            [severity]="getStatusSeverity(bid.status)"
+            class="mb-2"
+          >
+          </p-badge>
+
+          <!-- Feedback -->
+          <div
+            *ngIf="bid.feedback"
+            class="text-gray-300 text-xs italic max-w-xs mx-auto leading-relaxed"
+          >
+            {{ bid.feedback }}
+          </div>
+
+          <!-- Success Message for Accepted Bids -->
+          <div
+            *ngIf="bid.status === 'accepted'"
+            class="text-green-400 text-xs font-medium mt-2"
+          >
+            🎉 Player signed successfully!
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="md:col-span-1 text-center">
+          <p-button
+            *ngIf="bid.status === 'pending'"
+            label="Cancel"
+            severity="danger"
+            size="small"
+            (onClick)="cancelBid(bid.id)"
+            class="w-full md:w-auto"
+          >
+          </p-button>
+
+          <!-- View Roster Button for Accepted Bids -->
+          <p-button
+            *ngIf="bid.status === 'accepted'"
+            label="View Roster"
+            severity="success"
+            size="small"
+            (onClick)="viewRoster()"
+            class="w-full md:w-auto"
+          >
+          </p-button>
+        </div>
       </div>
     </div>
 
-    <div class="no-bids" *ngIf="teamBids().length === 0">
-      <p>No active bids</p>
-      <p class="text-muted">Submit bids on available players to get started</p>
+    <!-- No Bids State -->
+    <div
+      *ngIf="teamBids().length === 0"
+      class="bg-gray-800 rounded-lg p-8 text-center"
+    >
+      <div class="text-gray-400 mb-2">
+        <i class="pi pi-inbox text-4xl mb-4 block"></i>
+        <p class="text-lg font-medium">No active bids</p>
+        <p class="text-sm opacity-70">
+          Submit bids on available players to get started
+        </p>
+      </div>
     </div>
   </div>
 </div>

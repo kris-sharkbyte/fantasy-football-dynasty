@@ -1,64 +1,119 @@
-<div class="fa-week-header">
-  <div class="week-info">
-    <h2 class="week-title">Free Agency Week {{ currentWeek() }}</h2>
-    <div class="week-status">
-      <span class="status-badge" [class]="weekStatus()">
-        {{ weekStatus() | titlecase }}
-      </span>
-      <span class="ready-teams">
-        {{ readyTeamsCount() }} / {{ totalTeamsCount() }} teams ready
-      </span>
-    </div>
-
-    <!-- Market Context Summary -->
-    @if (marketContextSummary()) {
-    <div class="market-context">
-      <div class="market-item">
-        <span class="label">League Health:</span>
-        <span class="value" [class]="marketContextSummary()?.leagueHealth">
-          {{ marketContextSummary()?.leagueHealth | titlecase }}
+<div class="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6 shadow-lg">
+  <div class="flex justify-between items-center mb-4">
+    <div class="week-info">
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+        Free Agency Week {{ currentWeek() }}
+      </h1>
+      <div class="flex items-center gap-4">
+        <span
+          class="px-4 py-2 rounded-full text-sm font-semibold uppercase tracking-wide bg-green-100 text-green-700 border-2 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700"
+        >
+          {{ weekStatus() | titlecase }}
+        </span>
+        <span class="text-sm text-gray-600 dark:text-gray-400 font-medium">
+          @if (currentWeek() <= 4) { FA Week Phase } @else { Open FA Phase }
         </span>
       </div>
-      <div class="market-item">
-        <span class="label">Avg Cap Space:</span>
-        <span class="value">{{ marketContextSummary()?.averageCapSpace }}</span>
-      </div>
-      <div class="market-item">
-        <span class="label">Recent Signings:</span>
-        <span class="value">{{
-          marketContextSummary()?.recentSigningsCount
-        }}</span>
-      </div>
     </div>
-    }
+
+    <div class="flex flex-col items-center gap-2">
+      <div class="flex items-baseline gap-1">
+        <span class="text-2xl font-bold text-green-600">{{
+          readyTeamsCount()
+        }}</span>
+        <span class="text-xl font-semibold text-gray-900 dark:text-white"
+          >/ {{ totalTeamsCount() }}</span
+        >
+        <span class="text-sm text-gray-600 dark:text-gray-400 ml-2"
+          >Teams Ready</span
+        >
+      </div>
+
+      @if (isReadyToAdvance()) {
+      <div
+        class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold border border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700"
+      >
+        Ready to Advance
+      </div>
+      } @else {
+      <div
+        class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold border border-orange-200 dark:bg-orange-900 dark:text-orange-300 dark:border-orange-700"
+      >
+        Waiting for Teams
+      </div>
+      }
+    </div>
+
+    <div class="flex gap-4 items-center">
+      @if (hasSelectedLeague()) { @if (!isTeamReady()) {
+      <p-button
+        label="Mark Team Ready"
+        (onClick)="markReady()"
+        severity="primary"
+        size="large"
+      >
+      </p-button>
+      } @else {
+      <div class="text-green-600 font-semibold text-sm">Team Ready ✓</div>
+      } }
+
+      <!-- Test button for triggering evaluation -->
+      @if (weekStatus() === 'active') {
+      <p-button
+        label="Evaluate Bids"
+        (onClick)="triggerWeeklyEvaluation()"
+        severity="info"
+        size="small"
+        [title]="'Manually trigger weekly player evaluation (for testing)'"
+      >
+      </p-button>
+      }
+
+      <!-- Advance Week button (commissioner only) -->
+      @if (isReadyToAdvance()) {
+      <p-button
+        label="Advance Week"
+        (onClick)="advanceWeek()"
+        severity="success"
+        size="large"
+        [title]="'Advance to next week (all teams ready)'"
+      >
+      </p-button>
+      }
+    </div>
   </div>
 
-  <div class="week-actions">
-    <button
-      class="btn"
-      [class]="isTeamReady() ? 'btn-success' : 'btn-primary'"
-      (click)="markReady()"
-      [disabled]="isReadyToAdvance() || !currentUserTeam()"
-    >
-      @if (isTeamReady()) { ✓ Ready } @else { Mark Ready }
-    </button>
-
-    <button
-      class="btn btn-secondary"
-      (click)="advanceWeek()"
-      [disabled]="!isReadyToAdvance()"
-    >
-      Advance Week
-    </button>
-
-    <!-- Manual evaluation trigger for testing -->
-    <button
-      class="btn btn-info"
-      (click)="triggerWeeklyEvaluation()"
-      [disabled]="weekStatus() !== 'active'"
-      title="Manually trigger weekly player evaluation (for testing)"
-    >
-      Evaluate Bids
-    </button>
+  <!-- Market Context Summary -->
+  @if (marketContextSummary()) {
+  <div class="flex gap-8 pt-4 border-t border-gray-200 dark:border-gray-700">
+    <div class="flex flex-col gap-1">
+      <span
+        class="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide font-medium"
+        >League Health:</span
+      >
+      <span class="text-base font-semibold text-gray-900 dark:text-white">{{
+        marketContextSummary()?.leagueHealth
+      }}</span>
+    </div>
+    <div class="flex flex-col gap-1">
+      <span
+        class="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide font-medium"
+        >Avg Cap Space:</span
+      >
+      <span class="text-base font-semibold text-gray-900 dark:text-white">{{
+        marketContextSummary()?.averageCapSpace
+          | currency : 'USD' : 'symbol' : '1.0-0'
+      }}</span>
+    </div>
+    <div class="flex flex-col gap-1">
+      <span
+        class="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide font-medium"
+        >Recent Signings:</span
+      >
+      <span class="text-base font-semibold text-gray-900 dark:text-white">{{
+        marketContextSummary()?.recentSigningsCount
+      }}</span>
+    </div>
   </div>
+  }
 </div>

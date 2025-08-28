@@ -1,0 +1,405 @@
+<div class="player-decisions-container">
+  <!-- Week Advancement Controls -->
+  @if (isCommissioner()) {
+  <div class="week-advancement-controls">
+    <p-card header="Week Advancement" styleClass="advancement-card">
+      <div class="advancement-content">
+        <div class="week-info">
+          <h3>Week {{ currentFAWeek()?.weekNumber || 0 }}</h3>
+          <p class="week-status">
+            Status:
+            <span
+              class="status-badge"
+              [class]="currentFAWeek()?.status || 'inactive'"
+            >
+              {{ currentFAWeek()?.status || 'Inactive' }}
+            </span>
+          </p>
+        </div>
+
+        @if (isReadyToAdvance()) {
+        <div class="ready-status">
+          <p-tag
+            value="All Teams Ready"
+            severity="success"
+            icon="pi pi-check"
+          ></p-tag>
+        </div>
+        } @else {
+        <div class="ready-status">
+          <p-tag
+            [value]="
+              'Teams Ready: ' +
+              (currentFAWeek()?.readyTeams?.length || 0) +
+              '/' +
+              totalTeamsCount()
+            "
+            severity="warning"
+            icon="pi pi-clock"
+          >
+          </p-tag>
+        </div>
+        }
+
+        <div class="advancement-actions">
+          <p-button
+            label="Advance Week"
+            icon="pi pi-forward"
+            (onClick)="advanceWeek()"
+            [disabled]="!isReadyToAdvance() || isAdvancingWeek()"
+            [loading]="isAdvancingWeek()"
+            severity="success"
+          >
+          </p-button>
+        </div>
+
+        @if (weekAdvancementProgress()) {
+        <div class="advancement-progress">
+          <p-progressSpinner
+            [style]="{ width: '20px', height: '20px' }"
+          ></p-progressSpinner>
+          <span>{{ weekAdvancementProgress() }}</span>
+        </div>
+        }
+      </div>
+    </p-card>
+  </div>
+  }
+
+  <!-- Decision Summary Cards -->
+  <div class="decision-summary-grid">
+    <!-- Accepted Contracts -->
+    <p-card header="Accepted Contracts" styleClass="summary-card accepted">
+      <div class="summary-content">
+        <div class="summary-count">
+          <span class="count">{{ acceptedContracts().length }}</span>
+          <span class="label">Contracts</span>
+        </div>
+        <div class="summary-value">
+          @if (acceptedContracts().length > 0) {
+          <span class="total-value">
+            {{ formatCurrency(acceptedContractsTotal()) }}
+          </span>
+          <span class="label">Total Value</span>
+          }
+        </div>
+      </div>
+    </p-card>
+
+    <!-- Shortlisted Bids -->
+    <p-card header="Shortlisted Bids" styleClass="summary-card shortlisted">
+      <div class="summary-content">
+        <div class="summary-count">
+          <span class="count">{{ shortlistedBids().length }}</span>
+          <span class="label">Bids</span>
+        </div>
+        <div class="summary-value">
+          @if (shortlistedBids().length > 0) {
+          <span class="total-value">
+            {{ formatCurrency(shortlistedBidsTotal()) }}
+          </span>
+          <span class="label">Total Value</span>
+          }
+        </div>
+      </div>
+    </p-card>
+
+    <!-- Rejected Bids -->
+    <p-card header="Rejected Bids" styleClass="summary-card rejected">
+      <div class="summary-content">
+        <div class="summary-count">
+          <span class="count">{{ rejectedBids().length }}</span>
+          <span class="label">Bids</span>
+        </div>
+        <div class="summary-value">
+          @if (rejectedBids().length > 0) {
+          <span class="total-value">
+            {{ formatCurrency(rejectedBidsTotal()) }}
+          </span>
+          <span class="label">Total Value</span>
+          }
+        </div>
+      </div>
+    </p-card>
+  </div>
+
+  <!-- Player Decisions Table -->
+  @if (playerDecisions().length > 0) {
+  <p-card header="Player Decisions" styleClass="decisions-card">
+    <p-table
+      [value]="playerDecisions()"
+      [paginator]="true"
+      [rows]="10"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} decisions"
+      [rowsPerPageOptions]="[5, 10, 25]"
+      styleClass="p-datatable-sm"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Player</th>
+          <th>Decision</th>
+          <th>Starting Prospects</th>
+          <th>Contract Score</th>
+          <th>Actions</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-decision>
+        <tr>
+          <td>
+            <div class="player-info">
+              <strong>{{ decision.playerId }}</strong>
+            </div>
+          </td>
+          <td>
+            @if (decision.decisions[0]) {
+            <p-tag
+              [value]="getDecisionStatusLabel(decision.decisions[0])"
+              [severity]="getDecisionStatusSeverity(decision.decisions[0])"
+            >
+            </p-tag>
+            }
+          </td>
+          <td>
+            @if (decision.decisions[0]?.startingPositionProspects) {
+            <div class="starting-prospects">
+              <p-tag
+                [value]="
+                  decision.decisions[0].startingPositionProspects.isStarter
+                    ? 'Starter'
+                    : 'Depth'
+                "
+                [severity]="
+                  getStartingPositionColor(
+                    decision.decisions[0].startingPositionProspects.confidence
+                  )
+                "
+              >
+              </p-tag>
+              <small class="confidence">
+                {{
+                  (
+                    decision.decisions[0].startingPositionProspects.confidence *
+                    100
+                  ).toFixed(0)
+                }}% confidence
+              </small>
+            </div>
+            }
+          </td>
+          <td>
+            @if (decision.decisions[0]?.contractAnalysis) {
+            <div class="contract-score">
+              <span class="score"
+                >{{
+                  (
+                    decision.decisions[0].contractAnalysis.totalScore * 100
+                  ).toFixed(0)
+                }}%</span
+              >
+              <small class="threshold">
+                Threshold:
+                {{
+                  (
+                    decision.decisions[0].contractAnalysis.threshold * 100
+                  ).toFixed(0)
+                }}%
+              </small>
+            </div>
+            }
+          </td>
+          <td>
+            <p-button
+              label="View Details"
+              icon="pi pi-eye"
+              size="small"
+              (onClick)="openDecisionModal(decision)"
+            >
+            </p-button>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </p-card>
+  } @else {
+  <p-card header="Player Decisions" styleClass="decisions-card">
+    <div class="no-decisions">
+      <p>
+        No player decisions available yet. Players will evaluate offers when the
+        week advances.
+      </p>
+    </div>
+  </p-card>
+  }
+
+  <!-- Decision Detail Modal -->
+  <p-dialog
+    [visible]="showDecisionModal()"
+    [modal]="true"
+    [closable]="true"
+    [draggable]="false"
+    [resizable]="false"
+    [style]="{ width: '60rem' }"
+    header="Player Decision Details"
+    (onHide)="closeDecisionModal()"
+  >
+    @if (selectedDecision()) {
+    <div class="decision-detail-content">
+      @if (selectedDecisionData()) { @if (selectedDecisionStartingProspects()) {
+      <!-- Starting Position Analysis -->
+      <div class="detail-section">
+        <h4>Starting Position Prospects</h4>
+        <div class="prospects-grid">
+          <div class="prospect-item">
+            <span class="label">Starter Potential:</span>
+            <p-tag
+              [value]="
+                selectedDecisionStartingProspects()?.isStarter ? 'Yes' : 'No'
+              "
+              [severity]="
+                getStartingPositionColor(
+                  selectedDecisionStartingProspects()?.confidence || 0
+                )
+              "
+            >
+            </p-tag>
+          </div>
+          <div class="prospect-item">
+            <span class="label">Confidence:</span>
+            <span class="value"
+              >{{
+                (
+                  (selectedDecisionStartingProspects()?.confidence || 0) * 100
+                ).toFixed(0)
+              }}%</span
+            >
+          </div>
+          <div class="prospect-item">
+            <span class="label">Competing Players:</span>
+            <span class="value">{{
+              selectedDecisionStartingProspects()?.competingPlayers || 0
+            }}</span>
+          </div>
+          <div class="prospect-item">
+            <span class="label">Team Depth:</span>
+            <p-tag
+              [value]="
+                selectedDecisionStartingProspects()?.teamDepth || 'unknown'
+              "
+              [severity]="
+                getTeamDepthColor(
+                  selectedDecisionStartingProspects()?.teamDepth || 'unknown'
+                )
+              "
+            >
+            </p-tag>
+          </div>
+        </div>
+        <p class="reasoning">
+          {{
+            selectedDecisionStartingProspects()?.reasoning ||
+              'No reasoning provided'
+          }}
+        </p>
+      </div>
+      } @if (selectedDecisionContractAnalysis()) {
+      <!-- Contract Analysis -->
+      <div class="detail-section">
+        <h4>Contract Analysis</h4>
+        <div class="contract-scores">
+          <div class="score-item">
+            <span class="label">AAV Score:</span>
+            <span class="value"
+              >{{
+                (
+                  (selectedDecisionContractAnalysis()?.aavScore || 0) * 100
+                ).toFixed(0)
+              }}%</span
+            >
+          </div>
+          <div class="score-item">
+            <span class="label">Signing Bonus Score:</span>
+            <span class="value"
+              >{{
+                (
+                  (selectedDecisionContractAnalysis()?.signingBonusScore || 0) *
+                  100
+                ).toFixed(0)
+              }}%</span
+            >
+          </div>
+          <div class="score-item">
+            <span class="label">Guarantee Score:</span>
+            <span class="value"
+              >{{
+                (
+                  (selectedDecisionContractAnalysis()?.guaranteeScore || 0) *
+                  100
+                ).toFixed(0)
+              }}%</span
+            >
+          </div>
+          <div class="score-item">
+            <span class="label">Length Score:</span>
+            <span class="value"
+              >{{
+                (
+                  (selectedDecisionContractAnalysis()?.lengthScore || 0) * 100
+                ).toFixed(0)
+              }}%</span
+            >
+          </div>
+          <div class="score-item">
+            <span class="label">Team Score:</span>
+            <span class="value"
+              >{{
+                (
+                  (selectedDecisionContractAnalysis()?.teamScore || 0) * 100
+                ).toFixed(0)
+              }}%</span
+            >
+          </div>
+          <div class="score-item total">
+            <span class="label">Total Score:</span>
+            <span class="value"
+              >{{
+                (
+                  (selectedDecisionContractAnalysis()?.totalScore || 0) * 100
+                ).toFixed(0)
+              }}%</span
+            >
+          </div>
+        </div>
+      </div>
+      }
+
+      <!-- Player and Agent Notes -->
+      <div class="detail-section">
+        <h4>Player & Agent Feedback</h4>
+        <div class="feedback-content">
+          <div class="feedback-item">
+            <h5>Player Notes:</h5>
+            <p>
+              {{
+                selectedDecisionData()?.playerNotes ||
+                  'No player notes available'
+              }}
+            </p>
+          </div>
+          <div class="feedback-item">
+            <h5>Agent Assessment:</h5>
+            <p>
+              {{
+                selectedDecisionData()?.agentNotes ||
+                  'No agent assessment available'
+              }}
+            </p>
+          </div>
+        </div>
+      </div>
+      }
+    </div>
+    }
+  </p-dialog>
+</div>

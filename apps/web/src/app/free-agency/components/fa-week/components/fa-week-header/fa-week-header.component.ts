@@ -1,5 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ButtonModule } from 'primeng/button';
 import { FreeAgencyService } from '../../../../../services/free-agency.service';
 import { LeagueService } from '../../../../../services/league.service';
 import { computed } from '@angular/core';
@@ -13,13 +14,16 @@ interface MarketContextSummary {
 @Component({
   selector: 'app-fa-week-header',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ButtonModule],
   templateUrl: './fa-week-header.component.html',
-  styleUrl: './fa-week-header.component.scss',
 })
-export class FAWeekHeaderComponent {
+export class FAWeekHeaderComponent implements OnInit {
   private readonly freeAgencyService = inject(FreeAgencyService);
   private readonly leagueService = inject(LeagueService);
+
+  ngOnInit(): void {
+    // Component initialized
+  }
 
   // Computed values from services - now using cached data
   currentWeek = computed(
@@ -31,9 +35,21 @@ export class FAWeekHeaderComponent {
   weekStatus = computed(
     () => this.freeAgencyService.currentFAWeek()?.status || 'unknown'
   );
-  readyTeamsCount = computed(() => this.freeAgencyService.readyTeamsCount());
-  totalTeamsCount = computed(() => this.leagueTeams().length); // Use cached league teams
-  isReadyToAdvance = computed(() => this.freeAgencyService.isReadyToAdvance());
+  readyTeamsCount = computed(() => {
+    const count = this.freeAgencyService.readyTeamsCount();
+    console.log('[FA Week Header] Ready teams count computed:', count);
+    return count;
+  });
+  totalTeamsCount = computed(() => {
+    const count = this.leagueTeams().length;
+    console.log('[FA Week Header] Total teams count computed:', count);
+    return count;
+  });
+  isReadyToAdvance = computed(() => {
+    const ready = this.freeAgencyService.isReadyToAdvance();
+    console.log('[FA Week Header] Is ready to advance computed:', ready);
+    return ready;
+  });
 
   // Use cached league data
   currentUserTeam = computed(() => this.leagueService.currentUserTeam());
@@ -78,6 +94,11 @@ export class FAWeekHeaderComponent {
 
       await this.freeAgencyService.markTeamReady(myTeam.teamId);
       console.log('Team marked as ready successfully');
+
+      // Debug after marking ready
+      setTimeout(() => {
+        // this.debugAdvanceButtonLogic(); // Removed debug method
+      }, 1000);
     } catch (error) {
       console.error('Error marking team ready:', error);
     }
@@ -100,7 +121,7 @@ export class FAWeekHeaderComponent {
   }
 
   /**
-   * Trigger weekly player evaluation manually (for testing)
+   * Trigger weekly evaluation manually (for testing)
    */
   async triggerWeeklyEvaluation(): Promise<void> {
     try {

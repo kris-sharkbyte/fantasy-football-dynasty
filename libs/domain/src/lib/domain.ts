@@ -1226,19 +1226,85 @@ export class FAWeekManager {
       return {
         playerId: player.id,
         acceptedBidId: acceptedBid.bid.id,
-        shortlistedBidIds: [],
+        shortlistedBidIds: shortlistedBids.map((b) => b.bid.id),
         rejectedBidIds: rejectedBids.map((b) => b.bid.id),
         feedback: this.generateAcceptanceFeedback(acceptedBid.bid),
         trustImpact: this.calculateTrustImpact(acceptedBid.bid, true),
+        // Enhanced decision details
+        decisionReason: 'accepted',
+        startingPositionProspects: this.analyzeStartingPositionProspects(
+          player,
+          acceptedBid.bid,
+          marketContext
+        ),
+        contractAnalysis: this.createContractAnalysis(
+          acceptedBid.bid,
+          player,
+          marketContext
+        ),
+        marketFactors: this.createMarketFactors(player, marketContext),
+        playerNotes: this.generatePlayerNotes(
+          acceptedBid.bid,
+          player,
+          'accepted'
+        ),
+        agentNotes: this.generateAgentNotes(
+          acceptedBid.bid,
+          player,
+          'accepted'
+        ),
       };
     } else {
+      // Even when not acceptable, we need to account for ALL bids
+      // The highest scoring bid becomes the "primary consideration" (shortlisted)
+      // All other bids are either shortlisted or rejected based on settings
+      const primaryBid = acceptedBid; // This is the best offer, even if not acceptable
+      const remainingBids = scoredBids.slice(1);
+      const additionalShortlistedBids = remainingBids.slice(
+        0,
+        settings.shortlistSize
+      );
+      const rejectedBids = remainingBids.slice(settings.shortlistSize);
+
       return {
         playerId: player.id,
         acceptedBidId: undefined,
-        shortlistedBidIds: shortlistedBids.map((b) => b.bid.id),
+        shortlistedBidIds: [
+          primaryBid.bid.id,
+          ...additionalShortlistedBids.map((b) => b.bid.id),
+        ],
         rejectedBidIds: rejectedBids.map((b) => b.bid.id),
-        feedback: this.generateShortlistFeedback(shortlistedBids, rejectedBids),
-        trustImpact: this.calculateTrustImpact(rejectedBids[0]?.bid, false),
+        feedback: this.generateShortlistFeedback(
+          [primaryBid, ...additionalShortlistedBids],
+          rejectedBids
+        ),
+        trustImpact:
+          rejectedBids.length > 0
+            ? this.calculateTrustImpact(rejectedBids[0].bid, false)
+            : {},
+        // Enhanced decision details
+        decisionReason: 'shortlisted',
+        startingPositionProspects: this.analyzeStartingPositionProspects(
+          player,
+          primaryBid.bid,
+          marketContext
+        ),
+        contractAnalysis: this.createContractAnalysis(
+          primaryBid.bid,
+          player,
+          marketContext
+        ),
+        marketFactors: this.createMarketFactors(player, marketContext),
+        playerNotes: this.generatePlayerNotes(
+          primaryBid.bid,
+          player,
+          'shortlisted'
+        ),
+        agentNotes: this.generateAgentNotes(
+          primaryBid.bid,
+          player,
+          'shortlisted'
+        ),
       };
     }
   }
@@ -1256,22 +1322,30 @@ export class FAWeekManager {
     // Base score from contract terms
     let score = 0;
 
-    // AAV score (0-1)
+    // AAV score (0-1) - 30% weight (reduced from 40%)
     const expectedAAV = this.calculateExpectedAAV(player, marketContext);
     const aavScore = Math.min(1, contract.apy / expectedAAV);
-    score += aavScore * 0.4; // 40% weight
+    score += aavScore * 0.3;
 
-    // Guarantee score (0-1)
+    // Signing bonus score (0-1) - 25% weight (increased from 0%)
+    const expectedBonus = expectedAAV * 0.2; // Expected 20% signing bonus
+    const bonusScore =
+      contract.signingBonus > 0
+        ? Math.min(1, contract.signingBonus / expectedBonus)
+        : 0.3; // Penalty for no signing bonus
+    score += bonusScore * 0.25;
+
+    // Guarantee score (0-1) - 20% weight (reduced from 30%)
     const guaranteeScore = Math.min(1, contract.guarantees.length / 2);
-    score += guaranteeScore * 0.3; // 30% weight
+    score += guaranteeScore * 0.2;
 
-    // Length preference (0-1)
+    // Length preference (0-1) - 15% weight (reduced from 20%)
     const lengthScore = this.calculateLengthScore(contract, player);
-    score += lengthScore * 0.2; // 20% weight
+    score += lengthScore * 0.15;
 
-    // Team factors (0-1)
+    // Team factors (0-1) - 10% weight (unchanged)
     const teamScore = this.calculateTeamScore(bid.teamId, marketContext);
-    score += teamScore * 0.1; // 10% weight
+    score += teamScore * 0.1;
 
     return score;
   }
@@ -1375,9 +1449,13 @@ export class FAWeekManager {
    * Calculate trust impact on teams
    */
   private static calculateTrustImpact(
-    bid: FABid,
+    bid: FABid | undefined,
     wasAccepted: boolean
   ): Record<string, number> {
+    if (!bid) {
+      return {}; // Return empty object if no bid provided
+    }
+
     if (wasAccepted) {
       return { [bid.teamId]: 0.1 }; // Small positive trust boost
     } else {
@@ -1416,6 +1494,170 @@ export class FAWeekManager {
       acc[bid.playerId].push(bid);
       return acc;
     }, {} as Record<string, FABid[]>);
+  }
+
+  /**
+   * Analyze starting position prospects for a player
+   */
+  private static analyzeStartingPositionProspects(
+    player: Player,
+    bid: FABid | undefined,
+    marketContext: MarketContext
+  ): PlayerDecision['startingPositionProspects'] {
+    // This would typically analyze team depth charts
+    // For now, use simplified logic based on player overall and position
+    const isStarter = player.overall >= 75;
+    const confidence = Math.min(1, player.overall / 100);
+    const competingPlayers = Math.max(
+      1,
+      Math.floor((100 - player.overall) / 10)
+    );
+
+    let teamDepth: 'shallow' | 'moderate' | 'deep';
+    if (competingPlayers <= 2) teamDepth = 'shallow';
+    else if (competingPlayers <= 4) teamDepth = 'moderate';
+    else teamDepth = 'deep';
+
+    const reasoning = isStarter
+      ? `Strong starter potential with ${player.overall} overall rating`
+      : `Depth player competing with ${competingPlayers} other players`;
+
+    return {
+      isStarter,
+      confidence,
+      competingPlayers,
+      teamDepth,
+      reasoning,
+    };
+  }
+
+  /**
+   * Create detailed contract analysis
+   */
+  private static createContractAnalysis(
+    bid: FABid | undefined,
+    player: Player,
+    marketContext: MarketContext
+  ): PlayerDecision['contractAnalysis'] {
+    if (!bid) {
+      // Return default values if no bid provided
+      return {
+        aavScore: 0,
+        signingBonusScore: 0,
+        guaranteeScore: 0,
+        lengthScore: 0,
+        teamScore: 0,
+        totalScore: 0,
+        threshold: 0.7,
+      };
+    }
+
+    const contract = bid.offer;
+    const expectedAAV = this.calculateExpectedAAV(player, marketContext);
+
+    const aavScore = Math.min(1, contract.apy / expectedAAV);
+    const expectedBonus = expectedAAV * 0.2;
+    const signingBonusScore =
+      contract.signingBonus > 0
+        ? Math.min(1, contract.signingBonus / expectedBonus)
+        : 0.3;
+    const guaranteeScore = Math.min(1, contract.guarantees.length / 2);
+    const lengthScore = this.calculateLengthScore(contract, player);
+    const teamScore = this.calculateTeamScore(bid.teamId, marketContext);
+
+    const totalScore =
+      aavScore * 0.3 +
+      signingBonusScore * 0.25 +
+      guaranteeScore * 0.2 +
+      lengthScore * 0.15 +
+      teamScore * 0.1;
+
+    return {
+      aavScore,
+      signingBonusScore,
+      guaranteeScore,
+      lengthScore,
+      teamScore,
+      totalScore,
+      threshold: 0.7, // Acceptance threshold
+    };
+  }
+
+  /**
+   * Create market factors analysis
+   */
+  private static createMarketFactors(
+    player: Player,
+    marketContext: MarketContext
+  ): PlayerDecision['marketFactors'] {
+    return {
+      competingOffers: 0, // Would be calculated from actual bids
+      positionalDemand: marketContext.positionalDemand || 0.5,
+      marketPressure: 0.5, // Default neutral pressure
+      recentComparables: [], // Would be populated from recent signings
+    };
+  }
+
+  /**
+   * Generate player notes based on decision
+   */
+  private static generatePlayerNotes(
+    bid: FABid | undefined,
+    player: Player,
+    decision: 'accepted' | 'shortlisted' | 'rejected'
+  ): string {
+    if (!bid) {
+      return 'No offer details available for analysis.';
+    }
+
+    const contract = bid.offer;
+
+    switch (decision) {
+      case 'accepted':
+        return `I'm excited about this opportunity! The ${contract.apy.toLocaleString()} AAV and ${
+          contract.signingBonus > 0
+            ? `$${(contract.signingBonus / 1000000).toFixed(1)}M signing bonus`
+            : 'guaranteed money'
+        } show this team values my contribution.`;
+      case 'shortlisted':
+        return `This is a solid offer that I'm considering. The terms are reasonable, but I want to see what other opportunities might be available.`;
+      case 'rejected':
+        return `While I appreciate the interest, this offer doesn't meet my expectations for a player of my caliber. I'm looking for better terms.`;
+      default:
+        return 'I need more time to evaluate this offer.';
+    }
+  }
+
+  /**
+   * Generate agent notes based on decision
+   */
+  private static generateAgentNotes(
+    bid: FABid | undefined,
+    player: Player,
+    decision: 'accepted' | 'shortlisted' | 'rejected'
+  ): string {
+    if (!bid) {
+      return 'Unable to provide agent analysis without offer details.';
+    }
+
+    const contract = bid.offer;
+    const expectedAAV = this.calculateExpectedAAV(player, {} as MarketContext);
+
+    switch (decision) {
+      case 'accepted':
+        return `My client is pleased with this offer. The AAV is ${
+          contract.apy >= expectedAAV ? 'at or above' : 'below'
+        } market value, and the signing bonus provides good security. We recommend accepting.`;
+      case 'shortlisted':
+        return `This offer is competitive but not exceptional. We're keeping it active while exploring other opportunities. My client may be willing to negotiate.`;
+      case 'rejected':
+        return `This offer significantly undervalues my client. The AAV is ${(
+          ((expectedAAV - contract.apy) / expectedAAV) *
+          100
+        ).toFixed(0)}% below market value. We cannot accept these terms.`;
+      default:
+        return 'We need more time to evaluate this offer against the current market.';
+    }
   }
 }
 

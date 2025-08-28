@@ -150,12 +150,57 @@
 
         <!-- Est. Min -->
         <td>
-          <span class="min-value" *ngIf="getPlayerMinimumForDisplay(player.id)">
-            {{ formatCurrency(getPlayerMinimumForDisplay(player.id) || 0) }}
-          </span>
-          <span class="no-min" *ngIf="!getPlayerMinimumForDisplay(player.id)">
-            -
-          </span>
+          <div class="flex flex-col items-center space-y-1">
+            <span
+              class="min-value font-medium"
+              *ngIf="getPlayerMinimumForDisplay(player.id)"
+            >
+              {{ formatCurrency(getPlayerMinimumForDisplay(player.id) || 0) }}
+            </span>
+            <span
+              class="no-min text-gray-400"
+              *ngIf="!getPlayerMinimumForDisplay(player.id)"
+            >
+              -
+            </span>
+
+            <!-- Market Ripple Indicator -->
+            <div
+              *ngIf="getMarketTrendIndicator(player)"
+              class="flex items-center space-x-1"
+            >
+              <!-- Trend Arrow -->
+              <i
+                [class]="getMarketTrendIcon(player)"
+                class="text-xs"
+                [ngClass]="{
+                  'text-green-400': getMarketTrendDirection(player) === 'up',
+                  'text-red-400': getMarketTrendDirection(player) === 'down',
+                  'text-gray-400': getMarketTrendDirection(player) === 'stable'
+                }"
+              ></i>
+
+              <!-- Trend Percentage -->
+              <span
+                class="text-xs font-medium"
+                [ngClass]="{
+                  'text-green-400': getMarketTrendDirection(player) === 'up',
+                  'text-red-400': getMarketTrendDirection(player) === 'down',
+                  'text-gray-400': getMarketTrendDirection(player) === 'stable'
+                }"
+              >
+                {{ getMarketTrendPercentage(player) }}
+              </span>
+            </div>
+
+            <!-- Market Context Tooltip -->
+            <div
+              *ngIf="getMarketContext(player)"
+              class="text-xs text-gray-500 text-center max-w-24 truncate"
+            >
+              {{ getMarketContext(player) }}
+            </div>
+          </div>
         </td>
 
         <!-- Bid Count -->

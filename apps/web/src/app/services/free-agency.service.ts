@@ -12,6 +12,7 @@ import {
   getDocs,
   onSnapshot,
   writeBatch,
+  getDoc,
 } from '@angular/fire/firestore';
 import {
   FAWeek,
@@ -74,6 +75,10 @@ export class FreeAgencyService {
   public teamStatuses = signal<TeamFAStatus[]>([]);
   public availablePlayers = signal<FAWeekPlayer[]>([]);
   public isReadyToAdvance = signal<boolean>(false);
+  // New signals for week advancement
+  public playerDecisions = signal<FAEvaluationResult[]>([]);
+  public isAdvancingWeek = signal<boolean>(false);
+  public weekAdvancementProgress = signal<string>('');
 
   // Computed signals
   public currentWeekNumber = computed(
@@ -88,10 +93,12 @@ export class FreeAgencyService {
   public weekStatus = computed(
     () => this.currentFAWeek()?.status || 'inactive'
   );
-  public readyTeamsCount = computed(
-    () => this.currentFAWeek()?.readyTeams.length || 0
-  );
-  public totalTeamsCount = computed(() => this.teamStatuses().length);
+  public readyTeamsCount = computed(() => {
+    return this.currentFAWeek()?.readyTeams?.length || 0;
+  });
+  public totalTeamsCount = computed(() => {
+    return this.leagueService.teamsCount();
+  });
 
   // FA Week Settings (defaults)
   private defaultSettings: FAWeekSettings = {
@@ -135,6 +142,9 @@ export class FreeAgencyService {
 
       await this.loadAvailablePlayers();
       await this.loadTeamStatuses();
+
+      // Check if ready to advance after initial load
+      this.checkReadyToAdvance();
     } catch (error) {
       console.error('Failed to load FA week:', error);
     }
@@ -208,16 +218,18 @@ export class FreeAgencyService {
       if (doc.exists()) {
         const faWeek = { id: doc.id, ...doc.data() } as FAWeek;
         this.currentFAWeek.set(faWeek);
+
+        // Check if ready to advance whenever FA week data changes
+        this.checkReadyToAdvance();
       }
     });
 
-    // Listen to active bids
+    // Listen to active bids (current week + any carried over from previous weeks)
     const bidsRef = collection(this.firestore, 'faBids');
     const bidsQuery = query(
       bidsRef,
       where('leagueId', '==', leagueId),
-      where('weekNumber', '==', this.currentWeekNumber()),
-      where('status', 'in', ['pending', 'evaluating'])
+      where('status', 'in', ['pending', 'evaluating', 'shortlisted'])
     );
 
     const unsubscribeBids = onSnapshot(bidsQuery, (snapshot) => {
@@ -251,9 +263,9 @@ export class FreeAgencyService {
         throw new Error('No active FA week');
       }
 
-      // Create bid
+      // Create bid with cleaner ID format (no week number in ID)
       const bid: FABid = {
-        id: `${currentWeek.id}_bid_${Date.now()}`,
+        id: `${currentWeek.leagueId}_bid_${Date.now()}`,
         leagueId: currentWeek.leagueId,
         teamId,
         playerId,
@@ -288,12 +300,14 @@ export class FreeAgencyService {
   }
 
   /**
-   * Mark team as ready to advance - direct Firestore operation
+   * Mark a team as ready to advance to the next week
    */
   async markTeamReady(teamId: string): Promise<void> {
     try {
       const currentWeek = this.currentFAWeek();
-      if (!currentWeek) return;
+      if (!currentWeek) {
+        return;
+      }
 
       // Add team to ready list if not already there
       if (!currentWeek.readyTeams.includes(teamId)) {
@@ -334,10 +348,15 @@ export class FreeAgencyService {
    * Check if all teams are ready to advance
    */
   private checkReadyToAdvance(): void {
-    const allTeams = this.teamStatuses();
-    const readyTeams = allTeams.filter((status) => status.isReady);
-    const isReady =
-      allTeams.length > 0 && readyTeams.length === allTeams.length;
+    const currentWeek = this.currentFAWeek();
+    if (!currentWeek?.readyTeams) {
+      this.isReadyToAdvance.set(false);
+      return;
+    }
+
+    const totalTeams = this.leagueService.teamsCount();
+    const readyTeamsCount = currentWeek.readyTeams.length;
+    const isReady = totalTeams > 0 && readyTeamsCount === totalTeams;
 
     this.isReadyToAdvance.set(isReady);
   }
@@ -352,8 +371,18 @@ export class FreeAgencyService {
         throw new Error('No active FA week found');
       }
 
+      this.isAdvancingWeek.set(true);
+      this.weekAdvancementProgress.set('Processing player decisions...');
+
       // Process weekly player evaluation before advancing
       await this.processWeeklyPlayerEvaluation();
+
+      this.weekAdvancementProgress.set('Carrying over active bids...');
+
+      // Carry over non-rejected bids to next week
+      await this.carryOverActiveBids(currentWeek.weekNumber + 1);
+
+      this.weekAdvancementProgress.set('Updating player statuses...');
 
       // Update current week status to completed
       const faWeekRef = doc(this.firestore, 'faWeeks', currentWeek.id);
@@ -361,6 +390,8 @@ export class FreeAgencyService {
         status: 'completed',
         updatedAt: new Date(),
       });
+
+      this.weekAdvancementProgress.set('Creating next week...');
 
       // Create next week
       const nextWeek = await this.createFAWeek(
@@ -371,11 +402,86 @@ export class FreeAgencyService {
       // Update current week reference
       this.currentFAWeek.set(nextWeek);
 
+      this.weekAdvancementProgress.set('Week advancement complete!');
+
+      // Reset advancement state after a delay
+      setTimeout(() => {
+        this.isAdvancingWeek.set(false);
+        this.weekAdvancementProgress.set('');
+      }, 3000);
+
       return true;
     } catch (error) {
       console.error('Error advancing week:', error);
+      this.isAdvancingWeek.set(false);
+      this.weekAdvancementProgress.set('Error advancing week');
       return false;
     }
+  }
+
+  /**
+   * Get player decisions for the current week
+   */
+  async getPlayerDecisions(): Promise<FAEvaluationResult[]> {
+    try {
+      const currentWeek = this.currentFAWeek();
+      if (!currentWeek) return [];
+
+      // Get evaluation results from the current week
+      const decisions = currentWeek.evaluationResults || [];
+      this.playerDecisions.set(decisions);
+      return decisions;
+    } catch (error) {
+      console.error('Error getting player decisions:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get detailed decision information for a specific player
+   */
+  getPlayerDecisionDetails(playerId: string): FAEvaluationResult | null {
+    const decisions = this.playerDecisions();
+    return decisions.find((decision) => decision.playerId === playerId) || null;
+  }
+
+  /**
+   * Get all accepted contracts for the current week
+   */
+  getAcceptedContracts(): FABid[] {
+    const decisions = this.playerDecisions();
+    const acceptedBidIds = decisions
+      .flatMap((decision) => decision.decisions)
+      .filter((decision) => decision.acceptedBidId)
+      .map((decision) => decision.acceptedBidId!);
+
+    return this.activeBids().filter((bid) => acceptedBidIds.includes(bid.id));
+  }
+
+  /**
+   * Get all shortlisted bids for the current week
+   */
+  getShortlistedBids(): FABid[] {
+    const decisions = this.playerDecisions();
+    const shortlistedBidIds = decisions
+      .flatMap((decision) => decision.decisions)
+      .flatMap((decision) => decision.shortlistedBidIds);
+
+    return this.activeBids().filter((bid) =>
+      shortlistedBidIds.includes(bid.id)
+    );
+  }
+
+  /**
+   * Get all rejected bids for the current week
+   */
+  getRejectedBids(): FABid[] {
+    const decisions = this.playerDecisions();
+    const rejectedBidIds = decisions
+      .flatMap((decision) => decision.decisions)
+      .flatMap((decision) => decision.rejectedBidIds);
+
+    return this.activeBids().filter((bid) => rejectedBidIds.includes(bid.id));
   }
 
   /**
@@ -592,23 +698,43 @@ export class FreeAgencyService {
   }
 
   /**
-   * Load team statuses for current FA week
+   * Load team statuses for the current FA week
    */
   private async loadTeamStatuses(): Promise<void> {
     try {
-      // TODO: Load from Firebase - for now use mock data
-      const mockStatuses: TeamFAStatus[] = [
-        {
-          teamId: 'team1',
+      // Get the actual teams from the league service
+      const totalTeams = this.leagueService.teamsCount();
+
+      if (totalTeams === 0) {
+        // Fallback to default mock data if no teams found
+        const mockStatuses: TeamFAStatus[] = [
+          {
+            teamId: 'team1',
+            leagueId: this.currentFAWeek()?.leagueId || '',
+            currentWeek: this.currentFAWeek()?.weekNumber || 1,
+            activeBids: [],
+            capHolds: 0,
+            isReady: false,
+            lastActivity: new Date(),
+          },
+        ];
+        this.teamStatuses.set(mockStatuses);
+        return;
+      }
+
+      // Create mock statuses for all teams in the league
+      const mockStatuses: TeamFAStatus[] = [];
+      for (let i = 1; i <= totalTeams; i++) {
+        mockStatuses.push({
+          teamId: `team${i}`,
           leagueId: this.currentFAWeek()?.leagueId || '',
           currentWeek: this.currentFAWeek()?.weekNumber || 1,
           activeBids: [],
           capHolds: 0,
           isReady: false,
           lastActivity: new Date(),
-        },
-        // Add more mock teams as needed
-      ];
+        });
+      }
 
       this.teamStatuses.set(mockStatuses);
     } catch (error) {
@@ -680,6 +806,8 @@ export class FreeAgencyService {
    */
   async processWeeklyPlayerEvaluation(): Promise<void> {
     try {
+      console.log('[FA Service] Starting weekly player evaluation...');
+
       const currentWeek = this.currentFAWeek();
       if (!currentWeek || currentWeek.status !== 'active') {
         throw new Error('No active FA week found');
@@ -691,15 +819,20 @@ export class FreeAgencyService {
           bid.status === 'pending' && bid.weekNumber === currentWeek.weekNumber
       );
 
+      console.log('[FA Service] Found pending bids:', pendingBids.length);
+
       if (pendingBids.length === 0) {
+        console.log('[FA Service] No pending bids to evaluate');
         return;
       }
 
       // Create market context for evaluation
       const marketContext = await this.createMarketContext();
+      console.log('[FA Service] Market context created:', marketContext);
 
       // Get all players for evaluation
       const allPlayers = await this.getAllPlayersForEvaluation();
+      console.log('[FA Service] Players for evaluation:', allPlayers.length);
 
       // Process evaluation using FAWeekManager
       const evaluationResults = await this.evaluateAllPlayerBids(
@@ -707,12 +840,17 @@ export class FreeAgencyService {
         allPlayers,
         marketContext
       );
+      console.log('[FA Service] Evaluation results:', evaluationResults.length);
 
       // Apply evaluation results
       await this.applyEvaluationResults(evaluationResults);
 
       // Update FA week status to evaluating
       await this.updateFAWeekStatus('evaluating');
+
+      console.log(
+        '[FA Service] Weekly player evaluation completed successfully'
+      );
     } catch (error) {
       console.error('Error processing weekly player evaluation:', error);
       throw error;
@@ -788,16 +926,29 @@ export class FreeAgencyService {
     players: Player[],
     marketContext: any
   ): Promise<FAEvaluationResult[]> {
+    console.log('[FA Service] evaluateAllPlayerBids called with:', {
+      bidCount: bids.length,
+      playerCount: players.length,
+      marketContext: marketContext,
+    });
+
     // Import FAWeekManager from domain
     const { FAWeekManager } = await import('@fantasy-football-dynasty/domain');
+    console.log('[FA Service] FAWeekManager imported successfully');
 
     // Use the existing FAWeekManager to process evaluation
-    return FAWeekManager.processFAWeekEvaluation(
+    const results = FAWeekManager.processFAWeekEvaluation(
       bids,
       players,
       marketContext,
       this.defaultSettings
     );
+
+    console.log(
+      '[FA Service] FAWeekManager evaluation completed, results:',
+      results.length
+    );
+    return results;
   }
 
   /**
@@ -806,14 +957,43 @@ export class FreeAgencyService {
   private async applyEvaluationResults(
     results: FAEvaluationResult[]
   ): Promise<void> {
+    console.log(
+      '[FA Service] Applying evaluation results for',
+      results.length,
+      'players'
+    );
+
     const batch = writeBatch(this.firestore);
 
     for (const result of results) {
+      console.log(
+        '[FA Service] Processing result for player:',
+        result.playerId
+      );
+
       const decision = result.decisions[0]; // Get the first decision
-      if (!decision) continue;
+      if (!decision) {
+        console.log(
+          '[FA Service] No decision found for player:',
+          result.playerId
+        );
+        continue;
+      }
+
+      console.log('[FA Service] Decision:', {
+        playerId: result.playerId,
+        acceptedBidId: decision.acceptedBidId,
+        shortlistedCount: decision.shortlistedBidIds.length,
+        rejectedCount: decision.rejectedBidIds.length,
+        feedback: decision.feedback,
+      });
 
       // Update accepted bid
       if (decision.acceptedBidId) {
+        console.log(
+          '[FA Service] Updating accepted bid:',
+          decision.acceptedBidId
+        );
         const acceptedBidRef = doc(
           this.firestore,
           'faBids',
@@ -824,10 +1004,18 @@ export class FreeAgencyService {
           feedback: decision.feedback,
           evaluatedAt: new Date(),
         });
+
+        // Add player to team roster
+        console.log('[FA Service] Adding player to team roster...');
+        await this.addPlayerToTeamRoster(
+          result.playerId,
+          decision.acceptedBidId
+        );
       }
 
       // Update shortlisted bids
       for (const shortlistedBidId of decision.shortlistedBidIds) {
+        console.log('[FA Service] Updating shortlisted bid:', shortlistedBidId);
         const shortlistedBidRef = doc(
           this.firestore,
           'faBids',
@@ -842,6 +1030,7 @@ export class FreeAgencyService {
 
       // Update rejected bids
       for (const rejectedBidId of decision.rejectedBidIds) {
+        console.log('[FA Service] Updating rejected bid:', rejectedBidId);
         const rejectedBidRef = doc(this.firestore, 'faBids', rejectedBidId);
         batch.update(rejectedBidRef, {
           status: 'rejected',
@@ -851,20 +1040,53 @@ export class FreeAgencyService {
       }
 
       // Update player status
+      console.log('[FA Service] Updating player status for:', result.playerId);
       await this.updatePlayerStatus(result.playerId, decision);
     }
 
     // Commit all updates
+    console.log('[FA Service] Committing batch updates...');
     await batch.commit();
+    console.log('[FA Service] Batch updates committed successfully');
   }
 
   /**
    * Update player status based on decision
+   *
+   * TODO: MIGRATION TO FIREBASE PLAYER COLLECTION
+   * Currently using local JSON files from SportsDataService for player data.
+   * In the future, we should migrate to a Firebase 'players' collection to:
+   * - Track player statuses across leagues
+   * - Enable real-time player updates
+   * - Support player history and contract tracking
+   * - Allow for dynamic player pools per league
+   *
+   * Migration steps:
+   * 1. Create 'players' collection in Firestore
+   * 2. Import initial player data from SportsDataService
+   * 3. Update this method to use Firestore instead of local state
+   * 4. Add player status change listeners
+   * 5. Consider player data versioning for different leagues
    */
   private async updatePlayerStatus(
     playerId: string,
     decision: PlayerDecision
   ): Promise<void> {
+    console.log('[FA Service] updatePlayerStatus called for player:', playerId);
+    console.log('[FA Service] Decision details:', {
+      acceptedBidId: decision.acceptedBidId,
+      shortlistedCount: decision.shortlistedBidIds.length,
+      rejectedCount: decision.rejectedBidIds.length,
+    });
+
+    // For now, skip updating player status since we're using local JSON data
+    // and don't have a Firebase players collection yet
+    console.log(
+      '[FA Service] Skipping player status update - using local JSON data'
+    );
+
+    // TODO: When migrating to Firebase players collection, uncomment this code:
+    /*
     const playerRef = doc(this.firestore, 'players', playerId);
 
     if (decision.acceptedBidId) {
@@ -886,6 +1108,7 @@ export class FreeAgencyService {
         updatedAt: new Date(),
       });
     }
+    */
   }
 
   /**
@@ -1113,4 +1336,162 @@ export class FreeAgencyService {
     this.unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
     this.unsubscribeFunctions = [];
   }
+
+  /**
+   * Carry over non-rejected bids to the next week
+   */
+  private async carryOverActiveBids(nextWeekNumber: number): Promise<void> {
+    try {
+      console.log(
+        '[FA Service] Carrying over active bids to week',
+        nextWeekNumber
+      );
+
+      // Get all bids that are not rejected (accepted, shortlisted, pending)
+      const activeBids = this.activeBids().filter(
+        (bid) => bid.status !== 'rejected'
+      );
+
+      console.log(
+        '[FA Service] Found',
+        activeBids.length,
+        'bids to carry over'
+      );
+
+      if (activeBids.length === 0) {
+        console.log('[FA Service] No bids to carry over');
+        return;
+      }
+
+      const batch = writeBatch(this.firestore);
+
+      for (const bid of activeBids) {
+        // Update bid to next week
+        const bidRef = doc(this.firestore, 'faBids', bid.id);
+        batch.update(bidRef, {
+          weekNumber: nextWeekNumber,
+          updatedAt: new Date(),
+        });
+
+        console.log(
+          '[FA Service] Carrying over bid:',
+          bid.id,
+          'to week',
+          nextWeekNumber
+        );
+      }
+
+      // Commit all updates
+      await batch.commit();
+      console.log(
+        '[FA Service] Successfully carried over',
+        activeBids.length,
+        'bids'
+      );
+    } catch (error) {
+      console.error('[FA Service] Error carrying over bids:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add a player to the team roster when their bid is accepted
+   */
+  private async addPlayerToTeamRoster(
+    playerId: string,
+    bidId: string
+  ): Promise<void> {
+    try {
+      console.log(
+        `[FA Service] Adding player ${playerId} to team roster (bid: ${bidId})`
+      );
+
+      // Get the accepted bid to find the team ID
+      const bidRef = doc(this.firestore, 'faBids', bidId);
+      const bidDoc = await getDoc(bidRef);
+
+      if (!bidDoc.exists()) {
+        console.error(`[FA Service] Bid ${bidId} not found`);
+        return;
+      }
+
+      const bidData = bidDoc.data() as FABid;
+      const teamId = bidData.teamId;
+
+      console.log(`[FA Service] Adding player ${playerId} to team ${teamId}`);
+
+      // Find the team in the current league
+      const currentLeague = this.currentFAWeek();
+      if (!currentLeague) {
+        console.error('[FA Service] No current FA week found');
+        return;
+      }
+
+      // Get the team's member document from the league service
+      const teamMember = this.leagueService
+        .leagueMembers()
+        .find((member) => member.teamId === teamId);
+
+      if (!teamMember) {
+        console.error(
+          `[FA Service] Team ${teamId} not found in league ${currentLeague.leagueId}`
+        );
+        return;
+      }
+
+      // Add player to roster in the member document
+      const memberRef = doc(
+        this.firestore,
+        'leagues',
+        currentLeague.leagueId,
+        'members',
+        teamMember.userId
+      );
+
+      // Create the roster entry
+      const rosterEntry = {
+        playerId,
+        bidId,
+        signedAt: new Date(),
+        contract: bidData.offer,
+        status: 'active',
+      };
+
+      // Update the member document with the new roster entry
+      await updateDoc(memberRef, {
+        roster: [...teamMember.roster, rosterEntry],
+        updatedAt: new Date(),
+      });
+
+      console.log(
+        `[FA Service] Successfully added player ${playerId} to team ${teamId} roster`
+      );
+      console.log(`[FA Service] Roster entry:`, rosterEntry);
+    } catch (error) {
+      console.error(
+        `[FA Service] Error adding player ${playerId} to roster:`,
+        error
+      );
+      // Don't throw - this shouldn't prevent the week advancement
+    }
+  }
+
+  /**
+   * Update player status based on decision
+   *
+   * TODO: MIGRATION TO FIREBASE PLAYER COLLECTION
+   * Currently using local JSON files from SportsDataService for player data.
+   * In the future, we should migrate to a Firebase 'players' collection to:
+   * - Track player statuses across leagues
+   * - Enable real-time player updates
+   * - Support player history and contract tracking
+   * - Allow for dynamic player pools per league
+   *
+   * Migration steps:
+   * 1. Create 'players' collection in Firestore
+   * 2. Import initial player data from SportsDataService
+   * 3. Update this method to use Firestore instead of local state
+   * 4. Add player status change listeners
+   * 5. Consider player data versioning for different leagues
+   */
 }

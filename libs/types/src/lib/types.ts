@@ -541,6 +541,32 @@ export interface PlayerDecision {
   rejectedBidIds: string[]; // Offers that were insultingly low
   feedback: string; // Player's reasoning
   trustImpact: Record<string, number>; // Impact on team trust scores
+  // Enhanced decision details
+  decisionReason: 'accepted' | 'shortlisted' | 'rejected' | 'waiting';
+  startingPositionProspects: {
+    isStarter: boolean;
+    confidence: number; // 0-1 scale
+    competingPlayers: number;
+    teamDepth: 'shallow' | 'moderate' | 'deep';
+    reasoning: string;
+  };
+  contractAnalysis: {
+    aavScore: number; // 0-1 scale
+    signingBonusScore: number; // 0-1 scale
+    guaranteeScore: number; // 0-1 scale
+    lengthScore: number; // 0-1 scale
+    teamScore: number; // 0-1 scale
+    totalScore: number; // 0-1 scale
+    threshold: number; // Acceptance threshold
+  };
+  marketFactors: {
+    competingOffers: number;
+    positionalDemand: number;
+    marketPressure: number;
+    recentComparables: string[]; // Player IDs of recent signings
+  };
+  playerNotes: string; // Detailed player reasoning
+  agentNotes: string; // Agent's professional assessment
 }
 
 // Market Impact from Signings

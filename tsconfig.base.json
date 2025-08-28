@@ -20,6 +20,9 @@
       "@fantasy-football-dynasty/functions": ["apps/functions/src/index.ts"],
       "@fantasy-football-dynasty/testing": ["libs/testing/src/index.ts"],
       "@fantasy-football-dynasty/types": ["libs/types/src/index.ts"],
+      "@app/services": ["apps/web/src/app/services"],
+      "@app/components": ["apps/web/src/app/components"],
+      "@app/guards": ["apps/web/src/app/guards"]
     }
   },
   "exclude": ["node_modules", "tmp"]

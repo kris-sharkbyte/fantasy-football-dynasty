@@ -22,6 +22,7 @@ import { FAWeekHeaderComponent } from './components/fa-week-header';
 import { AvailablePlayersComponent } from './components/available-players';
 import { TeamBidsComponent } from './components/team-bids';
 import { SalaryCapComponent } from './components/salary-cap';
+import { PlayerDecisionsComponent } from './components/player-decisions';
 import { ContractInputsComponent } from '../../../teams/negotiation/components/contract-inputs/contract-inputs.component';
 import { FABid } from '@fantasy-football-dynasty/types';
 
@@ -44,6 +45,7 @@ import { FABid } from '@fantasy-football-dynasty/types';
     AvailablePlayersComponent,
     TeamBidsComponent,
     SalaryCapComponent,
+    PlayerDecisionsComponent,
     ContractInputsComponent,
   ],
   templateUrl: './fa-week.component.html',
