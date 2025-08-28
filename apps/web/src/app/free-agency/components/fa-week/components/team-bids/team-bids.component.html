@@ -11,6 +11,20 @@
 
   <!-- Bids List -->
   <div class="space-y-4">
+    <!-- Loading State -->
+    @if (!sportsDataReady()) {
+    <div class="bg-gray-800 rounded-lg p-8 text-center">
+      <div class="text-gray-400 mb-2">
+        <i class="pi pi-spin pi-spinner text-4xl mb-4 block"></i>
+        <p class="text-lg font-medium">Loading player data...</p>
+        <p class="text-sm opacity-70">
+          Please wait while we load the latest player information
+        </p>
+      </div>
+    </div>
+    }
+
+    <!-- Bids when data is ready -->
     <div
       *ngFor="let bid of teamBids()"
       class="bg-gray-800 rounded-lg p-4 border-l-4 transition-all duration-200 hover:shadow-lg hover:shadow-gray-700/50"
@@ -22,68 +36,101 @@
       }"
     >
       <!-- Bid Content Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-        <!-- Player Info with Photo -->
-        <div class="md:col-span-1">
-          <div class="flex items-center space-x-3">
-            <!-- Player Photo -->
-            <div
-              class="w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex-shrink-0"
-            >
-              <img
-                *ngIf="getPlayerPhotoUrl(bid.playerId)"
-                [src]="getPlayerPhotoUrl(bid.playerId)"
-                [alt]="getPlayerName(bid.playerId)"
-                class="w-full h-full object-cover"
-                (error)="onImageError($event)"
-              />
+      <div class="flex flex-col space-y-4">
+        <!-- Player Info with Photo and Status Badge -->
+        <div class="flex items-start justify-between relative">
+          <!-- Team Logo Background -->
+          @if(getTeamLogoUrl(bid.playerId)) {
+          <div class="absolute inset-0 w-full h-full opacity-40">
+            <img
+              [src]="getTeamLogoUrl(bid.playerId)"
+              [alt]="getTeamName(bid.playerId)"
+              class="w-24 h-24 object-cover"
+            />
+          </div>
+          }
+          <!-- Player Photo with Team Logo Background -->
+          <div class="flex items-center space-x-4">
+            <div class="relative">
+              <!-- Fallback team indicator when no logo -->
+              @if (!getTeamLogoUrl(bid.playerId)) {
               <div
-                *ngIf="!getPlayerPhotoUrl(bid.playerId)"
-                class="w-full h-full bg-gray-600 flex items-center justify-center text-gray-400 text-xs font-medium"
+                class="absolute inset-0 w-full h-full bg-gradient-to-br from-blue-600 to-purple-600 opacity-60 flex items-center justify-center"
               >
-                {{ getPlayerInitials(bid.playerId) }}
+                <span class="text-white text-xs font-bold">
+                  {{ getTeamInitials(bid.playerId) }}
+                </span>
               </div>
+              }
+              <!-- Player Photo -->
+              @if(getPlayerPhotoUrl(bid.playerId)) {
+              <div class="relative z-10 w-full h-full">
+                <img
+                  [src]="getPlayerPhotoUrl(bid.playerId)"
+                  [alt]="
+                    getPlayerFirstName(bid.playerId) +
+                    ' ' +
+                    getPlayerLastName(bid.playerId)
+                  "
+                  class="w-full h-full object-cover"
+                  (error)="onImageError($event)"
+                />
+                @if(!getPlayerPhotoUrl(bid.playerId)) {
+                <div
+                  class="w-full h-full bg-gray-600 flex items-center justify-center text-gray-400 text-lg font-medium rounded-full"
+                >
+                  {{ getPlayerInitials(bid.playerId) }}
+                </div>
+                }
+              </div>
+              }
             </div>
 
             <!-- Player Details -->
             <div class="flex-1 min-w-0">
-              <div class="text-white font-semibold text-lg mb-1 truncate">
-                {{ getPlayerName(bid.playerId) }}
+              <div class="text-white font-semibold text-xl mb-2">
+                {{ getPlayerFirstName(bid.playerId) }}
+                {{ getPlayerLastName(bid.playerId) }}
+              </div>
+              <div class="text-gray-400 text-base mb-1">
+                {{ getTeamName(bid.playerId) }}
               </div>
               <div class="text-gray-400 text-sm">
+                {{ getPlayerNumber(bid.playerId) }} •
                 {{ getPlayerPosition(bid.playerId) }}
               </div>
             </div>
           </div>
+
+          <!-- Status Badge - Top Right -->
+          <div class="flex-shrink-0">
+            <p-badge
+              [value]="bid.status | titlecase"
+              [severity]="getStatusSeverity(bid.status)"
+              class="text-sm"
+            >
+            </p-badge>
+          </div>
         </div>
 
-        <!-- Contract Details -->
-        <div class="md:col-span-1 text-center">
-          <div class="text-white font-bold text-xl mb-1">
-            {{ formatCurrency(bid.offer.totalValue) }}
+        <!-- Bid Offer Details - Bottom -->
+        <div class="bg-gray-700 rounded-lg p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="text-white font-bold text-2xl">
+              {{ formatCurrency(bid.offer.totalValue) }}
+            </div>
+            <div class="text-gray-400 text-sm">
+              {{ bid.offer.years }} year(s)
+            </div>
           </div>
-          <div class="text-gray-400 text-sm mb-1">
-            {{ bid.offer.years }} year(s)
-          </div>
-          <div class="text-green-400 font-medium text-sm">
+          <div class="text-green-400 font-medium text-lg mb-3">
             {{ formatCurrency(bid.offer.apy) }}/yr
           </div>
-        </div>
 
-        <!-- Status and Feedback -->
-        <div class="md:col-span-1 text-center">
-          <!-- Status Badge -->
-          <p-badge
-            [value]="bid.status | titlecase"
-            [severity]="getStatusSeverity(bid.status)"
-            class="mb-2"
-          >
-          </p-badge>
-
-          <!-- Feedback -->
+          <!-- Feedback - Under the Offer -->
           <div
             *ngIf="bid.feedback"
-            class="text-gray-300 text-xs italic max-w-xs mx-auto leading-relaxed"
+            class="text-gray-300 text-sm italic border-t border-gray-600 pt-3"
           >
             {{ bid.feedback }}
           </div>
@@ -91,21 +138,21 @@
           <!-- Success Message for Accepted Bids -->
           <div
             *ngIf="bid.status === 'accepted'"
-            class="text-green-400 text-xs font-medium mt-2"
+            class="text-green-400 text-sm font-medium mt-3 text-center"
           >
             🎉 Player signed successfully!
           </div>
         </div>
 
         <!-- Actions -->
-        <div class="md:col-span-1 text-center">
+        <div class="flex justify-center space-x-3">
           <p-button
             *ngIf="bid.status === 'pending'"
-            label="Cancel"
+            label="Cancel Bid"
             severity="danger"
             size="small"
             (onClick)="cancelBid(bid.id)"
-            class="w-full md:w-auto"
+            class="w-full sm:w-auto"
           >
           </p-button>
 
@@ -116,7 +163,7 @@
             severity="success"
             size="small"
             (onClick)="viewRoster()"
-            class="w-full md:w-auto"
+            class="w-full sm:w-auto"
           >
           </p-button>
         </div>
@@ -125,7 +172,7 @@
 
     <!-- No Bids State -->
     <div
-      *ngIf="teamBids().length === 0"
+      *ngIf="sportsDataReady() && teamBids().length === 0"
       class="bg-gray-800 rounded-lg p-8 text-center"
     >
       <div class="text-gray-400 mb-2">

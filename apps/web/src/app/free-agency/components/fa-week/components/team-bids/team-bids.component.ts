@@ -23,6 +23,9 @@ export class TeamBidsComponent {
     this.freeAgencyService.availablePlayers()
   );
 
+  // Check if sports data is ready
+  public sportsDataReady = this.sportsDataService.dataReady;
+
   // Team bids filtered for current user - now using cached signals
   public teamBids = computed(() => {
     const currentUserTeamId = this.leagueService.currentUserTeamId();
@@ -48,19 +51,107 @@ export class TeamBidsComponent {
   }
 
   /**
-   * Get player name by ID
+   * Get player initials for fallback when no photo
    */
-  getPlayerName(playerId: string): string {
-    const player = this.availablePlayers().find((p) => p.id === playerId);
-    return player?.name || 'Unknown Player';
+  getPlayerInitials(playerId: string): string {
+    if (!this.sportsDataReady()) return '?';
+    const playerIdNum = parseInt(playerId);
+    if (isNaN(playerIdNum)) return '?';
+    const player = this.sportsDataService.getPlayerById(playerIdNum);
+    if (!player?.FirstName || !player?.LastName) return '?';
+
+    return (player.FirstName[0] + player.LastName[0]).toUpperCase();
   }
 
   /**
-   * Get player position by ID
+   * Get player photo URL from sports data
+   */
+  getPlayerPhotoUrl(playerId: string): string | null {
+    if (!this.sportsDataReady()) return null;
+    const playerIdNum = parseInt(playerId);
+    if (isNaN(playerIdNum)) return null;
+    const player = this.sportsDataService.getPlayerById(playerIdNum);
+    return player?.PhotoUrl || null;
+  }
+
+  /**
+   * Get team logo URL for a player
+   */
+  getTeamLogoUrl(playerId: string): string | null {
+    if (!this.sportsDataReady()) return null;
+    const playerIdNum = parseInt(playerId);
+    if (isNaN(playerIdNum)) return null;
+    const player = this.sportsDataService.getPlayerById(playerIdNum);
+    return player?.teamInfo?.WikipediaLogoUrl || null;
+  }
+
+  /**
+   * Get player first name
+   */
+  getPlayerFirstName(playerId: string): string {
+    if (!this.sportsDataReady()) return 'Unknown';
+    const playerIdNum = parseInt(playerId);
+    if (isNaN(playerIdNum)) return 'Unknown';
+    const player = this.sportsDataService.getPlayerById(playerIdNum);
+    return player?.FirstName || 'Unknown';
+  }
+
+  /**
+   * Get player last name
+   */
+  getPlayerLastName(playerId: string): string {
+    if (!this.sportsDataReady()) return 'Player';
+    const playerIdNum = parseInt(playerId);
+    if (isNaN(playerIdNum)) return 'Player';
+    const player = this.sportsDataService.getPlayerById(playerIdNum);
+    return player?.LastName || 'Player';
+  }
+
+  /**
+   * Get player jersey number
+   */
+  getPlayerNumber(playerId: string): string {
+    if (!this.sportsDataReady()) return '';
+    const playerIdNum = parseInt(playerId);
+    if (isNaN(playerIdNum)) return '';
+    const player = this.sportsDataService.getPlayerById(playerIdNum);
+    return player?.Number ? `#${player.Number}` : '';
+  }
+
+  /**
+   * Get player position
    */
   getPlayerPosition(playerId: string): string {
-    const player = this.availablePlayers().find((p) => p.id === playerId);
-    return player?.position || 'Unknown';
+    if (!this.sportsDataReady()) return 'Unknown';
+    const playerIdNum = parseInt(playerId);
+    if (isNaN(playerIdNum)) return 'Unknown';
+    const player = this.sportsDataService.getPlayerById(playerIdNum);
+    return player?.Position || 'Unknown';
+  }
+
+  /**
+   * Get team name for a player
+   */
+  getTeamName(playerId: string): string {
+    if (!this.sportsDataReady()) return 'Unknown Team';
+    const playerIdNum = parseInt(playerId);
+    if (isNaN(playerIdNum)) return 'Unknown Team';
+    const player = this.sportsDataService.getPlayerById(playerIdNum);
+    return player?.teamInfo?.FullName || 'Unknown Team';
+  }
+
+  /**
+   * Get team initials for fallback display
+   */
+  getTeamInitials(playerId: string): string {
+    const teamName = this.getTeamName(playerId);
+    if (teamName === 'Unknown Team') return '?';
+
+    return teamName
+      .split(' ')
+      .map((word) => word[0])
+      .join('')
+      .toUpperCase();
   }
 
   /**
@@ -90,28 +181,6 @@ export class TeamBidsComponent {
       default:
         return 'info';
     }
-  }
-
-  /**
-   * Get player photo URL from sports data
-   */
-  getPlayerPhotoUrl(playerId: string): string | null {
-    const player = this.sportsDataService.getPlayerById(parseInt(playerId));
-    return player?.PhotoUrl || null;
-  }
-
-  /**
-   * Get player initials for fallback when no photo
-   */
-  getPlayerInitials(playerId: string): string {
-    const player = this.availablePlayers().find((p) => p.id === playerId);
-    if (!player?.name) return '?';
-
-    const names = player.name.split(' ');
-    if (names.length >= 2) {
-      return (names[0][0] + names[names.length - 1][0]).toUpperCase();
-    }
-    return player.name.substring(0, 2).toUpperCase();
   }
 
   /**
