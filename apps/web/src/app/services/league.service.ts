@@ -16,7 +16,10 @@ import {
   getDoc,
 } from '@angular/fire/firestore';
 import { AuthService } from './auth.service';
-import { LeagueMembershipService } from './league-membership.service';
+import {
+  LeagueMembershipService,
+  LeaguePermissions,
+} from './league-membership.service';
 import { TeamService } from './team.service';
 import { UserProfileService } from './user-profile.service';
 import {
@@ -54,6 +57,31 @@ export interface FirestoreLeague {
   updatedAt: Date;
 }
 
+// New interfaces for cached data
+export interface LeagueTeam {
+  id: string;
+  leagueId: string;
+  name: string;
+  ownerUserId: string;
+  capSpace: number;
+  roster: any[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface LeagueMember {
+  userId: string;
+  leagueId: string;
+  role: 'owner' | 'commissioner' | 'general-manager' | 'member';
+  teamName: string;
+  teamId: string;
+  capSpace: number;
+  roster: any[];
+  joinedAt: Date;
+  isActive: boolean;
+  permissions: LeaguePermissions;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -69,6 +97,11 @@ export class LeagueService {
   private _error = signal<string | null>(null);
   private _selectedLeagueId = signal<string | null>(null);
 
+  // New: Cached league data signals
+  private _leagueTeams = signal<LeagueTeam[]>([]);
+  private _leagueMembers = signal<LeagueMember[]>([]);
+  private _isLoadingLeagueData = signal(false);
+
   // Public readonly signals
   public userLeagues = this._userLeagues.asReadonly();
   public isLoading = this._isLoading.asReadonly();
@@ -80,6 +113,30 @@ export class LeagueService {
     this._userLeagues().find((league) => league.id === this._selectedLeagueId())
   );
 
+  // New: Public cached data signals
+  public leagueTeams = this._leagueTeams.asReadonly();
+  public leagueMembers = this._leagueMembers.asReadonly();
+  public isLoadingLeagueData = this._isLoadingLeagueData.asReadonly();
+  public hasLeagueData = computed(
+    () => this._leagueTeams().length > 0 || this._leagueMembers().length > 0
+  );
+
+  // New: Computed values for easy access
+  public currentUserTeam = computed(() => {
+    const currentUser = this.authService.currentUser();
+    if (!currentUser) return null;
+
+    return this._leagueMembers().find(
+      (member) => member.userId === currentUser.uid && member.isActive
+    );
+  });
+
+  public currentUserTeamId = computed(
+    () => this.currentUserTeam()?.teamId || null
+  );
+  public currentUserRole = computed(() => this.currentUserTeam()?.role || null);
+  public teamsCount = computed(() => this._leagueTeams().length);
+
   // Effect: Automatically load permissions when selected league changes
   constructor() {
     effect(() => {
@@ -89,10 +146,19 @@ export class LeagueService {
         selectedLeagueId
       );
 
-      // Load permissions for the new selected league
-      this.leagueMembershipService.loadCurrentLeaguePermissions(
-        selectedLeagueId
-      );
+      if (selectedLeagueId) {
+        // Load permissions for the new selected league
+        this.leagueMembershipService.loadCurrentLeaguePermissions(
+          selectedLeagueId
+        );
+
+        // Load all league data when league is selected
+        this.loadLeagueData(selectedLeagueId);
+      } else {
+        // Clear cached data when no league is selected
+        this._leagueTeams.set([]);
+        this._leagueMembers.set([]);
+      }
     });
   }
 
@@ -297,17 +363,33 @@ export class LeagueService {
   }
 
   /**
-   * Get teams for a league (now reads from unified members structure)
+   * Load league data for a specific league
    */
-  async getLeagueTeams(leagueId: string): Promise<{ teams: any[] }> {
+  async loadLeagueData(leagueId: string): Promise<void> {
     try {
-      // Get league members which now contain team data
+      this._isLoadingLeagueData.set(true);
+      this._error.set(null);
+
+      // Load league members (which contain team data)
       const members = await this.leagueMembershipService.getLeagueMembers(
         leagueId
       );
 
-      // Transform members to team format for compatibility
-      const teams = members.map((member) => ({
+      // Transform members to both member and team formats
+      const leagueMembers: LeagueMember[] = members.map((member) => ({
+        userId: member.userId,
+        leagueId: member.leagueId,
+        role: member.role,
+        teamName: member.teamName,
+        teamId: member.teamId,
+        capSpace: member.capSpace,
+        roster: member.roster,
+        joinedAt: member.joinedAt,
+        isActive: member.isActive,
+        permissions: member.permissions,
+      }));
+
+      const leagueTeams: LeagueTeam[] = members.map((member) => ({
         id: member.teamId,
         leagueId: member.leagueId,
         name: member.teamName,
@@ -318,11 +400,66 @@ export class LeagueService {
         updatedAt: member.joinedAt,
       }));
 
-      return { teams };
+      // Update signals
+      this._leagueMembers.set(leagueMembers);
+      this._leagueTeams.set(leagueTeams);
+    } catch (error) {
+      console.error('[LeagueService] Error loading league data:', error);
+      this._error.set(
+        error instanceof Error ? error.message : 'Failed to load league data'
+      );
+
+      // Clear data on error
+      this._leagueTeams.set([]);
+      this._leagueMembers.set([]);
+    } finally {
+      this._isLoadingLeagueData.set(false);
+    }
+  }
+
+  /**
+   * Get teams for a league (now reads from cached signals)
+   */
+  async getLeagueTeams(leagueId: string): Promise<{ teams: LeagueTeam[] }> {
+    try {
+      // If we already have the data cached and it's for the requested league, return it
+      if (
+        this._selectedLeagueId() === leagueId &&
+        this._leagueTeams().length > 0
+      ) {
+        console.log('Returning cached teams for league:', leagueId);
+        return { teams: this._leagueTeams() };
+      }
+
+      // Otherwise, load the data
+      await this.loadLeagueData(leagueId);
+      return { teams: this._leagueTeams() };
     } catch (error) {
       console.error('Error fetching league teams:', error);
-      // Return empty array if there's an error
       return { teams: [] };
+    }
+  }
+
+  /**
+   * Get league members (now reads from cached signals)
+   */
+  async getLeagueMembers(leagueId: string): Promise<LeagueMember[]> {
+    try {
+      // If we already have the data cached and it's for the requested league, return it
+      if (
+        this._selectedLeagueId() === leagueId &&
+        this._leagueMembers().length > 0
+      ) {
+        console.log('Returning cached members for league:', leagueId);
+        return this._leagueMembers();
+      }
+
+      // Otherwise, load the data
+      await this.loadLeagueData(leagueId);
+      return this._leagueMembers();
+    } catch (error) {
+      console.error('Error fetching league members:', error);
+      return [];
     }
   }
 

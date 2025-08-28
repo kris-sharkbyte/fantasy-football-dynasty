@@ -1,470 +1,257 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
-import {
-  Firestore,
-  collection,
-  query,
-  where,
-  orderBy,
-  limit,
-  getDocs,
-  doc,
-  getDoc,
-} from '@angular/fire/firestore';
-import {
-  EnhancedPlayerMinimumCalculator,
-  LeagueCapContext,
-  MarketRippleContext,
-} from '@fantasy-football-dynasty/domain';
-import { PlayerDataService, SleeperPlayer } from './player-data.service';
 import { LeagueService } from './league.service';
-import { TeamService } from './team.service';
+import {
+  ContractMinimumCalculator,
+  EnhancedPlayerMinimumCalculator,
+  PlayerRatingCalculator,
+  type LeagueCapContext,
+  type MarketRippleContext,
+} from '@fantasy-football-dynasty/domain';
 
 @Injectable({
   providedIn: 'root',
 })
 export class EnhancedPlayerMinimumService {
-  private readonly firestore = inject(Firestore);
-  private readonly playerDataService = inject(PlayerDataService);
   private readonly leagueService = inject(LeagueService);
-  private readonly teamService = inject(TeamService);
-
-  // Private state signals
-  private _leagueCapContext = signal<LeagueCapContext | null>(null);
-  private _marketRippleContext = signal<MarketRippleContext | null>(null);
-
-  // Public readonly signals
-  public leagueCapContext = this._leagueCapContext.asReadonly();
-  public marketRippleContext = this._marketRippleContext.asReadonly();
 
   constructor() {
-    // Don't call async method in constructor - it won't work
-    // this.initializeContexts();
+    // No initialization needed for simple calculation
   }
 
   /**
-   * Initialize league cap context and market ripple context
+   * Calculate player minimum using the comprehensive system from domain.ts
+   * This leverages ContractMinimumCalculator and EnhancedPlayerMinimumCalculator
    */
-  private async initializeContexts(): Promise<void> {
+  async calculatePlayerMinimum(player: any): Promise<number | null> {
     try {
-      await this.loadLeagueCapContext();
-      await this.loadMarketRippleContext();
-    } catch (error) {
-      console.error('Failed to initialize contexts:', error);
-    }
-  }
-
-  /**
-   * Ensure contexts are loaded before use
-   */
-  private async ensureContextsLoaded(): Promise<void> {
-    if (!this._leagueCapContext() || !this._marketRippleContext()) {
-      await this.initializeContexts();
-    }
-  }
-
-  /**
-   * Load league cap context from Firestore
-   */
-  private async loadLeagueCapContext(): Promise<void> {
-    try {
-      const currentLeague = this.leagueService.selectedLeague();
-      if (!currentLeague) return;
-
-      // Get league settings for cap information
-      const leagueRef = doc(this.firestore, 'leagues', currentLeague.id);
-      const leagueDoc = await getDoc(leagueRef);
-
-      if (!leagueDoc.exists()) return;
-
-      const leagueData = leagueDoc.data();
-
-      // Get team cap information
-      const teamsRef = collection(this.firestore, 'teams');
-      const teamsQuery = query(
-        teamsRef,
-        where('leagueId', '==', currentLeague.id)
-      );
-      const teamsSnapshot = await getDocs(teamsQuery);
-
-      let totalCapSpace = 0;
-      let teamCount = 0;
-
-      teamsSnapshot.forEach((doc) => {
-        const teamData = doc.data();
-        totalCapSpace += teamData['capSpace'] || 0;
-        teamCount++;
-      });
-
-      const averageTeamCapSpace = teamCount > 0 ? totalCapSpace / teamCount : 0;
-
-      // Get recent signings for market context
-      const recentSignings = await this.getRecentSignings(currentLeague.id);
-
-      // Determine league health based on cap space
-      const leagueHealth = this.determineLeagueHealth(
-        averageTeamCapSpace,
-        leagueData['salaryCap']
-      );
-
-      const context: LeagueCapContext = {
-        currentYearCap: leagueData['salaryCap'] || 200000000, // Default $200M cap
-        projectedCapGrowth: leagueData['capGrowth'] || 0.05, // Default 5% growth
-        totalTeamCapSpace: totalCapSpace,
-        averageTeamCapSpace,
-        recentSignings,
-        marketBenchmarks: await this.calculateMarketBenchmarks(recentSignings),
-        leagueHealth,
-      };
-
-      this._leagueCapContext.set(context);
-    } catch (error) {
-      console.error('Failed to load league cap context:', error);
-    }
-  }
-
-  /**
-   * Load market ripple context from Firestore
-   */
-  private async loadMarketRippleContext(): Promise<void> {
-    try {
-      const currentLeague = this.leagueService.selectedLeague();
-      if (!currentLeague) return;
-
-      // Get recent signings to analyze market ripple effects
-      const recentSignings = await this.getRecentSignings(currentLeague.id);
-
-      // Analyze market trends from recent signings
-      const marketRipple = this.analyzeMarketTrends(recentSignings);
-
-      this._marketRippleContext.set(marketRipple);
-    } catch (error) {
-      console.error('Failed to load market ripple context:', error);
-    }
-  }
-
-  /**
-   * Get recent signings from Firestore
-   */
-  private async getRecentSignings(leagueId: string): Promise<any[]> {
-    try {
-      // Get recent FA signings
-      const faSigningsRef = collection(this.firestore, 'faSignings');
-      const faQuery = query(
-        faSigningsRef,
-        where('leagueId', '==', leagueId),
-        orderBy('signedAt', 'desc'),
-        limit(20)
-      );
-      const faSnapshot = await getDocs(faQuery);
-
-      const faSignings = faSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      // Get recent open FA signings
-      const openFARef = collection(this.firestore, 'openFASignings');
-      const openFAQuery = query(
-        openFARef,
-        where('leagueId', '==', leagueId),
-        orderBy('signedAt', 'desc'),
-        limit(20)
-      );
-      const openFASnapshot = await getDocs(openFAQuery);
-
-      const openFASignings = openFASnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      // Combine and sort by date
-      const allSignings = [...faSignings, ...openFASignings];
-      return allSignings.sort((a: any, b: any) => {
-        const aDate = a['signedAt']?.toDate?.() || new Date(0);
-        const bDate = b['signedAt']?.toDate?.() || new Date(0);
-        return bDate.getTime() - aDate.getTime();
-      });
-    } catch (error) {
-      console.error('Failed to get recent signings:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Calculate market benchmarks by position
-   */
-  private async calculateMarketBenchmarks(
-    recentSignings: any[]
-  ): Promise<Record<string, number>> {
-    const benchmarks: Record<string, number> = {};
-
-    // Group signings by position
-    const positionGroups: Record<string, any[]> = {};
-
-    recentSignings.forEach((signing) => {
-      const position = signing.player?.position || signing.contract?.position;
-      if (position) {
-        if (!positionGroups[position]) {
-          positionGroups[position] = [];
-        }
-        positionGroups[position].push(signing);
+      if (!player || !player.overall || !player.position) {
+        return null;
       }
-    });
 
-    // Calculate average contract value by position
-    Object.entries(positionGroups).forEach(([position, signings]) => {
-      const totalValue = signings.reduce((sum, signing) => {
-        return (
-          sum + (signing.contract?.apy || signing.contract?.totalValue || 0)
+      // Get league context for enhanced calculation
+      const leagueContext = await this.getLeagueCapContext();
+      const marketRipple = await this.getMarketRippleContext();
+
+      // Use the enhanced calculator from domain.ts
+      const enhancedMinimum =
+        EnhancedPlayerMinimumCalculator.calculateEnhancedMinimum(
+          player,
+          leagueContext,
+          marketRipple
         );
-      }, 0);
 
-      benchmarks[position] = totalValue / signings.length;
-    });
+      return enhancedMinimum;
+    } catch (error) {
+      console.error('Error calculating enhanced player minimum:', error);
 
-    return benchmarks;
+      // Fallback to basic calculation if enhanced fails
+      return this.calculateBasicMinimum(player);
+    }
   }
 
   /**
-   * Determine league health based on cap space
+   * Fallback basic calculation using ContractMinimumCalculator
    */
-  private determineLeagueHealth(
-    averageTeamCapSpace: number,
-    salaryCap: number
-  ): 'healthy' | 'struggling' | 'prosperous' {
-    const capSpacePercentage = averageTeamCapSpace / salaryCap;
+  private calculateBasicMinimum(player: any): number {
+    try {
+      // Determine player tier using the sophisticated system
+      const tier = ContractMinimumCalculator.determinePlayerTier(
+        player.overall || 70,
+        player.years_exp || 0,
+        player.position
+      );
 
-    if (capSpacePercentage > 0.15) return 'prosperous';
-    if (capSpacePercentage < 0.05) return 'struggling';
-    return 'healthy';
+      // Calculate age (handle both Age property and BirthDate)
+      let age = player.age;
+      if (!age && player.BirthDate) {
+        age = this.calculateAgeFromBirthDate(player.BirthDate);
+      }
+      if (!age) age = 25; // Default age
+
+      // Get salary cap from league or use default
+      const salaryCap = this.getSalaryCap();
+
+      // Calculate minimum using the tier-based system
+      const minimum = ContractMinimumCalculator.calculateMinimumContract(
+        tier,
+        age,
+        player.position,
+        salaryCap
+      );
+
+      return minimum;
+    } catch (error) {
+      console.error('Error in basic minimum calculation:', error);
+
+      // Ultimate fallback: simple formula
+      const baseMinimum = (player.overall || 70) * 50000;
+      return Math.max(100000, Math.min(50000000, baseMinimum));
+    }
   }
 
   /**
-   * Analyze market trends from recent signings
+   * Calculate age from birth date string
    */
-  private analyzeMarketTrends(recentSignings: any[]): MarketRippleContext {
-    // Group signings by position and analyze trends
-    const positionTrends = this.analyzePositionTrends(recentSignings);
-    const tierTrends = this.analyzeTierTrends(recentSignings);
+  private calculateAgeFromBirthDate(birthDate: string): number {
+    if (!birthDate) return 25;
 
-    // Convert recent signings to market ripple format
-    const similarPlayerSignings = recentSignings
-      .map((signing) => {
-        const player = signing.player;
-        if (!player) return null;
+    try {
+      const birth = new Date(birthDate);
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
 
-        const tier = this.determinePlayerTier(
-          player.overall,
-          player.years_exp || 0,
-          player.position
-        );
-        const contractValue =
-          signing.contract?.apy || signing.contract?.totalValue || 0;
-        const expectedValue = player.overall * 100000;
+      if (
+        monthDiff < 0 ||
+        (monthDiff === 0 && today.getDate() < birth.getDate())
+      ) {
+        age--;
+      }
 
-        let marketImpact: 'positive' | 'negative' | 'neutral';
-        if (contractValue < expectedValue * 0.8) {
-          marketImpact = 'negative';
-        } else if (contractValue > expectedValue * 1.2) {
-          marketImpact = 'positive';
-        } else {
-          marketImpact = 'neutral';
-        }
+      return age;
+    } catch (error) {
+      console.warn('Error calculating age from birth date:', birthDate, error);
+      return 25;
+    }
+  }
 
-        return {
-          playerId: player.id || player.player_id,
-          position: player.position,
-          tier,
-          contractValue,
-          signedAt: signing['signedAt']?.toDate?.() || new Date(),
-          marketImpact,
-        };
-      })
-      .filter((item): item is NonNullable<typeof item> => item !== null);
+  /**
+   * Get salary cap from league or use default
+   */
+  private getSalaryCap(): number {
+    try {
+      const league = this.leagueService.selectedLeague();
+      return league?.rules?.cap?.salaryCap || 200000000; // Default $200M cap
+    } catch (error) {
+      return 200000000; // Default fallback
+    }
+  }
 
+  /**
+   * Get league cap context for enhanced calculation
+   */
+  private async getLeagueCapContext(): Promise<LeagueCapContext> {
+    try {
+      const league = this.leagueService.selectedLeague();
+      const salaryCap = this.getSalaryCap();
+
+      // Default context if league data not available
+      return {
+        currentYearCap: salaryCap,
+        projectedCapGrowth: 0.06, // 6% growth
+        totalTeamCapSpace: salaryCap * 0.1, // Assume 10% total cap space
+        averageTeamCapSpace: salaryCap * 0.01, // Assume 1% average per team
+        recentSignings: [], // No recent signings data yet
+        marketBenchmarks: this.getDefaultMarketBenchmarks(),
+        leagueHealth: 'healthy' as const,
+      };
+    } catch (error) {
+      // Return default context
+      return {
+        currentYearCap: 200000000,
+        projectedCapGrowth: 0.06,
+        totalTeamCapSpace: 20000000,
+        averageTeamCapSpace: 2000000,
+        recentSignings: [],
+        marketBenchmarks: this.getDefaultMarketBenchmarks(),
+        leagueHealth: 'healthy' as const,
+      };
+    }
+  }
+
+  /**
+   * Get market ripple context for enhanced calculation
+   */
+  private async getMarketRippleContext(): Promise<MarketRippleContext> {
+    // Default market context since we don't have historical data yet
     return {
-      similarPlayerSignings,
-      positionMarketTrend: positionTrends,
-      tierMarketTrend: tierTrends,
+      similarPlayerSignings: [],
+      positionMarketTrend: 'stable' as const,
+      tierMarketTrend: 'stable' as const,
       recentMarketShifts: [],
     };
   }
 
   /**
-   * Analyze position-specific market trends
+   * Get default market benchmarks by position
    */
-  private analyzePositionTrends(
-    recentSignings: any[]
-  ): 'rising' | 'falling' | 'stable' {
-    // Simple trend analysis based on recent contract values
-    // In a real implementation, this would be more sophisticated
-    return 'stable';
-  }
-
-  /**
-   * Analyze tier-specific market trends
-   */
-  private analyzeTierTrends(
-    recentSignings: any[]
-  ): 'rising' | 'falling' | 'stable' {
-    // Simple trend analysis based on recent contract values
-    // In a real implementation, this would be more sophisticated
-    return 'stable';
-  }
-
-  /**
-   * Determine player tier (copied from domain logic for consistency)
-   */
-  private determinePlayerTier(
-    overall: number,
-    yearsExp: number,
-    position: string
-  ): 'elite' | 'starter' | 'depth' {
-    if (overall >= 85 || (yearsExp >= 3 && overall >= 80)) {
-      return 'elite';
-    }
-    if (overall >= 75 || (yearsExp <= 2 && overall >= 70)) {
-      return 'starter';
-    }
-    return 'depth';
-  }
-
-  /**
-   * Calculate enhanced minimum for a player
-   */
-  public async calculatePlayerMinimum(player: any): Promise<number> {
-    console.log('Calculating player minimum for:', player);
-
-    // Ensure contexts are loaded
-    await this.ensureContextsLoaded();
-
-    const leagueContext = this._leagueCapContext();
-    const marketRipple = this._marketRippleContext();
-
-    console.log('League context:', leagueContext);
-    console.log('Market ripple:', marketRipple);
-
-    if (!leagueContext || !marketRipple) {
-      console.log('Contexts not loaded, using simple calculation');
-      // Fallback to simple calculation if contexts aren't loaded
-      return this.calculateSimpleMinimum(player);
-    }
-
-    try {
-      const result = EnhancedPlayerMinimumCalculator.calculateEnhancedMinimum(
-        player,
-        leagueContext,
-        marketRipple
-      );
-      console.log('Enhanced minimum calculated:', result);
-      return result;
-    } catch (error) {
-      console.error(
-        'Failed to calculate enhanced minimum, falling back to simple:',
-        error
-      );
-      return this.calculateSimpleMinimum(player);
-    }
-  }
-
-  /**
-   * Calculate simple minimum as fallback
-   */
-  private calculateSimpleMinimum(player: any): number {
-    console.log('Using simple calculation for player:', player);
-
-    const baseValue = player.overall * 100000; // $100k per overall point
-
-    // Apply basic position modifiers
-    let positionModifier = 1.0;
-    switch (player.position) {
-      case 'QB':
-        positionModifier = 1.2;
-        break;
-      case 'RB':
-      case 'WR':
-        positionModifier = 1.0;
-        break;
-      case 'TE':
-        positionModifier = 0.8;
-        break;
-      case 'K':
-        positionModifier = 0.3;
-        break;
-      case 'DEF':
-        positionModifier = 0.6;
-        break;
-    }
-
-    const result = Math.round(baseValue * positionModifier);
-    console.log(
-      'Simple minimum calculated:',
-      result,
-      'baseValue:',
-      baseValue,
-      'positionModifier:',
-      positionModifier
-    );
-    return result;
-  }
-
-  /**
-   * Update market ripple context when a new signing occurs
-   */
-  public updateMarketRipple(signedPlayer: any, contractValue: number): void {
-    const currentRipple = this._marketRippleContext();
-    if (!currentRipple) return;
-
-    try {
-      const updatedRipple = EnhancedPlayerMinimumCalculator.analyzeMarketRipple(
-        signedPlayer,
-        contractValue,
-        currentRipple
-      );
-
-      this._marketRippleContext.set(updatedRipple);
-    } catch (error) {
-      console.error('Failed to update market ripple:', error);
-    }
+  private getDefaultMarketBenchmarks(): Record<string, number> {
+    return {
+      QB: 15000000, // $15M for QBs
+      RB: 8000000, // $8M for RBs
+      WR: 10000000, // $10M for WRs
+      TE: 7000000, // $7M for TEs
+      K: 3000000, // $3M for Kickers
+      DEF: 5000000, // $5M for Defense
+      DL: 6000000, // $6M for DL
+      LB: 6000000, // $6M for LBs
+      DB: 5000000, // $5M for DBs
+    };
   }
 
   /**
    * Get market context summary for display
    */
-  public async getMarketContextSummary(): Promise<{
-    leagueHealth: string;
-    averageCapSpace: string;
-    recentSigningsCount: number;
-    marketTrends: Record<string, string>;
-  } | null> {
-    // Ensure contexts are loaded
-    await this.ensureContextsLoaded();
+  async getMarketContextSummary() {
+    try {
+      const leagueContext = await this.getLeagueCapContext();
 
-    const leagueContext = this._leagueCapContext();
-    const marketRipple = this._marketRippleContext();
-
-    if (!leagueContext || !marketRipple) return null;
-
-    return {
-      leagueHealth: leagueContext.leagueHealth,
-      averageCapSpace: this.formatCurrency(leagueContext.averageTeamCapSpace),
-      recentSigningsCount: leagueContext.recentSignings.length,
-      marketTrends: {
-        position: marketRipple.positionMarketTrend,
-        tier: marketRipple.tierMarketTrend,
-      },
-    };
+      return {
+        averageTeamCapSpace: leagueContext.averageTeamCapSpace,
+        totalLeagueCapSpace: leagueContext.totalTeamCapSpace,
+        recentSignings: leagueContext.recentSignings,
+        marketTrends: leagueContext.leagueHealth,
+        salaryCap: leagueContext.currentYearCap,
+        projectedGrowth: leagueContext.projectedCapGrowth,
+      };
+    } catch (error) {
+      // Return default summary
+      return {
+        averageTeamCapSpace: 2000000,
+        totalLeagueCapSpace: 20000000,
+        recentSignings: [],
+        marketTrends: 'healthy',
+        salaryCap: 200000000,
+        projectedGrowth: 0.06,
+      };
+    }
   }
 
   /**
-   * Format currency for display
+   * Validate if a contract meets minimum requirements
    */
-  private formatCurrency(amount: number): string {
-    if (amount >= 1000000) {
-      return `$${(amount / 1000000).toFixed(1)}M`;
-    } else if (amount >= 1000) {
-      return `$${(amount / 1000).toFixed(0)}K`;
+  async validateContractMinimum(
+    contract: any,
+    player: any,
+    isRookie: boolean = false,
+    draftRound?: number
+  ) {
+    try {
+      const salaryCap = this.getSalaryCap();
+
+      return ContractMinimumCalculator.validateContractMinimum(
+        contract,
+        {
+          age:
+            player.age ||
+            this.calculateAgeFromBirthDate(player.BirthDate) ||
+            25,
+          position: player.position,
+          overall: player.overall || 70,
+          yearsExp: player.years_exp || 0,
+        },
+        salaryCap,
+        isRookie,
+        draftRound
+      );
+    } catch (error) {
+      console.error('Error validating contract minimum:', error);
+      return {
+        isValid: false,
+        minimumRequired: 0,
+        currentValue: 0,
+        message: 'Error validating contract minimum',
+      };
     }
-    return `$${amount.toLocaleString()}`;
   }
 }

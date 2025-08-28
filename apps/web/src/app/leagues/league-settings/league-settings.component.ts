@@ -53,13 +53,18 @@ export class LeagueSettingsComponent implements OnInit {
   isPrivate = signal(false);
   joinCode = signal<string>('');
   isRandomizing = signal(false);
-  teams = signal<any[]>([]);
+  
+  // Remove the teams signal since we'll use the cached one from league service
+  // teams = signal<any[]>([]);
 
   private readonly leagueService = inject(LeagueService);
   private readonly messageService = inject(MessageService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly fb = inject(FormBuilder);
   public readonly draftSimulationService = inject(DraftSimulationService);
+
+  // Use cached league teams from the service
+  readonly leagueTeams = this.leagueService.leagueTeams;
 
   constructor() {
     this.settingsForm = this.fb.group({
@@ -98,8 +103,19 @@ export class LeagueSettingsComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.initializeForm();
-    this.loadTeams();
+    // Initialize form with league data
+    this.settingsForm.patchValue({
+      name: this.league().name,
+      description: this.league().description,
+      isPrivate: this.league().isPrivate,
+      roster: this.league().rules.roster,
+    });
+
+    this.isPrivate.set(this.league().isPrivate);
+    this.joinCode.set(this.league().joinCode);
+
+    // No need to manually load teams - they're loaded automatically when the league is selected
+    console.log('League settings component initialized');
   }
 
   private initializeForm(): void {
@@ -207,24 +223,10 @@ export class LeagueSettingsComponent implements OnInit {
   }
 
   /**
-   * Load teams for the league
-   */
-  private async loadTeams(): Promise<void> {
-    try {
-      const teamsResponse = await this.leagueService.getLeagueTeams(
-        this.league().id
-      );
-      this.teams.set(teamsResponse.teams);
-    } catch (error) {
-      console.error('Error loading teams:', error);
-    }
-  }
-
-  /**
    * Get team name by ID
    */
   getTeamName(teamId: string): string {
-    const team = this.teams().find((t) => t.id === teamId);
+    const team = this.leagueTeams().find((t) => t.id === teamId);
     return team ? team.name : 'Unknown Team';
   }
 

@@ -21,7 +21,7 @@ export const selectedLeagueGuard: CanActivateFn = async (route, state) => {
     const selectedLeagueId = leagueService.selectedLeagueId();
     if (selectedLeagueId !== leagueId) {
       console.log('Setting selected league ID in guard:', leagueId);
-      //   leagueService.setSelectedLeagueId(leagueId);
+      leagueService.setSelectedLeagueId(leagueId);
     }
 
     console.log('Selected league guard: Selected league ID:', leagueId);
@@ -31,28 +31,16 @@ export const selectedLeagueGuard: CanActivateFn = async (route, state) => {
 
     if (isRosterRoute) {
       // For roster route, check if user is a member using existing data
-      let existingMemberships = leagueMembershipService.userMemberships();
-
-      console.log(
-        'Roster route check - Initial memberships:',
-        existingMemberships
-      );
-
-      // If no memberships loaded yet, load them first
-      if (existingMemberships.length === 0) {
-        console.log('No memberships loaded yet, loading now...');
-        await leagueMembershipService.loadUserMemberships();
-        existingMemberships = leagueMembershipService.userMemberships();
-        console.log('Memberships after loading:', existingMemberships);
-      }
-
+      // Don't call services - just validate what we already have
+      const existingMemberships = leagueMembershipService.userMemberships();
       const isMember = existingMemberships.some(
         (m) => m.leagueId === leagueId && m.isActive
       );
-      console.log('Membership check result:', {
+
+      console.log('Roster route membership check:', {
         leagueId,
         isMember,
-        memberships: existingMemberships,
+        membershipsCount: existingMemberships.length,
       });
 
       if (!isMember) {

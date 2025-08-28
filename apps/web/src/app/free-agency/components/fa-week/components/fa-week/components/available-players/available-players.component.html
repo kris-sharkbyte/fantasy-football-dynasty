@@ -1,0 +1,215 @@
+<div class="players-section">
+  <!-- PrimeNG Table for Players -->
+  <p-table
+    [value]="filteredPlayers()"
+    [paginator]="true"
+    [rows]="20"
+    [showCurrentPageReport]="true"
+    [tableStyle]="{ 'min-width': '50rem' }"
+    [rowHover]="true"
+    [rowsPerPageOptions]="[10, 20, 50]"
+    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} players"
+    [globalFilterFields]="['name', 'nflTeam', 'position']"
+    class="p-datatable-sm"
+  >
+    <!-- Global Search Header -->
+    <ng-template pTemplate="caption">
+      <div class="table-header">
+        <div class="table-title">
+          <h4>Available Players</h4>
+          <span class="player-count">
+            {{ filteredPlayers().length }} players available
+          </span>
+        </div>
+        <div class="flex table-search">
+          <!-- Simple position filter dropdown -->
+          <p-select
+            class="w-56"
+            [options]="[
+              { label: 'All Positions', value: 'all' },
+              { label: 'QB', value: 'QB' },
+              { label: 'RB', value: 'RB' },
+              { label: 'WR', value: 'WR' },
+              { label: 'TE', value: 'TE' },
+              { label: 'K', value: 'K' },
+              { label: 'DEF', value: 'DEF' },
+              { label: 'DL', value: 'DL' },
+              { label: 'LB', value: 'LB' },
+              { label: 'DB', value: 'DB' }
+            ]"
+            placeholder="All Positions"
+            [(ngModel)]="positionFilter"
+            (onChange)="filterPlayersByPosition($event.value)"
+          >
+          </p-select>
+
+          <p-iconfield iconPosition="left" class="ml-auto">
+            <p-inputicon>
+              <i class="pi pi-search"></i>
+            </p-inputicon>
+            <input
+              pInputText
+              type="text"
+              (input)="updateSearchQuery($event.target.value)"
+              placeholder="Search players..."
+              class="w-20rem"
+            />
+          </p-iconfield>
+        </div>
+      </div>
+    </ng-template>
+
+    <!-- Position Column -->
+    <ng-template pTemplate="header">
+      <tr>
+        <th class="sortable-header" (click)="onSort('position')">
+          Position
+          <i [class]="getSortIcon('position')" class="sort-icon"></i>
+        </th>
+        <th class="sortable-header" (click)="onSort('name')">
+          Player
+          <i [class]="getSortIcon('name')" class="sort-icon"></i>
+        </th>
+        <th class="sortable-header" (click)="onSort('age')">
+          Age
+          <i [class]="getSortIcon('age')" class="sort-icon"></i>
+        </th>
+        <th class="sortable-header" (click)="onSort('overall')">
+          Overall
+          <i [class]="getSortIcon('overall')" class="sort-icon"></i>
+        </th>
+        <th class="sortable-header" (click)="onSort('nflTeam')">
+          NFL Team
+          <i [class]="getSortIcon('nflTeam')" class="sort-icon"></i>
+        </th>
+        <th class="sortable-header" (click)="onSort('estMin')">
+          Est. Min
+          <i [class]="getSortIcon('estMin')" class="sort-icon"></i>
+        </th>
+        <th class="sortable-header" (click)="onSort('bids')">
+          Bids
+          <i [class]="getSortIcon('bids')" class="sort-icon"></i>
+        </th>
+        <th>Actions</th>
+      </tr>
+    </ng-template>
+
+    <!-- Player Rows -->
+    <ng-template pTemplate="body" let-player>
+      <tr [class.has-team-bid]="hasTeamBid(player.id)" class="player-row">
+        <!-- Position -->
+        <td>
+          <p-tag
+            [value]="player.position"
+            [styleClass]="getPositionColorClass(player.position)"
+            styleClass="position-tag"
+          ></p-tag>
+        </td>
+
+        <!-- Player Name -->
+        <td>
+          <div class="player-name-cell">
+            <span class="player-name">{{ player.name }}</span>
+            <span class="bid-indicator" *ngIf="hasTeamBid(player.id)">
+              <i
+                class="pi pi-star-fill"
+                style="color: var(--primary-color)"
+              ></i>
+            </span>
+          </div>
+        </td>
+
+        <!-- Age -->
+        <td>
+          <span class="age-value" *ngIf="getPlayerAge(player)">
+            {{ getPlayerAge(player) }}
+          </span>
+          <span class="no-age" *ngIf="!getPlayerAge(player)"> - </span>
+        </td>
+
+        <!-- Overall -->
+        <td>
+          <span class="overall-badge">{{ player.overall || 'N/A' }}</span>
+        </td>
+
+        <!-- NFL Team -->
+        <td>{{ player.nflTeam || 'FA' }}</td>
+
+        <!-- Est. Min -->
+        <td>
+          <span class="min-value" *ngIf="getPlayerMinimumForDisplay(player.id)">
+            {{ formatCurrency(getPlayerMinimumForDisplay(player.id) || 0) }}
+          </span>
+          <span class="no-min" *ngIf="!getPlayerMinimumForDisplay(player.id)">
+            -
+          </span>
+        </td>
+
+        <!-- Bid Count -->
+        <td>
+          <span class="bid-count" *ngIf="getPlayerBidCount(player.id) > 0">
+            {{ getPlayerBidCount(player.id) }}
+          </span>
+          <span class="no-bids" *ngIf="getPlayerBidCount(player.id) === 0"
+            >-</span
+          >
+        </td>
+
+        <!-- Actions -->
+        <td>
+          <p-button
+            icon="pi pi-plus"
+            label="Bid"
+            size="small"
+            severity="primary"
+            styleClass="bid-button"
+            (click)="onBidButtonClick(player)"
+          ></p-button>
+        </td>
+      </tr>
+    </ng-template>
+
+    <!-- Empty State -->
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="8" class="text-center p-4">
+          <div class="empty-state">
+            <i
+              class="pi pi-users"
+              style="font-size: 2rem; color: var(--text-color-secondary)"
+            ></i>
+            <p>No players found matching your criteria</p>
+            <button
+              pButton
+              label="Clear Filters"
+              (click)="clearFilters()"
+              class="p-button-text"
+            ></button>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+
+  <!-- Load More Button -->
+  @if (hasMorePlayers()) {
+  <div class="load-more-container">
+    <button
+      class="btn btn-secondary"
+      (click)="loadMorePlayers()"
+      [disabled]="isLoadingMore()"
+    >
+      @if (isLoadingMore()) {
+      <i class="pi pi-spinner pi-spin"></i>
+      Loading... } @else { Load More Players }
+    </button>
+  </div>
+  }
+
+  <!-- No More Players Message -->
+  @if (!hasMorePlayers() && availablePlayers().length > 0) {
+  <div class="no-more-players">
+    <p>All available players have been loaded.</p>
+  </div>
+  }
+</div>

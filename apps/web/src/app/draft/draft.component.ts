@@ -25,6 +25,7 @@ import {
 } from '@fantasy-football-dynasty/types';
 import { DraftBoardComponent } from './components';
 import { PlayerSelectionComponent } from './components/player-selection/player-selection.component';
+import { PlayerDataService } from '../services/player-data.service';
 
 @Component({
   selector: 'app-draft',
@@ -40,12 +41,17 @@ import { PlayerSelectionComponent } from './components/player-selection/player-s
   styleUrls: ['./draft.component.scss'],
 })
 export class DraftComponent implements OnInit, OnDestroy {
-  draftService = inject(DraftService);
-  leagueService = inject(LeagueService);
-  route = inject(ActivatedRoute);
-  router = inject(Router);
-  draftLayoutService = inject(DraftLayoutService);
-  leagueMembershipService = inject(LeagueMembershipService);
+  private readonly leagueService = inject(LeagueService);
+  private readonly leagueMembershipService = inject(LeagueMembershipService);
+  private readonly draftService = inject(DraftService);
+  private readonly playerDataService = inject(PlayerDataService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly draftLayoutService = inject(DraftLayoutService);
+
+  // Use cached league teams from the service
+  readonly leagueTeams = this.leagueService.leagueTeams;
+
   // Signals from services (initialized in constructor)
   draftState = this.draftService.draftState;
   isConnected = this.draftService.isConnected;
@@ -160,23 +166,17 @@ export class DraftComponent implements OnInit, OnDestroy {
   public async loadInitialData(): Promise<void> {
     try {
       this.isLoading.set(true);
-      this.error.set('');
+      this.error.set(null);
 
-      // Load league information
+      // Load league
       const leagueResult = await this.leagueService.getLeague(this.leagueId);
       if (leagueResult?.league) {
         this.league.set(leagueResult.league);
-        this.numberOfTeams.set(leagueResult.league.numberOfTeams);
         this.totalRounds.set(leagueResult.league.rules.draft.rounds);
       }
 
-      // Load teams
-      const teamsResult = await this.leagueService.getLeagueTeams(
-        this.leagueId
-      );
-      if (teamsResult?.teams) {
-        this.teams.set(teamsResult.teams);
-      }
+      // Teams are now loaded automatically via the league service when a league is selected
+      // No need to manually load them here
 
       // Load draft state from service signals
       const draftState = this.draftService.draftState();

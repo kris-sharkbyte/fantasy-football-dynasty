@@ -1,136 +1,123 @@
 ---
-description: How We should prefer to code
+description: Standards and guidelines for Angular 20 code patterns, signals, and service design.
 globs:
+  - 'src/**/*.ts'
+  - 'src/**/*.html'
 alwaysApply: true
 ---
 
-How We should prefer to code
+# Coding Standards & Best Practices
 
-## coding pattern preferences
-
-- Always prefer simple solutions
-- Avoid duplication of code wheneever possible, which mean checking for other areas of the codebase that might already have similar codde and functionality
-- Write code that takes into account the different enviorments: dev, test, staging, prod
-- You are careful to only make changes that are requested or you are confident are well understood and related to the change being requestd
-- When fixing an issue or bug, do not introduce a new pattern or technology without first exhausting all options for the existing implementation. And if you finally do this, make sure to remove the old implementation afterwards so we do not have duplicate logic
-- Keep codebase very clean and organized
-- Avoid having files over 200-300 lines of code. Refactor at that point. Refactoring will mean create a component folder and add move the code into the new component that the parent can reference
-- Mocking data is only needed for test, never mock data for dev, staging or prod
-- Never add stubbing or fake patterns to code that affects the dev, stage or prod enviorments
-- Never overwrite my enviorment files without asking first.
-
--- try to use angulars latest best practices and signals
-
-## Component Creation
-
-- when creating a component I allways want the format to be html, scss, and ts file
-- when doing style review the global.scss and /theme before adding new styles so that everything shares a theme
-
-- When you create a component with inputs you should always use input() signals as this is the modern Angular 17+ approach and is becoming the standard.
-
--- Angular templates can access private members, so duplicating each signal as a public read-only one is noise.
-
--- asReadonly() is valuable when you want to enforce write protection across class boundaries—i.e., services that multiple components inject. Inside a single component, you already control all writes.
-
-## Extra best-practice notes (Angular 20 + signals)
-
-    -- Name writable signals with a leading underscore (_foo) and keep them private. Expose a minimal intent-based API (methods) for writes, not raw .set() calls sprinkled everywhere.
-
-    -- Prefer computed to assemble a small vm object for templates—cuts bindings and change points.
-
-    -- Use input() / output() signal APIs for component inputs/outputs; they play nicely with the signal model.
-
-    -- For side effects (fetching, syncing), use effect() and let Angular auto-dispose via the inject context; avoid manual subscriptions.
-
-    -- Keep signals immutable where possible (e.g., replace arrays/objects with new instances on update) to make change origins obvious.
-
-    -- Avoid any; define small interfaces (Bid, MarketSummary) so templates stay type-safe.
-
-    -- Only promote state to a service “store” when:
-        - multiple components/screens need it,
-        - it must outlive a component,
-        - or you need cross-feature coordination.
-
-# Angular 20 Service Best Practices
-
-## General Principles
-
-- **Keep services lean and intent-based**: expose domain actions (`markTeamReady`, `submitBid`) rather than raw setters.
-- **Prefer `asReadonly()` in services**, not in components. Services often share state across consumers, so write-protection matters.
-- **Use typed interfaces** instead of `any` to ensure strong contracts and safer refactors.
-- **Normalize error handling**: pick one approach (either throw errors or return null/false) and stick with it across all methods.
-- **Remove dead/duplicate code paths** to reduce confusion and maintenance burden.
+This document outlines how we prefer to structure and maintain our codebase.
 
 ---
 
-## Initialization
+## General Coding Principles
 
-- **Avoid async logic in constructors**. Use an explicit `init()` or react to signals/inputs with `effect()`.
-- **Initialize state only when needed** (e.g. after `selectedLeague` is known), rather than preemptively in the constructor.
-
----
-
-## State Management
-
-- **Use private writable signals** internally, expose public readonly signals for consumers.
-- **Group template-relevant values into `vm = computed(...)`** to simplify component bindings.
-- **Expose intent methods** for writes, don’t leak `.set()`/`.update()` calls into components.
-
----
-
-## Firestore Access
-
-- **Always use `serverTimestamp()`** for created/updated dates instead of `new Date()` (avoids client clock drift).
-- **Use typed Firestore converters** to enforce schema at the boundary.
-- **Be index-aware**: queries with `where(..., 'in', [...])` + `orderBy` need composite indexes.
-- **Use transactions** (`runTransaction`) for atomic operations, especially when enforcing limits (e.g. max concurrent bids).
-- **Generate IDs with `doc(collection(...)).id`** instead of deriving IDs manually from state.
+- **Prefer simple solutions** — avoid unnecessary abstraction or overengineering.
+- **Eliminate duplication** — check for existing patterns, utilities, or logic before adding new code.
+- **Be environment-aware** — ensure changes work across `dev`, `test`, `staging`, and `prod`.
+- **Stay scoped to the request** — only make changes that are requested or clearly related.
+- **Bug fixes first, new tech later** — don’t introduce new patterns/tech when fixing bugs unless absolutely necessary. If you must, remove the old implementation to avoid duplication.
+- **Keep the codebase clean and organized** — consistent naming, formatting, and file structure.
+- **Enforce file size limits** — avoid files over 200–300 lines; extract into subcomponents/services if needed.
+- **No mocks in real environments** — mocking is for tests only, never for dev/staging/prod.
+- **Never overwrite environment files** without explicit approval.
 
 ---
 
-## Real-Time Listeners
+## Component Guidelines
 
-- **Auto-manage subscriptions** with `DestroyRef` and reactive `effect()` rather than storing arrays of unsubscribe functions.
-- **Recreate listeners** when their key dependencies (like `leagueId` or `weekNumber`) change.
-- **Clean up properly** — root services live for the app’s lifetime, but feature-scoped services should tear down listeners on destroy.
-
----
-
-## Domain Logic
-
-- **Centralize evaluation/simulation logic** in a dedicated domain module (e.g. `FAWeekManager`).
-- **Guard math/edge cases** in calculations (avoid divide-by-zero, cap demand scores 0–1).
-- **Keep defaults immutable**: define `readonly defaultSettings` to prevent accidental mutation.
+- **File structure**: components should always have `.html`, `.scss`, and `.ts` files.
+- **Styling**: review `global.scss` and `/theme` before adding new styles; prefer shared theming.
+- **Inputs/Outputs**: always use Angular’s `input()` / `output()` signals (Angular 17+).
+- **Signals in components**:
+  - Templates can access private members → no need to mirror signals as public `asReadonly()`.
+  - Use `asReadonly()` only when exposing signals across class boundaries (e.g., services).
 
 ---
 
-## Data Loading & Queries
+## Angular 20 + Signals Best Practices
 
-- **Avoid `any[]` for collections**: define lightweight interfaces even for mock data.
-- **Paginate with cursors** (`orderBy` + `startAfter`) instead of slicing arrays client-side for scale.
-- **Cap search results** and filter invalid players up front to keep queries performant.
+- **Private writable, public readonly**: prefix writable signals with `_foo` and keep them private.
+- **Expose intent APIs**: update state through methods, not raw `.set()`/`.update()` scattered in components.
+- **Use `computed`**: group multiple signals into a single `vm` object for cleaner templates.
+- **Use `effect()` for side effects**: Angular auto-disposes these; avoid manual RxJS-style subscriptions where possible.
+- **Keep signals immutable**: replace arrays/objects with new instances on update.
+- **Avoid `any`**: define lightweight domain interfaces (e.g., `Bid`, `MarketSummary`).
+- **Promote state to a service store** only if:
+  - Multiple components need it,
+  - It must outlive the component, or
+  - It coordinates cross-feature logic.
 
 ---
 
-## Logging & Observability
+## Angular 20 Service Best Practices
 
-- **Replace `console.log`** with a `LoggerService` that can be silenced or routed in production.
-- **Log with context tags** (`[FA]`, `[Team]`) for easier debugging.
+### General Principles
 
----
+- Keep services **lean and intent-based** — expose domain actions, not raw setters.
+- Use `asReadonly()` when exposing state from services.
+- Stick to **typed interfaces**, not `any`.
+- Normalize error handling (throw or return — not both).
+- Remove duplicate/dead code paths.
 
-## Security & Consistency
+### Initialization
 
-- **Design with Firestore security rules in mind**: enforce max concurrent bids, ownership checks, and valid state transitions server-side.
-- **Rely on server timestamps and transactions** to guarantee consistency across clients.
+- Don’t run async code in constructors.
+- Use an explicit `init()` or an `effect()` reacting to signals like `selectedLeague`.
+
+### State Management
+
+- Use **private signals** inside services.
+- Expose **readonly signals** for consumers.
+- Create a `vm = computed(...)` when multiple signals are needed in components.
+
+### Firestore Access
+
+- Always use `serverTimestamp()` for dates.
+- Use **typed converters** to enforce schema.
+- Ensure indexes exist for combined `where` + `orderBy`.
+- Use **transactions** (`runTransaction`) for atomic checks and writes.
+- Generate IDs with `doc(collection(...)).id`.
+
+### Real-Time Listeners
+
+- Auto-manage with `DestroyRef` and `effect()`.
+- Recreate listeners when keys (like `leagueId` or `weekNumber`) change.
+- Clean up properly (especially for feature-scoped services).
+
+### Domain Logic
+
+- Centralize evaluation/simulation in **domain modules** (e.g., `FAWeekManager`).
+- Guard against edge cases (e.g., divide-by-zero).
+- Keep defaults immutable (`readonly defaultSettings`).
+
+### Data Loading & Queries
+
+- Avoid `any[]`; define small interfaces.
+- Use cursor-based pagination (`startAfter`) instead of slicing large arrays.
+- Cap search results and filter invalid data up front.
+
+### Logging & Observability
+
+- Replace `console.log` with a `LoggerService`.
+- Prefix logs with context (`[FA]`, `[Team]`).
+
+### Security & Consistency
+
+- Assume **Firestore security rules** will validate invariants (max bids, ownership, state transitions).
+- Always pair writes with **server-side validation** (`serverTimestamp`, transactions).
 
 ---
 
 ## Things to Avoid
 
-- ❌ Async/Firestore calls inside service constructors.
-- ❌ Holding long-lived arrays of unsubscribe functions.
-- ❌ Returning a mix of `throw`, `null`, and `false` for error cases.
-- ❌ Using `any` in state signals or service APIs.
-- ❌ Duplicating unused or legacy methods (e.g. older evaluation paths).
-- ❌ Assuming component patterns (public+private signal mirrors) are necessary in services.
+- ❌ Async Firestore calls in constructors.
+- ❌ Arrays of unsubscribe functions; use `DestroyRef` instead.
+- ❌ Inconsistent error handling (mixing `throw`, `null`, `false`).
+- ❌ Using `any` in APIs or signals.
+- ❌ Legacy/duplicate methods left behind.
+- ❌ Public/private signal mirrors in components.
+
+---

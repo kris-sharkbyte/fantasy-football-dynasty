@@ -55,20 +55,13 @@ export class SportsDataService {
    */
   private async loadAllData(): Promise<void> {
     try {
-      console.log('SportsDataService: Starting to load all data...');
       await Promise.all([
         this.loadTeams(),
         this.loadPlayers(),
         this.loadPlayerStats(),
       ]);
-      console.log(
-        'SportsDataService: All data loaded, creating enhanced players...'
-      );
       this.createEnhancedPlayers();
-      this._dataReady.set(true); // Mark data as ready
-      console.log(
-        'SportsDataService: Data loading complete, dataReady set to true'
-      );
+      this._dataReady.set(true);
     } catch (error) {
       console.error('Error loading all data:', error);
     }
@@ -84,7 +77,6 @@ export class SportsDataService {
         .toPromise();
       if (teams) {
         this._teams.set(teams);
-        console.log(`Loaded ${teams.length} teams`);
       }
     } catch (error) {
       console.error('Error loading teams:', error);
@@ -101,7 +93,6 @@ export class SportsDataService {
         .toPromise();
       if (players) {
         this._players.set(players);
-        console.log(`Loaded ${players.length} players`);
       }
     } catch (error) {
       console.error('Error loading players:', error);
@@ -113,8 +104,6 @@ export class SportsDataService {
    */
   private async loadPlayerStats(): Promise<void> {
     try {
-      console.log('SportsDataService: Starting to load player stats...');
-
       // Add timeout to prevent hanging on large files
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(
@@ -132,36 +121,46 @@ export class SportsDataService {
         timeoutPromise,
       ])) as PlayerStats[];
 
-      console.log(
-        'SportsDataService: HTTP response received for player stats:',
-        stats
-      );
-
       if (stats && Array.isArray(stats)) {
-        console.log(
-          'SportsDataService: Player stats loaded successfully, count:',
-          stats.length
-        );
         this._playerStats.set(stats);
-        console.log(`Loaded ${stats.length} player stats`);
       } else {
-        console.warn(
-          'SportsDataService: Player stats response was null/undefined or not an array'
-        );
-        console.warn('Response type:', typeof stats);
-        console.warn('Response:', stats);
+        // Set empty array to prevent blocking the rest of the system
+        this._playerStats.set([]);
       }
     } catch (error) {
       console.error('Error loading player stats:', error);
 
       // If it's a timeout, try to load a smaller subset or handle gracefully
       if (error instanceof Error && error.message.includes('timeout')) {
-        console.warn(
-          'Player stats loading timed out - this may be due to file size'
-        );
         // Set empty array to prevent blocking the rest of the system
         this._playerStats.set([]);
       }
+    }
+  }
+
+  /**
+   * Calculate age from birth date
+   */
+  private calculateAge(birthDate: string): number {
+    if (!birthDate) return 25; // Default age if no birth date
+
+    try {
+      const birth = new Date(birthDate);
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+
+      if (
+        monthDiff < 0 ||
+        (monthDiff === 0 && today.getDate() < birth.getDate())
+      ) {
+        age--;
+      }
+
+      return age;
+    } catch (error) {
+      console.warn('Error calculating age from birth date:', birthDate, error);
+      return 25; // Default age on error
     }
   }
 
@@ -173,27 +172,8 @@ export class SportsDataService {
     const stats = this._playerStats();
     const teams = this._teams();
 
-    console.log('SportsDataService: Creating enhanced players with:', {
-      playersCount: players.length,
-      statsCount: stats.length,
-      teamsCount: teams.length,
-    });
-
-    // Debug: Check Active property values
-    const activeCount = players.filter((p) => p.Status == 'Active').length;
-    const inactiveCount = players.filter((p) => p.Status != 'Active').length;
-    console.log('SportsDataService: Player Active status:', {
-      activeCount,
-      inactiveCount,
-      totalPlayers: players.length,
-    });
-
     // If no stats are available, create players with default values
     if (!stats || stats.length === 0) {
-      console.warn(
-        'SportsDataService: No player stats available, creating players with default values'
-      );
-
       const enhancedPlayers: EnhancedSportsPlayer[] = players.map((player) => {
         // Find team info
         const teamInfo = teams.find((t) => t.Key === player.Team);
@@ -211,6 +191,9 @@ export class SportsDataService {
         // Map Status to Active property since JSON doesn't have Active boolean
         const isActive = player.Status === 'Active';
 
+        // Calculate age from birth date
+        const age = this.calculateAge(player.BirthDate);
+
         return {
           ...player,
           Active: isActive, // Override the Active property based on Status
@@ -220,13 +203,11 @@ export class SportsDataService {
           marketValue,
           fantasyPoints: 0,
           fantasyPointsPPR: 0,
+          Age: age, // Set calculated age
         };
       });
 
       this._enhancedPlayers.set(enhancedPlayers);
-      console.log(
-        `Created ${enhancedPlayers.length} enhanced players with default values (no stats available)`
-      );
       return;
     }
 
@@ -250,6 +231,9 @@ export class SportsDataService {
       // Map Status to Active property since JSON doesn't have Active boolean
       const isActive = player.Status === 'Active';
 
+      // Calculate age from birth date
+      const age = this.calculateAge(player.BirthDate);
+
       return {
         ...player,
         Active: isActive, // Override the Active property based on Status
@@ -259,11 +243,11 @@ export class SportsDataService {
         marketValue,
         fantasyPoints: playerStats?.FantasyPoints || 0,
         fantasyPointsPPR: playerStats?.FantasyPointsPPR || 0,
+        Age: age, // Set calculated age
       };
     });
 
     this._enhancedPlayers.set(enhancedPlayers);
-    console.log(`Created ${enhancedPlayers.length} enhanced players`);
   }
 
   /**
@@ -492,17 +476,6 @@ export class SportsDataService {
     const statsLoaded = this._playerStats().length >= 0; // Allow empty stats array
     const enhancedLoaded = this._enhancedPlayers().length > 0;
 
-    console.log('SportsDataService data loading status:', {
-      teams: teamsLoaded,
-      players: playersLoaded,
-      stats: statsLoaded,
-      enhanced: enhancedLoaded,
-      teamsCount: this._teams().length,
-      playersCount: this._players().length,
-      statsCount: this._playerStats().length,
-      enhancedCount: this._enhancedPlayers().length,
-    });
-
     // We consider data loaded if we have teams, players, and enhanced players
     // Stats are optional (can be empty array)
     return teamsLoaded && playersLoaded && enhancedLoaded;
@@ -513,9 +486,6 @@ export class SportsDataService {
    */
   public getActivePlayers(): EnhancedSportsPlayer[] {
     const allPlayers = this._enhancedPlayers();
-    console.log('SportsDataService.getActivePlayers() called');
-    console.log('Total enhanced players:', allPlayers.length);
-    console.log('Data loaded status:', this.isDataLoaded());
 
     if (!this.isDataLoaded()) {
       console.warn(
@@ -524,30 +494,7 @@ export class SportsDataService {
       return [];
     }
 
-    // Debug: Check Active property values in enhanced players
-    const activeCount = allPlayers.filter((p) => p.Active).length;
-    const inactiveCount = allPlayers.filter((p) => !p.Active).length;
-    console.log('SportsDataService: Enhanced Player Active status:', {
-      activeCount,
-      inactiveCount,
-      totalPlayers: allPlayers.length,
-    });
-
-    // Debug: Show first few players and their Active status
-    const firstFewPlayers = allPlayers.slice(0, 5);
-    console.log(
-      'SportsDataService: First few players Active status:',
-      firstFewPlayers.map((p) => ({
-        name: p.Name,
-        position: p.Position,
-        active: p.Active,
-        team: p.Team,
-      }))
-    );
-
     const activePlayers = allPlayers.filter((player) => player.Active);
-    console.log('Active players count:', activePlayers.length);
-    console.log('First few active players:', activePlayers.slice(0, 3));
 
     return activePlayers;
   }

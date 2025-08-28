@@ -68,39 +68,30 @@ export class FreeAgencyService {
     EnhancedPlayerMinimumService
   );
 
-  // Private state signals
-  private _currentFAWeek = signal<FAWeek | null>(null);
-  private _activeBids = signal<FABid[]>([]);
-  private _teamStatuses = signal<TeamFAStatus[]>([]);
-  private _availablePlayers = signal<FAWeekPlayer[]>([]);
-  private _marketBenchmarks = signal<any[]>([]);
-  private _isReadyToAdvance = signal<boolean>(false);
-
-  // Public readonly signals
-  public currentFAWeek = this._currentFAWeek.asReadonly();
-  public activeBids = this._activeBids.asReadonly();
-  public teamStatuses = this._teamStatuses.asReadonly();
-  public availablePlayers = this._availablePlayers.asReadonly();
-  public marketBenchmarks = this._marketBenchmarks.asReadonly();
-  public isReadyToAdvance = this._isReadyToAdvance.asReadonly();
+  // State signals
+  public currentFAWeek = signal<FAWeek | null>(null);
+  public activeBids = signal<FABid[]>([]);
+  public teamStatuses = signal<TeamFAStatus[]>([]);
+  public availablePlayers = signal<FAWeekPlayer[]>([]);
+  public isReadyToAdvance = signal<boolean>(false);
 
   // Computed signals
   public currentWeekNumber = computed(
-    () => this._currentFAWeek()?.weekNumber || 0
+    () => this.currentFAWeek()?.weekNumber || 0
   );
   public isFAWeekPhase = computed(
-    () => this._currentFAWeek()?.phase === 'FA_WEEK'
+    () => this.currentFAWeek()?.phase === 'FA_WEEK'
   );
   public isOpenFAPhase = computed(
-    () => this._currentFAWeek()?.phase === 'OPEN_FA'
+    () => this.currentFAWeek()?.phase === 'OPEN_FA'
   );
   public weekStatus = computed(
-    () => this._currentFAWeek()?.status || 'inactive'
+    () => this.currentFAWeek()?.status || 'inactive'
   );
   public readyTeamsCount = computed(
-    () => this._currentFAWeek()?.readyTeams.length || 0
+    () => this.currentFAWeek()?.readyTeams.length || 0
   );
-  public totalTeamsCount = computed(() => this._teamStatuses().length);
+  public totalTeamsCount = computed(() => this.teamStatuses().length);
 
   // FA Week Settings (defaults)
   private defaultSettings: FAWeekSettings = {
@@ -132,11 +123,11 @@ export class FreeAgencyService {
       const existingWeek = await this.getExistingFAWeek(currentLeague.id);
 
       if (existingWeek) {
-        this._currentFAWeek.set(existingWeek);
+        this.currentFAWeek.set(existingWeek);
       } else {
         // Create new FA week
         const newWeek = await this.createFAWeek(currentLeague.id, 1);
-        this._currentFAWeek.set(newWeek);
+        this.currentFAWeek.set(newWeek);
       }
 
       // Set up real-time listeners
@@ -216,7 +207,7 @@ export class FreeAgencyService {
     const unsubscribeFAWeek = onSnapshot(faWeekRef, (doc) => {
       if (doc.exists()) {
         const faWeek = { id: doc.id, ...doc.data() } as FAWeek;
-        this._currentFAWeek.set(faWeek);
+        this.currentFAWeek.set(faWeek);
       }
     });
 
@@ -234,7 +225,7 @@ export class FreeAgencyService {
       snapshot.forEach((doc) => {
         bids.push({ id: doc.id, ...doc.data() } as FABid);
       });
-      this._activeBids.set(bids);
+      this.activeBids.set(bids);
     });
 
     // Store unsubscribe functions
@@ -255,7 +246,7 @@ export class FreeAgencyService {
         throw new Error('Maximum concurrent bids reached');
       }
 
-      const currentWeek = this._currentFAWeek();
+      const currentWeek = this.currentFAWeek();
       if (!currentWeek) {
         throw new Error('No active FA week');
       }
@@ -278,11 +269,7 @@ export class FreeAgencyService {
 
       // Don't update local state immediately - let the Firestore listener handle it
       // This prevents duplicate entries when the listener fires
-      // this._activeBids.update((bids) => [...bids, bid]);
-      // this.updateTeamBidStatus(teamId, bid.id);
-      // this.updatePlayerBidStatus(playerId, 'bidding');
 
-      console.log('Bid submitted successfully:', bid);
       return bid;
     } catch (error) {
       console.error('Failed to submit bid:', error);
@@ -294,7 +281,7 @@ export class FreeAgencyService {
    * Check if a team can submit more bids
    */
   canSubmitBid(teamId: string): boolean {
-    const teamBids = this._activeBids().filter(
+    const teamBids = this.activeBids().filter(
       (bid) => bid.teamId === teamId && bid.status === 'pending'
     );
     return teamBids.length < this.defaultSettings.maxConcurrentOffers;
@@ -305,7 +292,7 @@ export class FreeAgencyService {
    */
   async markTeamReady(teamId: string): Promise<void> {
     try {
-      const currentWeek = this._currentFAWeek();
+      const currentWeek = this.currentFAWeek();
       if (!currentWeek) return;
 
       // Add team to ready list if not already there
@@ -320,14 +307,14 @@ export class FreeAgencyService {
         });
 
         // Update local state
-        this._currentFAWeek.set({
+        this.currentFAWeek.set({
           ...currentWeek,
           readyTeams: updatedReadyTeams,
           updatedAt: new Date(),
         });
 
         // Update team status
-        this._teamStatuses.update((statuses) =>
+        this.teamStatuses.update((statuses) =>
           statuses.map((status) =>
             status.teamId === teamId
               ? { ...status, isReady: true, lastActivity: new Date() }
@@ -347,12 +334,12 @@ export class FreeAgencyService {
    * Check if all teams are ready to advance
    */
   private checkReadyToAdvance(): void {
-    const allTeams = this._teamStatuses();
+    const allTeams = this.teamStatuses();
     const readyTeams = allTeams.filter((status) => status.isReady);
     const isReady =
       allTeams.length > 0 && readyTeams.length === allTeams.length;
 
-    this._isReadyToAdvance.set(isReady);
+    this.isReadyToAdvance.set(isReady);
   }
 
   /**
@@ -360,7 +347,7 @@ export class FreeAgencyService {
    */
   async advanceToNextWeek(): Promise<boolean> {
     try {
-      const currentWeek = this._currentFAWeek();
+      const currentWeek = this.currentFAWeek();
       if (!currentWeek) {
         throw new Error('No active FA week found');
       }
@@ -382,9 +369,8 @@ export class FreeAgencyService {
       );
 
       // Update current week reference
-      this._currentFAWeek.set(nextWeek);
+      this.currentFAWeek.set(nextWeek);
 
-      console.log(`Advanced to week ${nextWeek.weekNumber}`);
       return true;
     } catch (error) {
       console.error('Error advancing week:', error);
@@ -398,7 +384,6 @@ export class FreeAgencyService {
   async triggerWeeklyEvaluation(): Promise<void> {
     try {
       await this.processWeeklyPlayerEvaluation();
-      console.log('Weekly player evaluation completed');
     } catch (error) {
       console.error('Error triggering weekly evaluation:', error);
       throw error;
@@ -410,7 +395,7 @@ export class FreeAgencyService {
    */
   private async processWeekEvaluation(): Promise<void> {
     try {
-      const currentBids = this._activeBids();
+      const currentBids = this.activeBids();
       const pendingBids = currentBids.filter((bid) => bid.status === 'pending');
 
       // Simulate player decisions
@@ -428,8 +413,6 @@ export class FreeAgencyService {
         // Update player status
         this.updatePlayerBidStatus(bid.playerId, decision.status);
       }
-
-      console.log('Week evaluation processed');
     } catch (error) {
       console.error('Failed to process week evaluation:', error);
     }
@@ -471,15 +454,11 @@ export class FreeAgencyService {
    */
   private async loadAvailablePlayers(): Promise<void> {
     try {
-      console.log('FreeAgencyService.loadAvailablePlayers() called');
-
       // Wait for sports data to be loaded
       await this.sportsDataService.waitForData();
-      console.log('Sports data is ready, proceeding to load players');
 
       // Get all active players from sports data service
       const allPlayers = this.sportsDataService.getActivePlayers();
-      console.log('SportsDataService returned players:', allPlayers.length);
 
       const availablePlayers: FAWeekPlayer[] = allPlayers
         .filter((player) => {
@@ -510,11 +489,7 @@ export class FreeAgencyService {
           status: 'available',
         }));
 
-      console.log('Filtered and mapped players:', availablePlayers.length);
-      console.log('First few mapped players:', availablePlayers.slice(0, 3));
-
-      this._availablePlayers.set(availablePlayers);
-      console.log(`Loaded ${availablePlayers.length} available players for FA`);
+      this.availablePlayers.set(availablePlayers);
     } catch (error) {
       console.error('Failed to load available players:', error);
     }
@@ -625,8 +600,8 @@ export class FreeAgencyService {
       const mockStatuses: TeamFAStatus[] = [
         {
           teamId: 'team1',
-          leagueId: this._currentFAWeek()?.leagueId || '',
-          currentWeek: this._currentFAWeek()?.weekNumber || 1,
+          leagueId: this.currentFAWeek()?.leagueId || '',
+          currentWeek: this.currentFAWeek()?.weekNumber || 1,
           activeBids: [],
           capHolds: 0,
           isReady: false,
@@ -635,7 +610,7 @@ export class FreeAgencyService {
         // Add more mock teams as needed
       ];
 
-      this._teamStatuses.set(mockStatuses);
+      this.teamStatuses.set(mockStatuses);
     } catch (error) {
       console.error('Failed to load team statuses:', error);
     }
@@ -645,7 +620,7 @@ export class FreeAgencyService {
    * Update team bid status
    */
   private updateTeamBidStatus(teamId: string, bidId: string): void {
-    this._teamStatuses.update((statuses) =>
+    this.teamStatuses.update((statuses) =>
       statuses.map((status) =>
         status.teamId === teamId
           ? { ...status, activeBids: [...status.activeBids, bidId] }
@@ -658,7 +633,7 @@ export class FreeAgencyService {
    * Update player bid status
    */
   private updatePlayerBidStatus(playerId: string, status: string): void {
-    this._availablePlayers.update((players) =>
+    this.availablePlayers.update((players) =>
       players.map((player) =>
         player.id === playerId ? { ...player, status: status as any } : player
       )
@@ -669,14 +644,14 @@ export class FreeAgencyService {
    * Get bids for a specific player
    */
   getPlayerBids(playerId: string): FABid[] {
-    return this._activeBids().filter((bid) => bid.playerId === playerId);
+    return this.activeBids().filter((bid) => bid.playerId === playerId);
   }
 
   /**
    * Get team's active bids
    */
   getTeamBids(teamId: string): FABid[] {
-    return this._activeBids().filter((bid) => bid.teamId === teamId);
+    return this.activeBids().filter((bid) => bid.teamId === teamId);
   }
 
   /**
@@ -705,19 +680,18 @@ export class FreeAgencyService {
    */
   async processWeeklyPlayerEvaluation(): Promise<void> {
     try {
-      const currentWeek = this._currentFAWeek();
+      const currentWeek = this.currentFAWeek();
       if (!currentWeek || currentWeek.status !== 'active') {
         throw new Error('No active FA week found');
       }
 
       // Get all pending bids for the current week
-      const pendingBids = this._activeBids().filter(
+      const pendingBids = this.activeBids().filter(
         (bid) =>
           bid.status === 'pending' && bid.weekNumber === currentWeek.weekNumber
       );
 
       if (pendingBids.length === 0) {
-        console.log('No pending bids to evaluate');
         return;
       }
 
@@ -739,8 +713,6 @@ export class FreeAgencyService {
 
       // Update FA week status to evaluating
       await this.updateFAWeekStatus('evaluating');
-
-      console.log(`Processed ${evaluationResults.length} player evaluations`);
     } catch (error) {
       console.error('Error processing weekly player evaluation:', error);
       throw error;
@@ -751,8 +723,7 @@ export class FreeAgencyService {
    * Create market context for player evaluation
    */
   private async createMarketContext(): Promise<any> {
-    // Use any to match domain interface
-    const currentWeek = this._currentFAWeek();
+    const currentWeek = this.currentFAWeek();
     if (!currentWeek) {
       throw new Error('No active FA week');
     }
@@ -769,12 +740,13 @@ export class FreeAgencyService {
     // Determine season stage
     const seasonStage = this.determineSeasonStage(currentWeek.weekNumber);
 
+    // Return domain-compatible market context
     return {
       competingOffers: 0, // Default value
       positionalDemand,
       capSpaceAvailable: 0, // Default value
       recentComps: recentContracts,
-      seasonStage: seasonStage === 'OpenFA' ? 'Camp' : seasonStage, // Map to domain values
+      seasonStage: seasonStage === 'OpenFA' ? 'Camp' : seasonStage,
       teamReputation: 0.5, // Default neutral reputation
     };
   }
@@ -814,7 +786,7 @@ export class FreeAgencyService {
   private async evaluateAllPlayerBids(
     bids: FABid[],
     players: Player[],
-    marketContext: any // Use any to match domain interface
+    marketContext: any
   ): Promise<FAEvaluationResult[]> {
     // Import FAWeekManager from domain
     const { FAWeekManager } = await import('@fantasy-football-dynasty/domain');
@@ -930,7 +902,7 @@ export class FreeAgencyService {
    */
   private async calculatePositionalDemand(): Promise<number> {
     // Simple calculation - can be enhanced with more sophisticated logic
-    const availablePlayers = this._availablePlayers();
+    const availablePlayers = this.availablePlayers();
     const totalPlayers = availablePlayers.length;
 
     if (totalPlayers === 0) return 0.5;
@@ -1021,7 +993,7 @@ export class FreeAgencyService {
   private async updateFAWeekStatus(
     status: 'active' | 'evaluating' | 'completed'
   ): Promise<void> {
-    const currentWeek = this._currentFAWeek();
+    const currentWeek = this.currentFAWeek();
     if (!currentWeek) return;
 
     const faWeekRef = doc(this.firestore, 'faWeeks', currentWeek.id);
@@ -1043,7 +1015,7 @@ export class FreeAgencyService {
         throw new Error('Open FA phase not active');
       }
 
-      const currentWeek = this._currentFAWeek();
+      const currentWeek = this.currentFAWeek();
       if (!currentWeek) return null;
 
       // TODO: Calculate auto-priced contract using domain logic
@@ -1075,7 +1047,6 @@ export class FreeAgencyService {
       // Update player status
       this.updatePlayerBidStatus(playerId, 'signed');
 
-      console.log('Open FA signing processed:', signing);
       return signing;
     } catch (error) {
       console.error('Failed to process open FA signing:', error);
@@ -1138,7 +1109,8 @@ export class FreeAgencyService {
   /**
    * Clean up real-time listeners
    */
-  ngOnDestroy(): void {
+  cleanup(): void {
     this.unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
+    this.unsubscribeFunctions = [];
   }
 }

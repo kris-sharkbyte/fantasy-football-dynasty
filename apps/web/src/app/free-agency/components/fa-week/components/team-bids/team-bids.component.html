@@ -1,0 +1,49 @@
+<div class="bids-section">
+  <div class="section-header">
+    <h3>Your Bids</h3>
+    <span class="bid-count">{{ teamBids().length }} active</span>
+  </div>
+
+  <div class="bids-list">
+    <div *ngFor="let bid of teamBids()" class="bid-item" [class]="bid.status">
+      <div class="bid-player">
+        <div class="player-name">{{ getPlayerName(bid.playerId) }}</div>
+        <div class="player-position">
+          {{ getPlayerPosition(bid.playerId) }}
+        </div>
+      </div>
+
+      <div class="bid-details">
+        <div class="bid-value">
+          {{ formatCurrency(bid.offer.totalValue) }}
+        </div>
+        <div class="bid-years">{{ bid.offer.years }} year(s)</div>
+        <div class="bid-aav">{{ formatCurrency(bid.offer.apy) }}/yr</div>
+      </div>
+
+      <div class="bid-status">
+        <span class="status-badge" [class]="bid.status">
+          {{ bid.status | titlecase }}
+        </span>
+        <div class="bid-feedback" *ngIf="bid.feedback">
+          {{ bid.feedback }}
+        </div>
+      </div>
+
+      <div class="bid-actions">
+        <button
+          class="btn btn-sm btn-danger"
+          (click)="cancelBid(bid.id)"
+          *ngIf="bid.status === 'pending'"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+
+    <div class="no-bids" *ngIf="teamBids().length === 0">
+      <p>No active bids</p>
+      <p class="text-muted">Submit bids on available players to get started</p>
+    </div>
+  </div>
+</div>

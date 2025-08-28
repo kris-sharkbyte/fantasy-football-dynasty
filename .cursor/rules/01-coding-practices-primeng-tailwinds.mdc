@@ -1,0 +1,85 @@
+---
+description: Guidelines for using PrimeNG components and Tailwind utilities consistently across the app.
+globs:
+  - 'src/**/*.html'
+  - 'src/**/*.scss'
+  - 'src/**/*.ts'
+alwaysApply: true
+---
+
+# PrimeNG + Tailwind Best Practices
+
+This document describes how to use **PrimeNG components** and **Tailwind CSS** consistently.
+
+---
+
+## General Principles
+
+- **Prefer built-in components**: use PrimeNG UI elements before creating custom ones.
+- **Tailwind first for styling**: use Tailwind utility classes for spacing, layout, and typography before writing custom CSS.
+- **Keep styles consistent**: lean on global theme variables and Tailwind’s config rather than ad-hoc CSS.
+- **Avoid duplication**: don’t re-implement common UI patterns if PrimeNG or Tailwind provides them.
+
+---
+
+## PrimeNG Guidelines
+
+- **Use PrimeNG components for forms and tables**:
+  - `p-inputText`, `p-dropdown`, `p-selectButton`, `p-table`, etc.
+- **Leverage built-in accessibility** (keyboard navigation, ARIA attributes) instead of rolling your own.
+- **Customize via themes and CSS variables**:
+  - Prefer theme overrides in `theme.scss` instead of deep CSS selectors.
+  - Use PrimeNG’s `styleClass` and `ng-template` slots rather than forking components.
+- **Keep configurations declarative**:
+  - Favor `[options]` and `[dataKey]` bindings instead of procedural DOM manipulation.
+- **Re-use data models across components** (e.g. typed `DropdownOption`).
+
+---
+
+## Tailwind Guidelines
+
+- **Utility classes first**: use Tailwind classes for layout, spacing, flex/grid, colors, typography.
+- **Avoid custom SCSS unless necessary**: only fall back when Tailwind or PrimeNG cannot handle it.
+- **Use design tokens**:
+  - Configure `tailwind.config.js` to match brand colors, spacing, and fonts.
+  - Keep overrides consistent with PrimeNG theme variables.
+- **Responsive design**:
+  - Always use Tailwind’s responsive utilities (`sm:`, `md:`, `lg:`) for breakpoints.
+- **Avoid inline styles**: Tailwind utilities + PrimeNG props are preferred.
+
+---
+
+## When to Extend
+
+- **Create custom components/styles only when**:
+
+  - PrimeNG does not cover the use case,
+  - Tailwind utilities cannot express the layout,
+  - or there is a unique, app-specific design.
+
+- If custom components are created:
+  - Place them in a `shared/ui` or `shared/components` folder.
+  - Keep styles minimal and aligned with Tailwind + theme tokens.
+
+---
+
+## Examples
+
+✅ Preferred:
+
+````html
+<p-dropdown [options]="positions" placeholder="Select Position" class="w-56" />
+
+❌ Avoid ```html
+<select class="custom-dropdown">
+  ...
+</select>
+
+✅ Tailwind for spacing: ```html
+<div class="flex flex-col gap-4 p-4">
+  <p-table [value]="players"> ... </p-table>
+</div>
+
+❌ Avoid custom CSS for simple spacing: ```scss .players-container { margin:
+20px; gap: 16px; }
+````

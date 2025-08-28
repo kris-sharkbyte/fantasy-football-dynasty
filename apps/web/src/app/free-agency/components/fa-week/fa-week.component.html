@@ -1,501 +1,94 @@
 <div class="fa-week-container">
   <!-- FA Week Header -->
-  <div class="fa-week-header">
-    <div class="week-info">
-      <h2 class="week-title">Free Agency Week {{ currentWeek() }}</h2>
-      <div class="week-status">
-        <span class="status-badge" [class]="weekStatus()">
-          {{ weekStatus() | titlecase }}
-        </span>
-        <span class="ready-teams">
-          {{ readyTeamsCount() }} / {{ totalTeamsCount() }} teams ready
-        </span>
-      </div>
-
-      <!-- Market Context Summary -->
-      @if (marketContextSummary()) {
-      <div class="market-context">
-        <div class="market-item">
-          <span class="label">League Health:</span>
-          <span class="value" [class]="marketContextSummary()?.leagueHealth">
-            {{ marketContextSummary()?.leagueHealth | titlecase }}
-          </span>
-        </div>
-        <div class="market-item">
-          <span class="label">Avg Cap Space:</span>
-          <span class="value">{{
-            marketContextSummary()?.averageCapSpace
-          }}</span>
-        </div>
-        <div class="market-item">
-          <span class="label">Recent Signings:</span>
-          <span class="value">{{
-            marketContextSummary()?.recentSigningsCount
-          }}</span>
-        </div>
-      </div>
-      }
-    </div>
-
-    <div class="week-actions">
-      <button
-        class="btn btn-primary"
-        (click)="markReady()"
-        [disabled]="isReadyToAdvance()"
-      >
-        Mark Ready
-      </button>
-
-      <button
-        class="btn btn-secondary"
-        (click)="advanceWeek()"
-        [disabled]="!isReadyToAdvance()"
-      >
-        Advance Week
-      </button>
-
-      <!-- Manual evaluation trigger for testing -->
-      <button
-        class="btn btn-info"
-        (click)="triggerWeeklyEvaluation()"
-        [disabled]="weekStatus() !== 'active'"
-        title="Manually trigger weekly player evaluation (for testing)"
-      >
-        Evaluate Bids
-      </button>
-    </div>
-  </div>
+  <app-fa-week-header></app-fa-week-header>
 
   <!-- Salary Cap Section -->
-  <div class="salary-cap-section">
-    <div class="cap-info">
-      <div class="cap-item">
-        <span class="label">Salary Cap:</span>
-        <span class="value">{{ formatCurrency(currentTeamCap()) }}</span>
-      </div>
-      <div class="cap-item">
-        <span class="label">Active Bids:</span>
-        <span class="value">{{ formatCurrency(totalBidsValue()) }}</span>
-      </div>
-      <div class="cap-item">
-        <span class="label">Remaining Cap:</span>
-        <span
-          class="value"
-          [class]="remainingCapSpace() < 0 ? 'negative' : 'positive'"
-        >
-          {{ formatCurrency(remainingCapSpace()) }}
-        </span>
-      </div>
-    </div>
-  </div>
+  <app-salary-cap></app-salary-cap>
 
-  <!-- FA Week Content -->
-  <div class="fa-week-content">
+  <!-- Main Content Grid -->
+  <div class="content-grid">
     <!-- Available Players Section -->
     <div class="players-section">
-      <!-- PrimeNG Table for Players -->
-      <p-table
-        [value]="filteredPlayers()"
-        [paginator]="true"
-        [rows]="20"
-        [showCurrentPageReport]="true"
-        [tableStyle]="{ 'min-width': '50rem' }"
-        [rowHover]="true"
-        [rowsPerPageOptions]="[10, 20, 50]"
-        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} players"
-        [globalFilterFields]="['name', 'nflTeam', 'position']"
-        class="p-datatable-sm"
-      >
-        <!-- Global Search Header -->
-        <ng-template pTemplate="caption">
-          <div class="table-header">
-            <div class="table-title">
-              <h4>Available Players</h4>
-              <span class="player-count">
-                {{ filteredPlayers().length }} players available
-              </span>
-            </div>
-            <div class="flex table-search">
-              <p-select
-                class="w-56"
-                [options]="availablePositionGroups()"
-                [group]="true"
-                optionLabel="label"
-                [showClear]="true"
-                placeholder="All Positions"
-                [(ngModel)]="positionFilter"
-                (onChange)="onPositionFilterChange($event.value)"
-              >
-                <!-- Optional: custom group header template -->
-                <ng-template pTemplate="group" let-group>
-                  {{ group.label }}
-                </ng-template>
-
-                <!-- Optional: customize how each item renders -->
-                <ng-template pTemplate="item" let-option>
-                  {{ option.label }}
-                </ng-template>
-              </p-select>
-
-              <p-iconfield iconPosition="left" class="ml-auto">
-                <p-inputicon>
-                  <i class="pi pi-search"></i>
-                </p-inputicon>
-                <input
-                  pInputText
-                  type="text"
-                  (input)="onSearchInputChange($event)"
-                  placeholder="Search players..."
-                  class="w-20rem"
-                />
-              </p-iconfield>
-            </div>
-          </div>
-        </ng-template>
-        <!-- Position Column -->
-        <ng-template pTemplate="header">
-          <tr>
-            <th>Position</th>
-            <th>Player</th>
-            <th>Age</th>
-            <th>Overall</th>
-            <th>NFL Team</th>
-            <th>Est. Min</th>
-            <th>Bids</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </ng-template>
-
-        <!-- Player Rows -->
-        <ng-template pTemplate="body" let-player>
-          <tr
-            [class.has-team-bid]="hasTeamBid(player.id)"
-            class="player-row"
-            (click)="selectPlayer(player)"
-          >
-            <!-- Position -->
-            <td>
-              <p-tag
-                [value]="player.position"
-                [style]="{
-                  'background-color': getPositionColor(player.position),
-                  color: 'white'
-                }"
-                styleClass="position-tag"
-              ></p-tag>
-            </td>
-
-            <!-- Player Name -->
-            <td>
-              <div class="player-name-cell">
-                <span class="player-name">{{ player.name }}</span>
-                <span class="bid-indicator" *ngIf="hasTeamBid(player.id)">
-                  <i
-                    class="pi pi-star-fill"
-                    style="color: var(--primary-color)"
-                  ></i>
-                </span>
-              </div>
-            </td>
-
-            <!-- Age -->
-            <td>{{ player.age }}</td>
-
-            <!-- Overall -->
-            <td>
-              <span class="overall-badge">{{ player.overall }}</span>
-            </td>
-
-            <!-- NFL Team -->
-            <td>{{ player.nflTeam }}</td>
-
-            <!-- Est. Min -->
-            <td>
-              <span
-                class="min-value"
-                *ngIf="getPlayerMinimumForDisplay(player.id)"
-              >
-                {{ formatCurrency(getPlayerMinimumForDisplay(player.id) || 0) }}
-              </span>
-              <span
-                class="no-min"
-                *ngIf="!getPlayerMinimumForDisplay(player.id)"
-                >-</span
-              >
-            </td>
-
-            <!-- Bid Count -->
-            <td>
-              <span class="bid-count" *ngIf="getPlayerBidCount(player.id) > 0">
-                {{ getPlayerBidCount(player.id) }}
-              </span>
-              <span class="no-bids" *ngIf="getPlayerBidCount(player.id) === 0"
-                >-</span
-              >
-            </td>
-
-            <!-- Status -->
-            <td>
-              <p-tag
-                [value]="getPlayerStatusText(player.status)"
-                [severity]="getPlayerStatusSeverity(player.status)"
-                styleClass="status-tag"
-              ></p-tag>
-            </td>
-
-            <!-- Actions -->
-            <td>
-              <p-button
-                icon="pi pi-plus"
-                label="Bid"
-                size="small"
-                severity="primary"
-                (click)="selectPlayer(player)"
-                styleClass="bid-button"
-              ></p-button>
-            </td>
-          </tr>
-        </ng-template>
-
-        <!-- Empty State -->
-        <ng-template pTemplate="emptymessage">
-          <tr>
-            <td colspan="9" class="text-center p-4">
-              <div class="empty-state">
-                <i
-                  class="pi pi-users"
-                  style="font-size: 2rem; color: var(--text-color-secondary)"
-                ></i>
-                <p>No players found matching your criteria</p>
-                <button
-                  pButton
-                  label="Clear Filters"
-                  (click)="clearFilters()"
-                  class="p-button-text"
-                ></button>
-              </div>
-            </td>
-          </tr>
-        </ng-template>
-      </p-table>
-
-      <!-- Load More Button -->
-      @if (hasMorePlayers()) {
-      <div class="load-more-container">
-        <button
-          class="btn btn-secondary"
-          (click)="loadMorePlayers()"
-          [disabled]="isLoadingMore()"
-        >
-          @if (isLoadingMore()) {
-          <i class="pi pi-spinner pi-spin"></i>
-          Loading... } @else { Load More Players }
-        </button>
-      </div>
-      }
-
-      <!-- No More Players Message -->
-      @if (!hasMorePlayers() && availablePlayers().length > 0) {
-      <div class="no-more-players">
-        <p>All available players have been loaded.</p>
-      </div>
-      }
+      <app-available-players
+        (bidButtonClick)="openBidModal($event)"
+      ></app-available-players>
     </div>
 
     <!-- Team Bids Section -->
     <div class="bids-section">
-      <div class="section-header">
-        <h3>Your Bids</h3>
-        <span class="bid-count">{{ teamBids().length }} active</span>
-      </div>
-
-      <div class="bids-list">
-        <div
-          *ngFor="let bid of teamBids()"
-          class="bid-item"
-          [class]="bid.status"
-        >
-          <div class="bid-player">
-            <div class="player-name">{{ getPlayerName(bid.playerId) }}</div>
-            <div class="player-position">
-              {{ getPlayerPosition(bid.playerId) }}
-            </div>
-          </div>
-
-          <div class="bid-details">
-            <div class="bid-value">
-              {{ formatCurrency(bid.offer.totalValue) }}
-            </div>
-            <div class="bid-years">{{ bid.offer.years }} year(s)</div>
-            <div class="bid-aav">{{ formatCurrency(bid.offer.apy) }}/yr</div>
-          </div>
-
-          <div class="bid-status">
-            <span class="status-badge" [class]="bid.status">
-              {{ bid.status | titlecase }}
-            </span>
-            <div class="bid-feedback" *ngIf="bid.feedback">
-              {{ bid.feedback }}
-            </div>
-          </div>
-
-          <div class="bid-actions">
-            <button
-              class="btn btn-sm btn-danger"
-              (click)="cancelBid(bid.id)"
-              *ngIf="bid.status === 'pending'"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-
-        <div class="no-bids" *ngIf="teamBids().length === 0">
-          <p>No active bids</p>
-          <p class="text-muted">
-            Submit bids on available players to get started
-          </p>
-        </div>
-      </div>
+      <app-team-bids></app-team-bids>
     </div>
   </div>
 
   <!-- Bid Modal -->
-  @if (showBidModal() && selectedPlayer() && bidForm() && bidForm().years > 0) {
-  <div class="modal-overlay" (click)="closeBidModal()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h3>Submit Bid for {{ selectedPlayer()?.name }}</h3>
-        <button class="modal-close" (click)="closeBidModal()">×</button>
+  <p-dialog
+    [visible]="showBidModal()"
+    [modal]="true"
+    [closable]="true"
+    [draggable]="false"
+    [resizable]="false"
+    [style]="{ width: '50rem' }"
+    header="Submit Bid"
+    (onHide)="closeBidModal()"
+  >
+    @if (selectedPlayer()) {
+    <div class="bid-modal-content">
+      <!-- Player Info -->
+      <div class="player-info">
+        <h3>{{ selectedPlayer()?.name }}</h3>
+        <p>
+          {{ selectedPlayer()?.position }} • {{ selectedPlayer()?.age }} years
+          old
+        </p>
+        @if (playerMinimum()) {
+        <p class="player-minimum">
+          Estimated Minimum: {{ formatCurrency(playerMinimum() || 0) }}
+        </p>
+        }
       </div>
 
-      <div class="modal-body">
-        <div class="bid-form">
-          <!-- Player Contract Information -->
-          <div class="player-contract-info">
-            <h4>Contract Information</h4>
-            <div class="info-grid">
-              <div class="info-item">
-                <span class="label">Position:</span>
-                <span class="value">{{ selectedPlayer()?.position }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">Age:</span>
-                <span class="value">{{ selectedPlayer()?.age }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">Overall:</span>
-                <span class="value">{{ selectedPlayer()?.overall }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">Est. Minimum:</span>
-                <span class="value min-value">
-                  @if (playerMinimum()) {
-                  {{ formatCurrency(playerMinimum() || 0) }}
-                  } @else { N/A }
-                </span>
-              </div>
-            </div>
+      <!-- Contract Inputs -->
+      <app-contract-inputs
+        [years]="bidForm().years"
+        [baseSalary]="bidForm().baseSalary"
+        [signingBonus]="bidForm().signingBonus || 0"
+        [mode]="'total'"
+        (yearsChange)="onYearsChange($event)"
+        (baseSalaryChange)="onBaseSalaryChange($event)"
+        (signingBonusChange)="onSigningBonusChange($event)"
+      ></app-contract-inputs>
 
-            <!-- Market Context -->
-            @if (marketContextSummary()) {
-            <div class="market-context-summary">
-              <h5>Market Context</h5>
-              <div class="market-items">
-                <div class="market-item">
-                  <span class="label">League Health:</span>
-                  <span
-                    class="value"
-                    [class]="marketContextSummary()?.leagueHealth"
-                  >
-                    {{ marketContextSummary()?.leagueHealth | titlecase }}
-                  </span>
-                </div>
-                <div class="market-item">
-                  <span class="label">Avg Cap Space:</span>
-                  <span class="value">{{
-                    marketContextSummary()?.averageCapSpace
-                  }}</span>
-                </div>
-              </div>
-            </div>
-            }
-          </div>
-
-          <!-- Use shared ContractInputsComponent -->
-          @if (bidForm() && bidForm().years && bidForm().baseSalary !==
-          undefined && bidForm().signingBonus !== undefined) {
-          <app-contract-inputs
-            [years]="bidForm().years"
-            [baseSalary]="bidForm().baseSalary"
-            [signingBonus]="bidForm().signingBonus || 0"
-            [mode]="'total'"
-            (yearsChange)="onYearsChange($event)"
-            (baseSalaryChange)="onBaseSalaryChange($event)"
-            (signingBonusChange)="onSigningBonusChange($event)"
-          ></app-contract-inputs>
-
-          <!-- Contract Summary -->
-          <div class="contract-summary">
-            <div class="summary-item">
-              <span class="label">Total Value:</span>
-              <span class="value">{{
-                formatCurrency(calculateTotalValue())
-              }}</span>
-            </div>
-            <div class="summary-item">
-              <span class="label">Average Annual Value:</span>
-              <span class="value">{{ formatCurrency(calculateAAV()) }}</span>
-            </div>
-            <div class="summary-item">
-              <span class="label">Years:</span>
-              <span class="value">{{ bidForm().years }}</span>
-            </div>
-          </div>
-          } @else {
-          <!-- Loading state while form initializes -->
-          <div class="form-loading">
-            <i class="pi pi-spinner pi-spin"></i>
-            <span>Preparing bid form...</span>
-          </div>
-          }
-
-          <!-- Bid Warning -->
-          @if (playerMinimum() && calculateTotalValue() < (playerMinimum() ||
-          0)) {
-          <div class="bid-warning">
-            <i class="pi pi-exclamation-triangle"></i>
-            <span class="warning-text">
-              Warning: Your bid is
-              {{
-                formatCurrency((playerMinimum() || 0) - calculateTotalValue())
-              }}
-              below this player's minimum desired contract. This player will
-              likely reject your bid.
-            </span>
-          </div>
-          }
+      <!-- Bid Summary -->
+      <div class="bid-summary">
+        <h4>Bid Summary</h4>
+        <div class="summary-item">
+          <span class="label">Total Value:</span>
+          <span class="value">{{ formatCurrency(totalBidValue()) }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="label">Average Annual Value:</span>
+          <span class="value">{{ formatCurrency(averageAnnualValue()) }}</span>
         </div>
       </div>
 
-      <div class="modal-footer">
-        <button class="btn btn-secondary" (click)="closeBidModal()">
-          Cancel
-        </button>
+      <!-- Action Buttons -->
+      <div class="modal-actions">
         <button
-          class="btn"
-          [class]="isBidBelowMinimum() ? 'btn-warning' : 'btn-primary'"
+          pButton
+          label="Cancel"
+          (click)="closeBidModal()"
+          class="p-button-secondary"
+        ></button>
+        <button
+          pButton
+          label="Submit Bid"
           (click)="submitBid()"
-          [disabled]="!isValidBid() || isSubmitting()"
-        >
-          @if (isSubmitting()) {
-          <i class="pi pi-spinner pi-spin"></i>
-          Submitting... } @else { @if (isBidBelowMinimum()) { Submit Bid Anyway
-          } @else { Submit Bid } }
-        </button>
+          [disabled]="isSubmitting()"
+          [loading]="isSubmitting()"
+          class="p-button-primary"
+        ></button>
       </div>
     </div>
-  </div>
-  }
+    }
+  </p-dialog>
 </div>

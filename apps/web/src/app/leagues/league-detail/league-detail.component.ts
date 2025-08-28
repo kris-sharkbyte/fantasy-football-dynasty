@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LeagueHeaderComponent } from '../components/league-header.component';
 import { EditTeamModalComponent } from './edit-team-modal';
@@ -19,7 +19,7 @@ import { FreeAgencyService } from '../../services/free-agency.service';
   templateUrl: './league-detail.component.html',
   styleUrls: ['./league-detail.component.scss'],
 })
-export class LeagueDetailComponent {
+export class LeagueDetailComponent implements OnInit {
   private readonly leagueMembershipService = inject(LeagueMembershipService);
   private readonly leagueService = inject(LeagueService);
   private readonly freeAgencyService = inject(FreeAgencyService);
@@ -35,6 +35,13 @@ export class LeagueDetailComponent {
   readonly canManageDraft = this.leagueMembershipService.canManageDraft;
   readonly canViewAllTeams = this.leagueMembershipService.canViewAllTeams;
 
+  // New: Use cached league data signals
+  readonly leagueTeams = this.leagueService.leagueTeams;
+  readonly leagueMembers = this.leagueService.leagueMembers;
+  readonly teamsCount = this.leagueService.teamsCount;
+  readonly currentUserTeam = this.leagueService.currentUserTeam;
+  readonly currentUserRole = this.leagueService.currentUserRole;
+
   // Free Agency status
   readonly currentFAWeek = this.freeAgencyService.currentFAWeek;
   readonly isFAWeekPhase = this.freeAgencyService.isFAWeekPhase;
@@ -43,6 +50,12 @@ export class LeagueDetailComponent {
   readonly readyTeamsCount = this.freeAgencyService.readyTeamsCount;
   readonly totalTeamsCount = this.freeAgencyService.totalTeamsCount;
   readonly isReadyToAdvance = this.freeAgencyService.isReadyToAdvance;
+
+  ngOnInit(): void {
+    // No need to manually load memberships - it's handled automatically by the league service
+    // when a league is selected via the effect in the constructor
+    console.log('League detail component initialized');
+  }
 
   openEditTeamModal(): void {
     this.editTeamModalVisible = true;

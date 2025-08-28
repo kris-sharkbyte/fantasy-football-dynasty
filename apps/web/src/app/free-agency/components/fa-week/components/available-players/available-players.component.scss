@@ -1,0 +1,210 @@
+.players-section {
+  margin-bottom: 2rem;
+
+  .table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+
+    .table-title {
+      h4 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-color);
+      }
+
+      .player-count {
+        font-size: 0.875rem;
+        color: var(--text-color-secondary);
+      }
+    }
+
+    .table-search {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+
+      .ml-auto {
+        margin-left: auto;
+      }
+    }
+  }
+
+  .player-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: var(--surface-hover);
+    }
+
+    &.has-team-bid {
+      background-color: var(--primary-50);
+    }
+
+    .player-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      .player-name {
+        font-weight: 500;
+      }
+
+      .bid-indicator {
+        color: var(--primary-color);
+      }
+    }
+
+    .overall-badge {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      background: var(--surface-ground);
+      border-radius: var(--border-radius);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .min-value {
+      font-weight: 500;
+      color: var(--green-600);
+    }
+
+    .no-min {
+      color: var(--text-color-secondary);
+      font-style: italic;
+    }
+
+    .bid-count {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      background: var(--primary-100);
+      color: var(--primary-700);
+      border-radius: var(--border-radius);
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .no-bids {
+      color: var(--text-color-secondary);
+      font-style: italic;
+    }
+
+    .bid-button {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+    }
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 2rem;
+
+    i {
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    p {
+      margin: 0 0 1rem 0;
+      color: var(--text-color-secondary);
+    }
+  }
+
+  .load-more-container {
+    text-align: center;
+    margin-top: 1rem;
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: var(--border-radius);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: var(--surface-border);
+      color: var(--text-color);
+
+      &:hover:not(:disabled) {
+        background: var(--surface-hover);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      i {
+        margin-right: 0.5rem;
+      }
+    }
+  }
+
+  .no-more-players {
+    text-align: center;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--surface-ground);
+    border-radius: var(--border-radius);
+    color: var(--text-color-secondary);
+  }
+}
+
+// Position tag styles
+.position-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+// Status tag styles
+.status-tag {
+  font-size: 0.75rem;
+}
+
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-right: 1.5rem !important;
+
+  &:hover {
+    background-color: var(--surface-hover);
+  }
+
+  .sort-icon {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-color-secondary);
+    font-size: 0.75rem;
+  }
+
+  &:hover .sort-icon {
+    color: var(--text-color);
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .players-section {
+    .table-header {
+      flex-direction: column;
+      gap: 1rem;
+      align-items: stretch;
+
+      .table-search {
+        flex-direction: column;
+        gap: 1rem;
+
+        .ml-auto {
+          margin-left: 0;
+        }
+      }
+    }
+  }
+}

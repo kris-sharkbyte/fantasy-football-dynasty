@@ -37,7 +37,7 @@ export class ContractInputsComponent implements OnDestroy, OnInit {
   @Output() signingBonusChange = new EventEmitter<number>();
 
   // Local state
-  private _years = signal(0);
+  private _years = signal(1);
   private _baseSalary = signal(0);
   private _signingBonus = signal(0);
 
@@ -119,6 +119,22 @@ export class ContractInputsComponent implements OnDestroy, OnInit {
     if (this._years() === 0) {
       this._years.set(1);
       this.yearsChange.emit(1);
+    }
+
+    // Initialize from inputs if they have values
+    const yearsValue = this.years();
+    if (yearsValue && yearsValue > 0) {
+      this._years.set(yearsValue);
+    }
+
+    const baseSalaryValue = this.baseSalary();
+    if (baseSalaryValue !== undefined) {
+      this._baseSalary.set(baseSalaryValue);
+    }
+
+    const signingBonusValue = this.signingBonus();
+    if (signingBonusValue !== undefined) {
+      this._signingBonus.set(signingBonusValue);
     }
   }
 

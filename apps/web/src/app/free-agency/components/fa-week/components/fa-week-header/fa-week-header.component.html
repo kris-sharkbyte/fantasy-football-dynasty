@@ -1,0 +1,64 @@
+<div class="fa-week-header">
+  <div class="week-info">
+    <h2 class="week-title">Free Agency Week {{ currentWeek() }}</h2>
+    <div class="week-status">
+      <span class="status-badge" [class]="weekStatus()">
+        {{ weekStatus() | titlecase }}
+      </span>
+      <span class="ready-teams">
+        {{ readyTeamsCount() }} / {{ totalTeamsCount() }} teams ready
+      </span>
+    </div>
+
+    <!-- Market Context Summary -->
+    @if (marketContextSummary()) {
+    <div class="market-context">
+      <div class="market-item">
+        <span class="label">League Health:</span>
+        <span class="value" [class]="marketContextSummary()?.leagueHealth">
+          {{ marketContextSummary()?.leagueHealth | titlecase }}
+        </span>
+      </div>
+      <div class="market-item">
+        <span class="label">Avg Cap Space:</span>
+        <span class="value">{{ marketContextSummary()?.averageCapSpace }}</span>
+      </div>
+      <div class="market-item">
+        <span class="label">Recent Signings:</span>
+        <span class="value">{{
+          marketContextSummary()?.recentSigningsCount
+        }}</span>
+      </div>
+    </div>
+    }
+  </div>
+
+  <div class="week-actions">
+    <button
+      class="btn"
+      [class]="isTeamReady() ? 'btn-success' : 'btn-primary'"
+      (click)="markReady()"
+      [disabled]="isReadyToAdvance() || !currentUserTeam()"
+    >
+      @if (isTeamReady()) { ✓ Ready } @else { Mark Ready }
+    </button>
+
+    <button
+      class="btn btn-secondary"
+      (click)="advanceWeek()"
+      [disabled]="!isReadyToAdvance()"
+    >
+      Advance Week
+    </button>
+
+    <!-- Manual evaluation trigger for testing -->
+    <button
+      class="btn btn-info"
+      (click)="triggerWeeklyEvaluation()"
+      [disabled]="weekStatus() !== 'active'"
+      title="Manually trigger weekly player evaluation (for testing)"
+    >
+      Evaluate Bids
+    </button>
+  </div>
+</div>

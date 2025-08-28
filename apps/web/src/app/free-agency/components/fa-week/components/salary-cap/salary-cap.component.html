@@ -1,0 +1,21 @@
+<div class="salary-cap-section">
+  <div class="cap-info">
+    <div class="cap-item">
+      <span class="label">Salary Cap:</span>
+      <span class="value">{{ formatCurrency(currentTeamCap()) }}</span>
+    </div>
+    <div class="cap-item">
+      <span class="label">Active Bids:</span>
+      <span class="value">{{ formatCurrency(totalBidsValue()) }}</span>
+    </div>
+    <div class="cap-item">
+      <span class="label">Remaining Cap:</span>
+      <span
+        class="value"
+        [class]="remainingCapSpace() < 0 ? 'negative' : 'positive'"
+      >
+        {{ formatCurrency(remainingCapSpace()) }}
+      </span>
+    </div>
+  </div>
+</div>
