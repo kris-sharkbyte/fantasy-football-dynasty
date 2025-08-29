@@ -18,14 +18,11 @@ import {
   LeagueMembershipService,
   LeagueMember,
 } from '../../services/league-membership.service';
-import {
-  PlayerDataService,
-  SleeperPlayer,
-} from '../../services/player-data.service';
 import { LeagueService } from '../../services/league.service';
-import { AuthService } from '../../services/auth.service';
 import { Router } from '@angular/router';
 import { LeagueHeaderComponent } from '../components/league-header.component';
+import { SportsPlayer } from '@fantasy-football-dynasty/types';
+import { SportsDataService } from '../../services/sports-data.service';
 
 @Component({
   selector: 'app-my-roster',
@@ -48,7 +45,7 @@ import { LeagueHeaderComponent } from '../components/league-header.component';
 export class MyRosterComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly leagueMembershipService = inject(LeagueMembershipService);
-  private readonly playerDataService = inject(PlayerDataService);
+  private readonly sportsDataService = inject(SportsDataService);
   private readonly leagueService = inject(LeagueService);
   private readonly router = inject(Router);
 
@@ -56,7 +53,7 @@ export class MyRosterComponent implements OnInit {
 
   private _isLoading = signal(true);
   private _error = signal<string | null>(null);
-  private _selectedPlayer = signal<SleeperPlayer | null>(null);
+  private _selectedPlayer = signal<SportsPlayer | null>(null);
 
   // Public signals
   public leagueId = this.leagueService.selectedLeagueId;
@@ -69,23 +66,24 @@ export class MyRosterComponent implements OnInit {
   public showContractModal = false;
 
   // Computed values
-  public league = computed(() => this.leagueService.selectedLeague());
-  public hasPlayers = computed(() => this.playerDataService.hasPlayers());
+  public hasPlayers = computed(
+    () => this.sportsDataService.players().length > 0
+  );
   public rosterWithPlayers = computed(() => {
     const member = this.myMember();
     if (!member?.roster || !this.hasPlayers()) return [];
 
     return member.roster.map((slot: RosterSlot) => {
-      const player = this.playerDataService.getPlayer(slot.playerId);
+      const player = this.sportsDataService.getPlayer(Number(slot.playerId));
       return {
         ...slot,
         player,
         playerName: player
-          ? `${player.first_name} ${player.last_name}`
+          ? `${player.FirstName || ''} ${player.LastName || ''}`.trim()
           : 'Unknown Player',
-        team: player?.team || 'FA',
-        age: player?.age || 0,
-        yearsExp: player?.years_exp || 0,
+        team: player?.Team || 'FA',
+        age: this.calculateAgeFromBirthDate(player?.BirthDate || ''),
+        yearsExp: player?.Experience || 0,
       };
     });
   });
@@ -110,8 +108,8 @@ export class MyRosterComponent implements OnInit {
       this.leagueService.setSelectedLeagueId(leagueId);
 
       // Load players if not already loaded
-      if (!this.playerDataService.hasPlayers()) {
-        await this.playerDataService.loadPlayers();
+      if (!this.sportsDataService.players().length) {
+        // await this.sportsDataService.loadActivePlayers();
       }
 
       // Get current user's membership for this league
@@ -172,7 +170,7 @@ export class MyRosterComponent implements OnInit {
   /**
    * Open contract creation modal for a player
    */
-  openContractModal(player: SleeperPlayer): void {
+  openContractModal(player: SportsPlayer): void {
     this._selectedPlayer.set(player);
     this.showContractModal = true;
   }
@@ -188,14 +186,14 @@ export class MyRosterComponent implements OnInit {
   /**
    * Navigate to negotiation page for a specific player
    */
-  openContractCreationModal(player: SleeperPlayer): void {
+  openContractCreationModal(player: SportsPlayer): void {
     const leagueId = this.route.snapshot.paramMap.get('id');
     if (leagueId) {
       this.router.navigate([
         '/leagues',
         leagueId,
         'negotiate',
-        player.player_id,
+        player.PlayerID,
       ]);
     }
   }
@@ -232,12 +230,29 @@ export class MyRosterComponent implements OnInit {
     return status.charAt(0).toUpperCase() + status.slice(1);
   }
 
-  goToContractCreation(player: SleeperPlayer): void {
+  goToContractCreation(player: SportsPlayer): void {
     this.router.navigate([
       '/leagues',
       this.leagueId(),
       'negotiate',
-      player.player_id,
+      player.PlayerID,
     ]);
+  }
+
+  private calculateAgeFromBirthDate(birthDate: string): number {
+    if (!birthDate) {
+      return 0;
+    }
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birth.getDate())
+    ) {
+      age--;
+    }
+    return age;
   }
 }

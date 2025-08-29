@@ -9,9 +9,7 @@
   <div class="content-grid">
     <!-- Available Players Section -->
     <div class="players-section">
-      <app-available-players
-        (bidButtonClick)="openBidModal($event)"
-      ></app-available-players>
+      <app-players-table [config]="playersTableConfig()"></app-players-table>
     </div>
 
     <!-- Team Bids Section -->

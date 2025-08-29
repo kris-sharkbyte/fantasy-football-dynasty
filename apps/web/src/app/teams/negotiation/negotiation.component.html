@@ -33,11 +33,11 @@
       <h1>Contract Negotiation</h1>
       <div class="player-info">
         <span class="player-name"
-          >{{ getPlayerData()?.first_name }}
-          {{ getPlayerData()?.last_name }}</span
+          >{{ getPlayerData()?.FirstName }}
+          {{ getPlayerData()?.LastName }}</span
         >
         <span class="player-position"
-          >{{ getPlayerData()?.position }} #{{ getPlayerData()?.number }}</span
+          >{{ getPlayerData()?.Position }} #{{ getPlayerData()?.Number }}</span
         >
       </div>
     </div>
@@ -46,13 +46,13 @@
       <!-- Left Column - Player Profile & Contract Inputs -->
       <div class="left-column">
         <!-- Player Profile Component -->
-        <app-player-profile
-          [player]="getPlayerData()!"
+        <!-- <app-player-profile
+          [player]="getPlayerData()"
           [playerRating]="playerRating()"
           [expectedValue]="getExpectedValue()"
           [contractYears]="contractData.years"
           [playerTag]="getPlayerTag()"
-        ></app-player-profile>
+        ></app-player-profile> -->
 
         <!-- Offer Status Component -->
         <app-offer-status

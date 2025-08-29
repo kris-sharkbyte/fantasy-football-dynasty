@@ -6,19 +6,22 @@ import {
   FAWeekPlayer,
 } from '../../../services/free-agency.service';
 import { TeamService } from '../../../services/team.service';
-import { PlayerDataService } from '../../../services/player-data.service';
+import { SportsDataService } from '../../../services/sports-data.service';
+import { PlayersTableComponent } from '../../../shared/components/players-table/players-table.component';
+import { LeagueService } from '../../../services/league.service';
 
 @Component({
   selector: 'app-open-fa',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PlayersTableComponent],
   templateUrl: './open-fa.component.html',
   styleUrls: ['./open-fa.component.scss'],
 })
 export class OpenFAComponent {
   private readonly freeAgencyService = inject(FreeAgencyService);
   private readonly teamService = inject(TeamService);
-  private readonly playerDataService = inject(PlayerDataService);
+  private readonly sportsDataService = inject(SportsDataService);
+  private readonly leagueService = inject(LeagueService);
 
   // Component state
   private _selectedPlayer = signal<FAWeekPlayer | null>(null);
@@ -61,6 +64,25 @@ export class OpenFAComponent {
     };
     return colorMap[position] || '#6B7280'; // Default gray
   }
+
+  // Players table configuration for Open FA
+  public playersTableConfig = computed(() => ({
+    title: 'Available Players',
+    subtitle: 'Sign players immediately to 1-year contracts',
+    emptyMessage: 'No players available for signing',
+    showFilters: true,
+    showSearch: true,
+    showPagination: true,
+    pageSize: 20,
+    mode: 'sign' as const,
+    actions: [],
+    leagueId: this.leagueService.selectedLeague()?.id,
+    showBidCounts: false,
+    showEstimatedMinimum: false,
+    showMarketTrends: false,
+    onSignClick: (player: any) => this.selectPlayer(player),
+    onPlayerClick: (player: any) => this.selectPlayer(player),
+  }));
 
   /**
    * Select a player for immediate signing

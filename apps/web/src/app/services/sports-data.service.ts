@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { computed, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map, combineLatest, shareReplay } from 'rxjs';
 import {
@@ -7,6 +7,10 @@ import {
   PlayerStats,
   EnhancedSportsPlayer,
 } from '@fantasy-football-dynasty/types';
+import {
+  PlayerRatingService,
+  PlayerRatingContext,
+} from '@fantasy-football-dynasty/domain';
 
 @Injectable({
   providedIn: 'root',
@@ -25,6 +29,10 @@ export class SportsDataService {
   public playerStats = this._playerStats.asReadonly();
   public enhancedPlayers = this._enhancedPlayers.asReadonly();
   public dataReady = this._dataReady.asReadonly();
+
+  activePlayers = computed(() =>
+    this._players().filter((player) => player.Status == 'Active')
+  );
 
   constructor(private http: HttpClient) {
     this.loadAllData();
@@ -136,6 +144,10 @@ export class SportsDataService {
         this._playerStats.set([]);
       }
     }
+  }
+
+  getPlayer(playerId: number): SportsPlayer | undefined {
+    return this._players().find((p) => p.PlayerID === playerId);
   }
 
   /**
@@ -259,169 +271,21 @@ export class SportsDataService {
   ): number {
     if (!stats) return 70; // Default rating for players without stats
 
-    let baseRating = 70;
+    // Use the new PlayerRatingService for more accurate ratings
+    const context: PlayerRatingContext = {
+      position: player.Position,
+      experience: player.Experience,
+      age: this.calculateAge(player.BirthDate),
+      fantasyPoints: stats.FantasyPoints || 0,
+      fantasyPointsPPR: stats.FantasyPointsPPR || 0,
+      gamesPlayed: stats.Played || 0,
+      gamesStarted: stats.Started || 0,
+    };
 
-    // Position-based calculations
-    switch (player.Position) {
-      case 'QB':
-        baseRating = this.calculateQBRating(stats);
-        break;
-      case 'RB':
-        baseRating = this.calculateRBRating(stats);
-        break;
-      case 'WR':
-        baseRating = this.calculateWRRating(stats);
-        break;
-      case 'TE':
-        baseRating = this.calculateTERating(stats);
-        break;
-      case 'K':
-        baseRating = this.calculateKRating(stats);
-        break;
-      case 'DEF':
-      case 'DL':
-      case 'LB':
-      case 'DB':
-        baseRating = this.calculateDefenseRating(stats);
-        break;
-      default:
-        baseRating = 70;
-    }
-
-    // Adjust for experience (veteran bonus)
-    if (player.Experience > 5) {
-      baseRating += Math.min(5, (player.Experience - 5) * 0.5);
-    }
-
-    // Ensure rating is within bounds
-    return Math.max(50, Math.min(99, Math.round(baseRating)));
+    return PlayerRatingService.calculateOverallRating(stats, context);
   }
 
-  /**
-   * Calculate QB rating based on passing stats
-   */
-  private calculateQBRating(stats: PlayerStats): number {
-    let rating = 70;
-
-    // Passing efficiency
-    if (stats.PassingAttempts > 0) {
-      const completionRate = stats.PassingCompletions / stats.PassingAttempts;
-      rating += completionRate * 10; // 0-10 points for completion rate
-
-      const yardsPerAttempt = stats.PassingYards / stats.PassingAttempts;
-      rating += Math.min(10, yardsPerAttempt * 0.5); // 0-10 points for YPA
-
-      const tdRate = stats.PassingTouchdowns / stats.PassingAttempts;
-      rating += Math.min(10, tdRate * 100); // 0-10 points for TD rate
-
-      const intRate = stats.PassingInterceptions / stats.PassingAttempts;
-      rating -= Math.min(10, intRate * 100); // 0-10 points penalty for INT rate
-    }
-
-    // Rushing bonus
-    if (stats.RushingYards > 0) {
-      rating += Math.min(5, stats.RushingYards / 100); // 0-5 points for rushing
-    }
-
-    return rating;
-  }
-
-  /**
-   * Calculate RB rating based on rushing and receiving stats
-   */
-  private calculateRBRating(stats: PlayerStats): number {
-    let rating = 70;
-
-    // Rushing efficiency
-    if (stats.RushingAttempts > 0) {
-      const yardsPerCarry = stats.RushingYards / stats.RushingAttempts;
-      rating += Math.min(15, yardsPerCarry * 3); // 0-15 points for YPC
-
-      const tdRate = stats.RushingTouchdowns / stats.RushingAttempts;
-      rating += Math.min(10, tdRate * 100); // 0-10 points for TD rate
-    }
-
-    // Receiving bonus
-    if (stats.ReceivingTargets > 0) {
-      const catchRate = stats.Receptions / stats.ReceivingTargets;
-      rating += catchRate * 5; // 0-5 points for catch rate
-
-      if (stats.ReceivingYards > 0) {
-        rating += Math.min(5, stats.ReceivingYards / 100); // 0-5 points for receiving yards
-      }
-    }
-
-    return rating;
-  }
-
-  /**
-   * Calculate WR rating based on receiving stats
-   */
-  private calculateWRRating(stats: PlayerStats): number {
-    let rating = 70;
-
-    if (stats.ReceivingTargets > 0) {
-      const catchRate = stats.Receptions / stats.ReceivingTargets;
-      rating += catchRate * 10; // 0-10 points for catch rate
-
-      if (stats.ReceivingYards > 0) {
-        const yardsPerTarget = stats.ReceivingYards / stats.ReceivingTargets;
-        rating += Math.min(15, yardsPerTarget * 0.3); // 0-15 points for yards per target
-      }
-
-      const tdRate = stats.ReceivingTouchdowns / stats.ReceivingTargets;
-      rating += Math.min(10, tdRate * 100); // 0-10 points for TD rate
-    }
-
-    return rating;
-  }
-
-  /**
-   * Calculate TE rating based on receiving stats
-   */
-  private calculateTERating(stats: PlayerStats): number {
-    // Similar to WR but with slightly different weights
-    return this.calculateWRRating(stats);
-  }
-
-  /**
-   * Calculate K rating based on kicking stats
-   */
-  private calculateKRating(stats: PlayerStats): number {
-    let rating = 70;
-
-    if (stats.FieldGoalsAttempted > 0) {
-      const accuracy = stats.FieldGoalsMade / stats.FieldGoalsAttempted;
-      rating += accuracy * 20; // 0-20 points for accuracy
-
-      // Bonus for long field goals
-      rating += Math.min(10, stats.FieldGoalsMade50Plus * 2); // 0-10 points for 50+ yard FGs
-    }
-
-    return rating;
-  }
-
-  /**
-   * Calculate defense rating based on defensive stats
-   */
-  private calculateDefenseRating(stats: PlayerStats): number {
-    let rating = 70;
-
-    // Tackles
-    const totalTackles = stats.SoloTackles + stats.AssistedTackles;
-    rating += Math.min(10, totalTackles / 5); // 0-10 points for tackles
-
-    // Sacks
-    rating += Math.min(10, stats.Sacks * 2); // 0-10 points for sacks
-
-    // Interceptions
-    rating += Math.min(10, stats.Interceptions * 3); // 0-10 points for INTs
-
-    // Passes defended
-    rating += Math.min(5, stats.PassesDefended); // 0-5 points for PDs
-
-    return rating;
-  }
+  // Position-specific rating methods removed - now handled by PlayerRatingService
 
   /**
    * Calculate market value based on overall rating and performance
@@ -479,24 +343,6 @@ export class SportsDataService {
     // We consider data loaded if we have teams, players, and enhanced players
     // Stats are optional (can be empty array)
     return teamsLoaded && playersLoaded && enhancedLoaded;
-  }
-
-  /**
-   * Get all active players (not retired/inactive)
-   */
-  public getActivePlayers(): EnhancedSportsPlayer[] {
-    const allPlayers = this._enhancedPlayers();
-
-    if (!this.isDataLoaded()) {
-      console.warn(
-        'SportsDataService: Data not fully loaded yet, returning empty array'
-      );
-      return [];
-    }
-
-    const activePlayers = allPlayers.filter((player) => player.Active);
-
-    return activePlayers;
   }
 
   /**

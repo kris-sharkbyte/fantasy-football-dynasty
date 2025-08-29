@@ -21,101 +21,11 @@
     </div>
   </div>
 
-  <!-- Filters Section -->
-  <div class="filters-section">
-    <div class="search-filter">
-      <input
-        type="text"
-        placeholder="Search players by name or team..."
-        class="search-input"
-        [value]="searchQuery()"
-        (input)="updateSearchQuery($event)"
-      />
-    </div>
 
-    <div class="position-filter">
-      <select
-        class="position-filter"
-        (change)="onPositionFilterChange($event)"
-        [value]="positionFilter()"
-      >
-        <option value="">All Positions</option>
-        <option *ngFor="let position of positionOptions" [value]="position">
-          {{ position }}
-        </option>
-      </select>
-    </div>
 
-    <div class="filter-actions">
-      <button class="btn btn-secondary" (click)="clearFilters()">
-        Clear Filters
-      </button>
-    </div>
-  </div>
-
-  <!-- Players Grid -->
+  <!-- Players Table -->
   <div class="players-section">
-    <div class="section-header">
-      <h3>Available Players</h3>
-      <span class="player-count">
-        {{ filteredPlayers().length }} of
-        {{ availablePlayers().length }} players
-      </span>
-    </div>
-
-    <div class="players-grid">
-      <div
-        *ngFor="let player of filteredPlayers()"
-        class="player-card"
-        (click)="selectPlayer(player)"
-      >
-        <div class="player-header">
-          <div class="player-name">{{ player.name }}</div>
-          <div
-            class="player-position"
-            [style.background-color]="getPositionColor(player.position)"
-            [style.color]="'white'"
-          >
-            {{ player.position }}
-          </div>
-        </div>
-
-        <div class="player-details">
-          <div class="player-age">{{ player.age }} years old</div>
-          <div class="player-overall">OVR: {{ player.overall }}</div>
-          <div class="player-team">{{ player.nflTeam }}</div>
-        </div>
-
-        <div class="player-pricing">
-          <div class="market-price">
-            <span class="price-label">Market Price:</span>
-            <span class="price-value">{{
-              formatCurrency(getEstimatedMarketPrice(player))
-            }}</span>
-          </div>
-          <div class="discounted-price">
-            <span class="price-label">Your Price:</span>
-            <span class="price-value discounted">{{
-              formatCurrency(getDiscountedPrice(player))
-            }}</span>
-          </div>
-        </div>
-
-        <div class="player-actions">
-          <button class="btn btn-primary">Sign Player</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="no-players" *ngIf="filteredPlayers().length === 0">
-      <div class="no-players-content">
-        <h4>No Players Available</h4>
-        <p>Try adjusting your search criteria or position filters.</p>
-        <button class="btn btn-secondary" (click)="clearFilters()">
-          Clear All Filters
-        </button>
-      </div>
-    </div>
+    <app-players-table [config]="playersTableConfig()"></app-players-table>
   </div>
 
   <!-- Signing Modal -->

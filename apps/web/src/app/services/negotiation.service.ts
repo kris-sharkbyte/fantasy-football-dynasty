@@ -7,7 +7,7 @@ import {
   NegotiationEngine,
   MarketContext,
 } from '@fantasy-football-dynasty/domain';
-import { PlayerDataService } from './player-data.service';
+import { SportsDataService } from './sports-data.service';
 
 // Local interface for negotiation state
 export interface NegotiationState {
@@ -43,7 +43,7 @@ export class NegotiationService {
     () => this._currentSession()?.history || []
   );
 
-  constructor(private playerDataService: PlayerDataService) {}
+  constructor(private sportsDataService: SportsDataService) {}
 
   /**
    * Start a new negotiation session with a player
@@ -53,7 +53,7 @@ export class NegotiationService {
     teamId: string,
     leagueRules?: { maxYears?: number }
   ): NegotiationSession | null {
-    const player = this.playerDataService.getPlayer(playerId);
+    const player = this.sportsDataService.getPlayer(Number(playerId));
     if (!player) {
       console.error('Player not found for negotiation');
       return null;
@@ -62,7 +62,7 @@ export class NegotiationService {
     // Create market context (simplified for now)
     const marketContext: MarketContext = {
       competingOffers: Math.floor(Math.random() * 3), // 0-2 competing offers
-      positionalDemand: this.calculatePositionalDemand(player.position),
+      positionalDemand: this.calculatePositionalDemand(player.Position),
       capSpaceAvailable: 50000000, // Mock cap space
       recentComps: [], // Will be populated from real data later
       seasonStage: 'EarlyFA',
@@ -113,7 +113,7 @@ export class NegotiationService {
       return null;
     }
 
-    const player = this.playerDataService.getPlayer(session.playerId);
+    const player = this.sportsDataService.getPlayer(Number(session.playerId));
     if (!player) {
       console.error('Player not found for offer evaluation');
       return null;
@@ -236,13 +236,13 @@ export class NegotiationService {
    * Get market context for a specific player/position
    */
   getMarketContext(playerId: string): MarketContext | null {
-    const player = this.playerDataService.getPlayer(playerId);
+    const player = this.sportsDataService.getPlayer(Number(playerId));
     if (!player) return null;
 
     // This will be enhanced with real market data later
     return {
       competingOffers: Math.floor(Math.random() * 3),
-      positionalDemand: this.calculatePositionalDemand(player.position),
+      positionalDemand: this.calculatePositionalDemand(player.Position),
       capSpaceAvailable: 50000000,
       recentComps: [],
       seasonStage: 'EarlyFA',

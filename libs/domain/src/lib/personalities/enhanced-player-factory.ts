@@ -1045,6 +1045,7 @@ export class EnhancedPlayerFactory {
           },
         },
         conservative_veteran: {
+          name: 'Conservative Veteran',
           rarity: 0.15,
           traits: {
             negotiation_style: 'conservative',

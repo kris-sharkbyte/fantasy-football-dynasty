@@ -104,6 +104,7 @@ describe('Personality System', () => {
         'current_team',
         'winning_teams',
         'stable_markets',
+        'any', // Some personality types can have 'any' location preference
       ];
 
       // Log the actual value for debugging

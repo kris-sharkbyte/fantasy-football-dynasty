@@ -25,7 +25,7 @@ import {
 } from '@fantasy-football-dynasty/types';
 import { DraftBoardComponent } from './components';
 import { PlayerSelectionComponent } from './components/player-selection/player-selection.component';
-import { PlayerDataService } from '../services/player-data.service';
+import { SportsDataService } from '../services/sports-data.service';
 
 @Component({
   selector: 'app-draft',
@@ -44,7 +44,7 @@ export class DraftComponent implements OnInit, OnDestroy {
   private readonly leagueService = inject(LeagueService);
   private readonly leagueMembershipService = inject(LeagueMembershipService);
   private readonly draftService = inject(DraftService);
-  private readonly playerDataService = inject(PlayerDataService);
+  private readonly sportsDataService = inject(SportsDataService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly draftLayoutService = inject(DraftLayoutService);

@@ -15,16 +15,13 @@ import {
   FAWeekPlayer,
 } from '../../../services/free-agency.service';
 import { LeagueService } from '../../../services/league.service';
-import { TeamService } from '../../../services/team.service';
-import { LeagueMembershipService } from '../../../services/league-membership.service';
 import { EnhancedPlayerMinimumService } from '../../../services/enhanced-player-minimum.service';
 import { FAWeekHeaderComponent } from './components/fa-week-header';
-import { AvailablePlayersComponent } from './components/available-players';
 import { TeamBidsComponent } from './components/team-bids';
 import { SalaryCapComponent } from './components/salary-cap';
 import { PlayerDecisionsComponent } from './components/player-decisions';
 import { ContractInputsComponent } from '../../../teams/negotiation/components/contract-inputs/contract-inputs.component';
-import { FABid } from '@fantasy-football-dynasty/types';
+import { PlayersTableComponent } from '../../../shared/components/players-table/players-table.component';
 
 @Component({
   selector: 'app-fa-week',
@@ -42,11 +39,11 @@ import { FABid } from '@fantasy-football-dynasty/types';
     IconFieldModule,
     InputIconModule,
     FAWeekHeaderComponent,
-    AvailablePlayersComponent,
     TeamBidsComponent,
     SalaryCapComponent,
     PlayerDecisionsComponent,
     ContractInputsComponent,
+    PlayersTableComponent,
   ],
   templateUrl: './fa-week.component.html',
   styleUrls: ['./fa-week.component.scss'],
@@ -54,8 +51,6 @@ import { FABid } from '@fantasy-football-dynasty/types';
 export class FAWeekComponent implements OnInit {
   private readonly freeAgencyService = inject(FreeAgencyService);
   private readonly leagueService = inject(LeagueService);
-  private readonly teamService = inject(TeamService);
-  private readonly leagueMembershipService = inject(LeagueMembershipService);
   private readonly enhancedPlayerMinimumService = inject(
     EnhancedPlayerMinimumService
   );
@@ -96,6 +91,25 @@ export class FAWeekComponent implements OnInit {
       (form.baseSalary * form.years + form.signingBonus) / form.years
     );
   });
+
+  // Players table configuration for FA Week
+  public playersTableConfig = computed(() => ({
+    title: 'Available Players',
+    subtitle: 'Submit bids for free agents',
+    emptyMessage: 'No players available for bidding',
+    showFilters: true,
+    showSearch: true,
+    showPagination: true,
+    pageSize: 20,
+    mode: 'bid' as const,
+    actions: [],
+    leagueId: this.leagueService.selectedLeague()?.id,
+    showBidCounts: true,
+    showEstimatedMinimum: true,
+    showMarketTrends: false,
+    onBidClick: (player: any) => this.openBidModal(player),
+    onPlayerClick: (player: any) => this.openBidModal(player),
+  }));
 
   ngOnInit(): void {
     this.loadInitialData();

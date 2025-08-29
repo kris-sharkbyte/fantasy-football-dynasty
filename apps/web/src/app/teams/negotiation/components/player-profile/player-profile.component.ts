@@ -1,7 +1,7 @@
 import { Component, input, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CardModule } from 'primeng/card';
-import { SleeperPlayer } from '../../../../services/player-data.service';
+import { SportsPlayer } from '@fantasy-football-dynasty/domain';
 import { NumberFormatService } from '../../../../services/number-format.service';
 
 @Component({
@@ -13,7 +13,7 @@ import { NumberFormatService } from '../../../../services/number-format.service'
 })
 export class PlayerProfileComponent {
   // Input signals
-  player = input.required<SleeperPlayer>();
+  player = input.required<SportsPlayer>();
   playerRating = input.required<number>();
   expectedValue = input.required<number>();
   contractYears = input.required<number>();
@@ -25,19 +25,17 @@ export class PlayerProfileComponent {
   // Computed values
   playerName = computed(() => {
     const player = this.player();
-    return player
-      ? `${player.first_name} ${player.last_name}`
-      : 'Unknown Player';
+    return player ? `${player.FirstName} ${player.LastName}` : 'Unknown Player';
   });
 
   positionNumber = computed(() => {
     const player = this.player();
-    return `#${player?.number || '00'} ${player?.position}`;
+    return `#${player?.Number || '00'} ${player?.Position}`;
   });
 
   ageCollege = computed(() => {
     const player = this.player();
-    return `AGE: ${player?.age}, COLLEGE: ${player?.college || 'Unknown'}`;
+    return `AGE: ${player?.Age}, COLLEGE: ${player?.College || 'Unknown'}`;
   });
 
   formattedExpectedValue = computed(() => {

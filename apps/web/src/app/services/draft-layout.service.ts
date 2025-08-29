@@ -64,3 +64,4 @@ export class DraftLayoutService {
     this.showPlayerList.update((current) => !current);
   }
 }
+

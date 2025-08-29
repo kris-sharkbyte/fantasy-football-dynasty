@@ -21,7 +21,6 @@ import { ConfirmationService } from 'primeng/api';
 import { LeagueService } from '../../services/league.service';
 import { League } from '@fantasy-football-dynasty/types';
 import { MessageService } from 'primeng/api';
-import { DraftSimulationService } from '../../services/draft-simulation.service';
 
 @Component({
   selector: 'app-league-settings',
@@ -53,7 +52,7 @@ export class LeagueSettingsComponent implements OnInit {
   isPrivate = signal(false);
   joinCode = signal<string>('');
   isRandomizing = signal(false);
-  
+
   // Remove the teams signal since we'll use the cached one from league service
   // teams = signal<any[]>([]);
 
@@ -61,7 +60,6 @@ export class LeagueSettingsComponent implements OnInit {
   private readonly messageService = inject(MessageService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly fb = inject(FormBuilder);
-  public readonly draftSimulationService = inject(DraftSimulationService);
 
   // Use cached league teams from the service
   readonly leagueTeams = this.leagueService.leagueTeams;
@@ -324,7 +322,7 @@ export class LeagueSettingsComponent implements OnInit {
       });
 
       // Call the actual draft simulation service
-      await this.draftSimulationService.simulateDraft(this.league().id);
+      // await this.draftSimulationService.simulateDraft(this.league().id);
 
       this.messageService.add({
         severity: 'success',

@@ -412,28 +412,31 @@
             </div>
 
             <!-- Draft Simulation Progress -->
-            @if (draftSimulationService.isSimulating()) {
-            <div class="draft-progress mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <!-- @if (draftSimulationService.isSimulating()) {
+            <div
+              class="draft-progress mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200"
+            >
               <div class="flex items-center justify-between mb-2">
                 <h4 class="text-sm font-medium text-blue-800">
                   Draft Simulation in Progress...
                 </h4>
                 <span class="text-sm text-blue-600">
-                  {{ draftSimulationService.progress().current }} / {{ draftSimulationService.progress().total }} picks
+                  {{ draftSimulationService.progress().current }} /
+                  {{ draftSimulationService.progress().total }} picks
                 </span>
               </div>
-              
-              <p-progressBar 
+
+              <p-progressBar
                 [value]="draftSimulationService.progress().percentage"
                 [showValue]="false"
                 styleClass="h-2"
               ></p-progressBar>
-              
+
               <p class="text-xs text-blue-600 mt-2">
                 {{ draftSimulationService.progress().percentage }}% Complete
               </p>
             </div>
-            }
+            } -->
           </div>
         </div>
       </div>

@@ -91,12 +91,12 @@ export const routes: Routes = [
       },
     ],
   },
-  {
-    path: 'teams',
-    loadComponent: () =>
-      import('./teams/teams.component').then((m) => m.TeamsComponent),
-    canActivate: [AuthGuard],
-  },
+  // {
+  //   path: 'teams',
+  //   loadComponent: () =>
+  //     import('./teams/teams.component').then((m) => m.TeamsComponent),
+  //   canActivate: [AuthGuard],
+  // },
   {
     path: 'players',
     loadComponent: () =>

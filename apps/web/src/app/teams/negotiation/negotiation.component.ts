@@ -6,13 +6,15 @@ import { ButtonModule } from 'primeng/button';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { MessageModule } from 'primeng/message';
 
-import { Contract, Position, Guarantee } from '@fantasy-football-dynasty/types';
+import {
+  Contract,
+  Position,
+  Guarantee,
+  SportsPlayer,
+} from '@fantasy-football-dynasty/types';
 import { TeamService } from '../../services/team.service';
 import { LeagueMembershipService } from '../../services/league-membership.service';
-import {
-  PlayerDataService,
-  SleeperPlayer,
-} from '../../services/player-data.service';
+import { SportsDataService } from '../../services/sports-data.service';
 import {
   ContractMinimumCalculator,
   CapMath,
@@ -75,7 +77,7 @@ export interface ContractValidation {
 export class NegotiationComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly playerDataService = inject(PlayerDataService);
+  private readonly sportsDataService = inject(SportsDataService);
   private readonly teamService = inject(TeamService);
   private readonly leagueService = inject(LeagueService);
   private readonly themeService = inject(ThemeService);
@@ -180,13 +182,8 @@ export class NegotiationComponent implements OnInit {
 
       this._teamId.set(myMembership.teamId);
 
-      // Load players if not already loaded
-      if (!this.playerDataService.hasPlayers()) {
-        await this.playerDataService.loadPlayers();
-      }
-
       // Verify player exists
-      const player = this.playerDataService.getPlayer(playerId);
+      const player = this.sportsDataService.getPlayer(Number(playerId));
       if (!player) {
         throw new Error('Player not found');
       }
@@ -207,8 +204,9 @@ export class NegotiationComponent implements OnInit {
   /**
    * Get player data for validation
    */
-  getPlayerData(): SleeperPlayer | null {
-    return this.playerDataService.getPlayer(this.playerId());
+  getPlayerData(): SportsPlayer | null {
+    // return this.playerDataService.getPlayer(this.playerId());
+    return null;
   }
 
   /**
@@ -287,17 +285,17 @@ export class NegotiationComponent implements OnInit {
     // Minimum contract validation
     const player = this.getPlayerData();
     if (player) {
-      const isRookie = player.years_exp === 0;
+      const isRookie = player.Experience === 0;
       const draftRound = isRookie ? 3 : undefined;
 
       const minimumValidation =
         ContractMinimumCalculator.validateContractMinimum(
           contract as Contract,
           {
-            age: player.age,
-            position: player.position as Position,
-            overall: player.search_rank || 70,
-            yearsExp: player.years_exp,
+            age: player.Age,
+            position: player.Position as Position,
+            overall: player.overall || 70,
+            yearsExp: player.Experience,
           },
           this.salaryCap,
           isRookie,
@@ -340,14 +338,14 @@ export class NegotiationComponent implements OnInit {
         ? ContractMinimumCalculator.validateContractMinimum(
             contract as Contract,
             {
-              age: player.age,
-              position: player.position as Position,
-              overall: player.search_rank || 70,
-              yearsExp: player.years_exp,
+              age: player.Age,
+              position: player.Position as Position,
+              overall: player.overall || 70,
+              yearsExp: player.Experience,
             },
             this.salaryCap,
-            player.years_exp === 0,
-            player.years_exp === 0 ? 3 : undefined
+            player.Experience === 0,
+            player.Experience === 0 ? 3 : undefined
           ).minimumRequired
         : 0,
       capImpact,
@@ -389,10 +387,10 @@ export class NegotiationComponent implements OnInit {
     const player = this.getPlayerData();
     if (!player) return 'UNKNOWN';
 
-    if (player.years_exp === 0) return 'ROOKIE';
-    if (player.age <= 25) return 'YOUNG STAR';
-    if (player.age <= 28) return 'BRIDGE PLAYER';
-    if (player.age <= 32) return 'VETERAN';
+    if (player.Experience === 0) return 'ROOKIE';
+    if (player.Age <= 25) return 'YOUNG STAR';
+    if (player.Age <= 28) return 'BRIDGE PLAYER';
+    if (player.Age <= 32) return 'VETERAN';
     return 'AGING VETERAN';
   }
 
@@ -429,7 +427,7 @@ export class NegotiationComponent implements OnInit {
     const player = this.getPlayerData();
     if (!player) return [];
 
-    const position = player.position;
+    const position = player.Position;
     const baseOVR = this.playerRating();
 
     return [
@@ -437,19 +435,19 @@ export class NegotiationComponent implements OnInit {
         overall: Math.max(50, baseOVR - 8),
         number: String(Math.floor(Math.random() * 99) + 1),
         position: position,
-        age: Math.max(22, player.age - 2),
+        age: Math.max(22, player.Age - 2),
       },
       {
         overall: Math.max(50, baseOVR - 12),
         number: String(Math.floor(Math.random() * 99) + 1),
         position: position,
-        age: Math.max(22, player.age + 1),
+        age: Math.max(22, player.Age + 1),
       },
       {
         overall: Math.max(50, baseOVR - 15),
         number: String(Math.floor(Math.random() * 99) + 1),
         position: position,
-        age: Math.max(22, player.age - 1),
+        age: Math.max(22, player.Age - 1),
       },
     ];
   }

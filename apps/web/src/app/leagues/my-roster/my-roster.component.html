@@ -158,11 +158,11 @@
     <div class="contract-form">
       <div class="player-summary">
         <h3>
-          {{ selectedPlayer()?.first_name }} {{ selectedPlayer()?.last_name }}
+          {{ selectedPlayer()?.FirstName }} {{ selectedPlayer()?.LastName }}
         </h3>
         <p>
-          {{ selectedPlayer()?.position }} • {{ selectedPlayer()?.team }} • Age
-          {{ selectedPlayer()?.age }}
+          {{ selectedPlayer()?.Position }} • {{ selectedPlayer()?.Team }} • Age
+          {{ selectedPlayer()?.Age }}
         </p>
       </div>
 
@@ -179,16 +179,17 @@
         </div>
         <div class="contract-info">
           <p>
-            <strong>Player:</strong> {{ selectedPlayer()?.first_name }}
-            {{ selectedPlayer()?.last_name }}
+            <strong>Player:</strong> {{ selectedPlayer()?.FirstName }}
+            {{ selectedPlayer()?.LastName }}
           </p>
-          <p><strong>Position:</strong> {{ selectedPlayer()?.position }}</p>
-          <p><strong>Age:</strong> {{ selectedPlayer()?.age }}</p>
+          <p><strong>Position:</strong> {{ selectedPlayer()?.Position }}</p>
+          <p><strong>Age:</strong> {{ selectedPlayer()?.Age }}</p>
           <p>
-            <strong>Experience:</strong> {{ selectedPlayer()?.years_exp }} years
+            <strong>Experience:</strong>
+            {{ selectedPlayer()?.Experience }} years
           </p>
           <p>
-            <strong>Team:</strong> {{ selectedPlayer()?.team || 'Free Agent' }}
+            <strong>Team:</strong> {{ selectedPlayer()?.Team || 'Free Agent' }}
           </p>
         </div>
       </div>

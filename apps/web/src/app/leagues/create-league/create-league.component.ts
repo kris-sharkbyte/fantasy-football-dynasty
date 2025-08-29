@@ -45,6 +45,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 export class CreateLeagueComponent {
   leagueForm!: FormGroup;
   isSubmitting = signal(false);
+  isSettingUpPlayers = signal(false);
   currentStepIndex = signal(0);
   isLoading = signal(true);
 

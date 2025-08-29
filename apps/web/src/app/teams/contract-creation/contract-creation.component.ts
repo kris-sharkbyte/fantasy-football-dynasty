@@ -1,12 +1,13 @@
 import { Component, signal, computed, inject, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Contract, Position, Guarantee } from '@fantasy-football-dynasty/types';
-import { TeamService } from '../../services/team.service';
 import {
-  PlayerDataService,
-  SleeperPlayer,
-} from '../../services/player-data.service';
+  Contract,
+  Position,
+  Guarantee,
+  SportsPlayer,
+} from '@fantasy-football-dynasty/types';
+import { TeamService } from '../../services/team.service';
 import {
   ContractMinimumCalculator,
   CapMath,
@@ -19,6 +20,7 @@ import {
 import { ThemeService } from '../../services/theme.service';
 import { NegotiationService } from '../../services/negotiation.service';
 import { NumberFormatService } from '../../services/number-format.service';
+import { SportsDataService } from '../../services/sports-data.service';
 
 export interface ContractFormData {
   years: number;
@@ -56,7 +58,7 @@ export class ContractCreationComponent {
   @Input() salaryCap: number = 200000000; // Default 200M cap
   @Input() existingContracts: Contract[] = []; // For cap calculations
 
-  private readonly playerDataService = inject(PlayerDataService);
+  private readonly sportsDataService = inject(SportsDataService);
   private readonly teamService = inject(TeamService);
   private readonly themeService = inject(ThemeService);
   private readonly negotiationService = inject(NegotiationService);
@@ -121,17 +123,16 @@ export class ContractCreationComponent {
    * Get player name for display
    */
   getPlayerName(): string {
-    const player = this.playerDataService.getPlayer(this.playerId);
-    return player
-      ? `${player.first_name} ${player.last_name}`
-      : 'Unknown Player';
+    const player = this.sportsDataService.getPlayer(Number(this.playerId));
+    return player ? `${player.FirstName} ${player.LastName}` : 'Unknown Player';
   }
 
   /**
    * Get player data for validation
    */
-  getPlayerData(): SleeperPlayer | null {
-    return this.playerDataService.getPlayer(this.playerId);
+  getPlayerData(): SportsPlayer | null {
+    // return this.playerDataService.getPlayer(this.playerId);
+    return null;
   }
 
   /**
@@ -238,7 +239,7 @@ export class ContractCreationComponent {
     const player = this.getPlayerData();
     if (player) {
       // Determine if player is a rookie (0 years experience)
-      const isRookie = player.years_exp === 0;
+      const isRookie = player.Experience === 0;
 
       // For rookies, we'd need draft round info - for now, assume round 3 minimum
       const draftRound = isRookie ? 3 : undefined;
@@ -247,10 +248,10 @@ export class ContractCreationComponent {
         ContractMinimumCalculator.validateContractMinimum(
           contract as Contract,
           {
-            age: player.age,
-            position: player.position as Position,
-            overall: player.search_rank || 70, // Use search rank as proxy for overall
-            yearsExp: player.years_exp,
+            age: player.Age,
+            position: player.Position as Position,
+            overall: player.overall || 70, // Use search rank as proxy for overall
+            yearsExp: player.Experience,
           },
           this.salaryCap,
           isRookie,
@@ -294,14 +295,14 @@ export class ContractCreationComponent {
         ? ContractMinimumCalculator.validateContractMinimum(
             contract as Contract,
             {
-              age: player.age,
-              position: player.position as Position,
-              overall: player.search_rank || 70,
-              yearsExp: player.years_exp,
+              age: player.Age,
+              position: player.Position as Position,
+              overall: player.overall || 70,
+              yearsExp: player.Experience,
             },
             this.salaryCap,
-            player.years_exp === 0,
-            player.years_exp === 0 ? 3 : undefined
+            player.Experience === 0,
+            player.Experience === 0 ? 3 : undefined
           ).minimumRequired
         : 0,
       capImpact,
@@ -387,10 +388,10 @@ export class ContractCreationComponent {
     const player = this.getPlayerData();
     if (!player) return 'UNKNOWN';
 
-    if (player.years_exp === 0) return 'ROOKIE';
-    if (player.age <= 25) return 'YOUNG STAR';
-    if (player.age <= 28) return 'BRIDGE PLAYER';
-    if (player.age <= 32) return 'VETERAN';
+    if (player.Experience === 0) return 'ROOKIE';
+    if (player.Age <= 25) return 'YOUNG STAR';
+    if (player.Age <= 28) return 'BRIDGE PLAYER';
+    if (player.Age <= 32) return 'VETERAN';
     return 'AGING VETERAN';
   }
 
@@ -422,7 +423,7 @@ export class ContractCreationComponent {
     if (!player) return [];
 
     // Generate realistic depth data based on the selected player's position
-    const position = player.position;
+    const position = player.Position;
     const baseOVR = this.playerRating();
 
     // Create depth players with realistic ratings (slightly lower than starter)
@@ -431,19 +432,19 @@ export class ContractCreationComponent {
         overall: Math.max(50, baseOVR - 8), // Backup
         number: String(Math.floor(Math.random() * 99) + 1),
         position: position,
-        age: Math.max(22, player.age - 2),
+        age: Math.max(22, player.Age - 2),
       },
       {
         overall: Math.max(50, baseOVR - 12), // Depth
         number: String(Math.floor(Math.random() * 99) + 1),
         position: position,
-        age: Math.max(22, player.age + 1),
+        age: Math.max(22, player.Age + 1),
       },
       {
         overall: Math.max(50, baseOVR - 15), // Practice squad level
         number: String(Math.floor(Math.random() * 99) + 1),
         position: position,
-        age: Math.max(22, player.age - 1),
+        age: Math.max(22, player.Age - 1),
       },
     ];
   }

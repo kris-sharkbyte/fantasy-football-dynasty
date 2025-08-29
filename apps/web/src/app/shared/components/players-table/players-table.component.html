@@ -1,0 +1,575 @@
+<div class="available-players-container">
+  <!-- Header -->
+  <div class="header-section">
+    <h2>{{ config?.title || 'Available Players' }}</h2>
+    <p *ngIf="config?.subtitle" class="subtitle">{{ config.subtitle }}</p>
+  </div>
+
+  <!-- Filters Section -->
+  <div *ngIf="hasFilters()" class="filters-section">
+    <div class="filter-row">
+      <!-- Position Filter -->
+      <div class="filter-group">
+        <label for="position-filter">Position:</label>
+        <p-select
+          id="position-filter"
+          [options]="positionOptions()"
+          [(ngModel)]="selectedPosition"
+          (onChange)="updatePositionFilter($event.value)"
+          placeholder="All Positions"
+          class="filter-select"
+        >
+        </p-select>
+      </div>
+
+      <!-- Team Filter -->
+      <div class="filter-group">
+        <label for="team-filter">Team:</label>
+        <p-select
+          id="team-filter"
+          [options]="teamOptions()"
+          [(ngModel)]="selectedTeam"
+          (onChange)="updateTeamFilter($event.value)"
+          placeholder="All Teams"
+          class="filter-select"
+        >
+        </p-select>
+      </div>
+
+      <!-- Search Filter -->
+      <div *ngIf="hasSearch()" class="filter-group search-group">
+        <label for="search-input">Search:</label>
+        <p-iconfield iconPosition="left">
+          <p-inputicon>
+            <i class="pi pi-search"></i>
+          </p-inputicon>
+          <input
+            pInputText
+            type="text"
+            [value]="searchQuery()"
+            (input)="updateSearch($any($event.target).value)"
+            placeholder="Search players..."
+            class="search-input"
+          />
+        </p-iconfield>
+      </div>
+
+      <!-- Clear Filters -->
+      <button (click)="clearFilters()" class="clear-filters-btn">
+        Clear Filters
+      </button>
+
+      <!-- Clear Sort -->
+      <button
+        *ngIf="sortField() !== 'overall' || sortOrder() !== -1"
+        (click)="clearSort()"
+        class="clear-sort-btn"
+      >
+        Clear Sort
+      </button>
+
+      <!-- Refresh Button (when using league data) -->
+      <button
+        *ngIf="config?.leagueId || isBidMode()"
+        (click)="refresh()"
+        class="refresh-btn"
+        [disabled]="isLoading()"
+      >
+        <i class="pi pi-refresh" [class.pi-spin]="isLoading()"></i>
+        Refresh
+      </button>
+    </div>
+
+    <!-- Filter Summary -->
+    <div class="filter-summary">
+      {{ getFilterSummary() }}
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading()" class="loading-section">
+    <p-progressSpinner></p-progressSpinner>
+    <p>Loading players...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error()" class="error-section">
+    <div class="error-message">
+      <i class="pi pi-exclamation-triangle"></i>
+      <span>{{ error() }}</span>
+    </div>
+  </div>
+
+  <!-- Players Table -->
+  <div *ngIf="!isLoading() && !error() && hasPlayers()" class="players-section">
+    <p-table
+      [value]="paginatedPlayers()"
+      [paginator]="config?.showPagination"
+      [rows]="config?.pageSize || 25"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Showing {first} to {last} of {totalRecords} players"
+      [rowsPerPageOptions]="[10, 25, 50, 100]"
+      class="p-datatable-sm"
+    >
+      <!-- Player Photo Column -->
+      <ng-template pTemplate="header">
+        <tr>
+          <!-- <th>Photo</th> -->
+          <th
+            class="sortable-header"
+            (click)="sortBy('name')"
+            (keydown.enter)="sortBy('name')"
+            (keydown.space)="sortBy('name')"
+            [class]="getSortClass('name')"
+            role="button"
+            tabindex="0"
+            [attr.aria-label]="
+              'Sort by Name. ' +
+              (sortField() === 'name'
+                ? sortOrder() === 1
+                  ? 'Currently sorted ascending'
+                  : 'Currently sorted descending'
+                : 'Not sorted')
+            "
+            [attr.aria-sort]="
+              sortField() === 'name'
+                ? sortOrder() === 1
+                  ? 'ascending'
+                  : 'descending'
+                : 'none'
+            "
+          >
+            <div class="header-content">
+              <span>Name</span>
+              <i [class]="getSortIcon('name')" aria-hidden="true"></i>
+            </div>
+          </th>
+          <th
+            class="sortable-header"
+            (click)="sortBy('position')"
+            (keydown.enter)="sortBy('position')"
+            (keydown.space)="sortBy('position')"
+            [class]="getSortClass('position')"
+            role="button"
+            tabindex="0"
+            [attr.aria-label]="
+              'Sort by Position. ' +
+              (sortField() === 'position'
+                ? sortOrder() === 1
+                  ? 'Currently sorted ascending'
+                  : 'Currently sorted descending'
+                : 'Not sorted')
+            "
+            [attr.aria-sort]="
+              sortField() === 'position'
+                ? sortOrder() === 1
+                  ? 'ascending'
+                  : 'descending'
+                : 'none'
+            "
+          >
+            <div class="header-content">
+              <span>Position</span>
+              <i [class]="getSortIcon('position')" aria-hidden="true"></i>
+            </div>
+          </th>
+          <th
+            class="sortable-header"
+            (click)="sortBy('team')"
+            (keydown.enter)="sortBy('team')"
+            (keydown.space)="sortBy('team')"
+            [class]="getSortClass('team')"
+            role="button"
+            tabindex="0"
+            [attr.aria-label]="
+              'Sort by Team. ' +
+              (sortField() === 'team'
+                ? sortOrder() === 1
+                  ? 'Currently sorted ascending'
+                  : 'Currently sorted descending'
+                : 'Not sorted')
+            "
+            [attr.aria-sort]="
+              sortField() === 'team'
+                ? sortOrder() === 1
+                  ? 'ascending'
+                  : 'descending'
+                : 'none'
+            "
+          >
+            <div class="header-content">
+              <span>Team</span>
+              <i [class]="getSortIcon('team')" aria-hidden="true"></i>
+            </div>
+          </th>
+          <th
+            class="sortable-header"
+            (click)="sortBy('age')"
+            (keydown.enter)="sortBy('age')"
+            (keydown.space)="sortBy('age')"
+            [class]="getSortClass('age')"
+            role="button"
+            tabindex="0"
+            [attr.aria-label]="
+              'Sort by Age. ' +
+              (sortField() === 'age'
+                ? sortOrder() === 1
+                  ? 'Currently sorted ascending'
+                  : 'Currently sorted descending'
+                : 'Not sorted')
+            "
+            [attr.aria-sort]="
+              sortField() === 'age'
+                ? sortOrder() === 1
+                  ? 'ascending'
+                  : 'descending'
+                : 'none'
+            "
+          >
+            <div class="header-content">
+              <span>Age</span>
+              <i [class]="getSortIcon('age')" aria-hidden="true"></i>
+            </div>
+          </th>
+          <th
+            class="sortable-header"
+            (click)="sortBy('experience')"
+            (keydown.enter)="sortBy('experience')"
+            (keydown.space)="sortBy('experience')"
+            [class]="getSortClass('experience')"
+            role="button"
+            tabindex="0"
+            [attr.aria-label]="
+              'Sort by Experience. ' +
+              (sortField() === 'experience'
+                ? sortOrder() === 1
+                  ? 'Currently sorted ascending'
+                  : 'Currently sorted descending'
+                : 'Not sorted')
+            "
+            [attr.aria-sort]="
+              sortField() === 'experience'
+                ? sortOrder() === 1
+                  ? 'ascending'
+                  : 'descending'
+                : 'none'
+            "
+          >
+            <div class="header-content">
+              <span>Exp</span>
+              <i [class]="getSortIcon('experience')" aria-hidden="true"></i>
+            </div>
+          </th>
+          <th
+            class="sortable-header"
+            (click)="sortBy('overall')"
+            (keydown.enter)="sortBy('overall')"
+            (keydown.space)="sortBy('overall')"
+            [class]="getSortClass('overall')"
+            role="button"
+            tabindex="0"
+            [attr.aria-label]="
+              'Sort by Overall. ' +
+              (sortField() === 'overall'
+                ? sortOrder() === 1
+                  ? 'Currently sorted ascending'
+                  : 'Currently sorted descending'
+                : 'Not sorted')
+            "
+            [attr.aria-sort]="
+              sortField() === 'overall'
+                ? sortOrder() === 1
+                  ? 'ascending'
+                  : 'descending'
+                : 'none'
+            "
+          >
+            <div class="header-content">
+              <span>Overall</span>
+              <i [class]="getSortIcon('overall')" aria-hidden="true"></i>
+            </div>
+          </th>
+          <!-- Fantasy Points Column -->
+          <th
+            class="sortable-header"
+            (click)="sortBy('fantasyPointsPPR')"
+            (keydown.enter)="sortBy('fantasyPointsPPR')"
+            (keydown.space)="sortBy('fantasyPointsPPR')"
+            [class]="getSortClass('fantasyPointsPPR')"
+            role="button"
+            tabindex="0"
+            [attr.aria-label]="
+              'Sort by Fantasy Points. ' +
+              (sortField() === 'fantasyPointsPPR'
+                ? sortOrder() === 1
+                  ? 'Currently sorted ascending'
+                  : 'Currently sorted descending'
+                : 'Not sorted')
+            "
+            [attr.aria-sort]="
+              sortField() === 'fantasyPointsPPR'
+                ? sortOrder() === 1
+                  ? 'ascending'
+                  : 'descending'
+                : 'none'
+            "
+          >
+            <div class="header-content">
+              <span>Fantasy Pts</span>
+              <i
+                [class]="getSortIcon('fantasyPointsPPR')"
+                aria-hidden="true"
+              ></i>
+            </div>
+          </th>
+          <!-- League-specific columns (only show when using league data) -->
+          <!-- <th *ngIf="config?.leagueId">Grade</th> -->
+          <th *ngIf="config?.leagueId">Personality</th>
+          <!-- Free agency specific columns -->
+          <th *ngIf="showBidColumns() && config?.showEstimatedMinimum">
+            Est. Min
+          </th>
+          <th *ngIf="showBidColumns() && config?.showBidCounts">Bids</th>
+          <th>Actions</th>
+        </tr>
+      </ng-template>
+
+      <!-- Player Row -->
+      <ng-template pTemplate="body" let-player>
+        <tr
+          class="player-row"
+          (click)="onPlayerClick(player)"
+          [class.has-team-bid]="isBidMode() && hasTeamBid(player.PlayerID)"
+        >
+          <!-- Photo -->
+          <!-- <td class="photo-cell">
+            <img
+              [src]="getPlayerPhoto(player)"
+              [alt]="getPlayerName(player)"
+              class="player-photo"
+              (error)="$event.target.src = '/assets/images/default-player.png'"
+            />
+          </td> -->
+
+          <!-- Name -->
+          <td class="name-cell">
+            <div class="player-name-cell">
+              <strong>{{ getPlayerName(player) }}</strong>
+              <!-- Bid indicator for bid mode -->
+              <span
+                class="bid-indicator"
+                *ngIf="isBidMode() && hasTeamBid(player.PlayerID)"
+              >
+                <i
+                  class="pi pi-star-fill"
+                  style="color: var(--primary-color)"
+                ></i>
+              </span>
+            </div>
+          </td>
+
+          <!-- Position -->
+          <td class="position-cell">
+            <p-tag
+              [value]="getPositionDisplay(player.Position)"
+              [styleClass]="getPositionColorClass(player.Position)"
+            >
+            </p-tag>
+          </td>
+
+          <!-- Team -->
+          <td class="team-cell">
+            <span class="team-name">{{ getTeamDisplay(player.Team) }}</span>
+          </td>
+
+          <!-- Age -->
+          <td class="age-cell">
+            <span class="age-value" *ngIf="getPlayerAge(player)">
+              {{ getPlayerAge(player) }}
+            </span>
+            <span class="no-age" *ngIf="!getPlayerAge(player)"> - </span>
+          </td>
+
+          <!-- Experience -->
+          <td class="experience-cell">
+            {{ getExperienceDisplay(player) }}
+          </td>
+
+          <!-- Overall -->
+          <td class="overall-cell">
+            <span class="overall-rating">{{ getOverallDisplay(player) }}</span>
+          </td>
+
+          <!-- Fantasy Points -->
+          <td class="fantasy-points-cell">
+            <span
+              class="fantasy-points-value"
+              *ngIf="getPlayerFantasyPoints(player)"
+            >
+              {{ getPlayerFantasyPoints(player) }}
+            </span>
+            <span
+              class="no-fantasy-points"
+              *ngIf="!getPlayerFantasyPoints(player)"
+            >
+              -
+            </span>
+          </td>
+
+          <!-- Dev Grade (league-specific) -->
+          <!-- <td *ngIf="config?.leagueId" class="dev-grade-cell">
+            <span class="dev-grade">{{ getDevGradeDisplay(player) }}</span>
+          </td> -->
+
+          <!-- Personality (league-specific) -->
+          <td *ngIf="config?.leagueId" class="personality-cell">
+            <span class="personality-type">{{
+              getPersonalityDisplay(player)
+            }}</span>
+          </td>
+
+          <!-- Estimated Minimum (bid mode) -->
+          <td
+            *ngIf="showBidColumns() && config?.showEstimatedMinimum"
+            class="est-min-cell"
+          >
+            <div class="flex flex-col items-center space-y-1">
+              <span
+                class="min-value font-medium"
+                *ngIf="getPlayerMinimumForDisplay(player.PlayerID)"
+              >
+                {{
+                  formatCurrency(
+                    getPlayerMinimumForDisplay(player.PlayerID) || 0
+                  )
+                }}
+              </span>
+              <span
+                class="no-min text-gray-400"
+                *ngIf="!getPlayerMinimumForDisplay(player.PlayerID)"
+              >
+                -
+              </span>
+            </div>
+          </td>
+
+          <!-- Bid Count (bid mode) -->
+          <td
+            *ngIf="showBidColumns() && config?.showBidCounts"
+            class="bid-count-cell"
+          >
+            <span
+              class="bid-count"
+              *ngIf="getPlayerBidCount(player.PlayerID) > 0"
+            >
+              {{ getPlayerBidCount(player.PlayerID) }}
+            </span>
+            <span
+              class="no-bids"
+              *ngIf="getPlayerBidCount(player.PlayerID) === 0"
+              >-</span
+            >
+          </td>
+
+          <!-- Actions -->
+          <td class="actions-cell">
+            <div class="action-buttons">
+              <!-- Default actions -->
+              <p-button
+                *ngFor="let action of config?.actions"
+                [label]="action.label"
+                [icon]="action.icon"
+                [severity]="action.severity"
+                [disabled]="isActionDisabled(action, player)"
+                [hidden]="!isActionVisible(action, player)"
+                (onClick)="executeAction(action, player)"
+                size="small"
+              >
+              </p-button>
+
+              <!-- Bid mode specific actions -->
+              <p-button
+                *ngIf="isBidMode() && config?.onBidClick"
+                icon="pi pi-plus"
+                label="Bid"
+                size="small"
+                severity="primary"
+                styleClass="bid-button"
+                (click)="onBidClick(player)"
+              >
+              </p-button>
+
+              <!-- Sign mode specific actions -->
+              <p-button
+                *ngIf="isSignMode() && config?.onSignClick"
+                icon="pi pi-check"
+                label="Sign"
+                size="small"
+                severity="success"
+                styleClass="sign-button"
+                (click)="onSignClick(player)"
+              >
+              </p-button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <!-- Empty Template -->
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td [attr.colspan]="getEmptyMessageColspan()" class="empty-message">
+            {{ config.emptyMessage || 'No players found' }}
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+
+    <!-- Pagination Controls (if not using p-table paginator) -->
+    <div
+      *ngIf="config?.showPagination && totalPages() > 1"
+      class="pagination-controls"
+    >
+      <p-button
+        icon="pi pi-chevron-left"
+        (onClick)="previousPage()"
+        [disabled]="currentPage() <= 1"
+        size="small"
+      >
+      </p-button>
+
+      <span class="page-info">
+        Page {{ currentPage() }} of {{ totalPages() }}
+      </span>
+
+      <p-button
+        icon="pi pi-chevron-right"
+        (onClick)="nextPage()"
+        [disabled]="currentPage() >= totalPages()"
+        size="small"
+      >
+      </p-button>
+    </div>
+  </div>
+
+  <!-- No Players State -->
+  @if (!isLoading() && !error() && !hasPlayers()) {
+  <div class="no-players-section">
+    <p-card>
+      <div class="no-players-content">
+        <i class="pi pi-users no-players-icon"></i>
+        <h3>No Players Found</h3>
+        <p>
+          {{ config?.emptyMessage || 'No players match your current filters.' }}
+        </p>
+        <p-button
+          label="Clear Filters"
+          (onClick)="clearFilters()"
+          severity="secondary"
+        >
+        </p-button>
+      </div>
+    </p-card>
+  </div>
+  }
+</div>

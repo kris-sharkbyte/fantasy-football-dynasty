@@ -10,6 +10,126 @@ import {
 import { EnhancedPlayerFactory } from './personalities/enhanced-player-factory';
 import { EnhancedPlayer } from './personalities/enhanced-player';
 
+// Sports data interfaces based on actual data structure
+export interface SportsPlayer {
+  Age?: number;
+  college?: string;
+  AverageDraftPosition?: number | null;
+  BirthDate?: string;
+  ByeWeek?: number;
+  College?: string;
+  CollegeDraftPick?: number;
+  CollegeDraftRound?: number;
+  CollegeDraftTeam?: string;
+  CollegeDraftYear?: number;
+  DraftKingsName?: string;
+  DraftKingsPlayerID?: number;
+  Experience?: number;
+  FanDuelName?: string;
+  FanDuelPlayerID?: number;
+  FantasyPosition?: string;
+  FirstName?: string;
+  Height?: string;
+  InjuryStatus?: string | null;
+  IsUndraftedFreeAgent?: boolean;
+  LastName?: string;
+  Number?: number;
+  PhotoUrl?: string;
+  PlayerID: number;
+  Position: string;
+  PositionCategory?: string;
+  Status?: string;
+  Team?: string;
+  TeamID?: number;
+  Weight?: number;
+  // Additional properties that might be added by the sports data service
+  overall?: number;
+  fantasyPoints?: number;
+  stats?: PlayerStats[];
+}
+
+export interface PlayerStats {
+  AssistedTackles?: number;
+  AuctionValue?: number | null;
+  AuctionValuePPR?: number | null;
+  AverageDraftPosition?: number | null;
+  AverageDraftPosition2QB?: number | null;
+  AverageDraftPositionDynasty?: number | null;
+  AverageDraftPositionPPR?: number | null;
+  AverageDraftPositionRookie?: number | null;
+  ExtraPointsAttempted?: number;
+  ExtraPointsMade?: number;
+  FantasyPoints?: number;
+  FantasyPointsDraftKings?: number;
+  FantasyPointsFanDuel?: number;
+  FantasyPointsPPR?: number;
+  FantasyPosition?: string;
+  FieldGoalsAttempted?: number;
+  FieldGoalsMade?: number;
+  FieldGoalsMade0to19?: number;
+  FieldGoalsMade20to29?: number;
+  FieldGoalsMade30to39?: number;
+  FieldGoalsMade40to49?: number;
+  FieldGoalsMade50Plus?: number;
+  FumbleReturnTouchdowns?: number;
+  Fumbles?: number;
+  FumblesForced?: number;
+  FumblesLost?: number;
+  FumblesRecovered?: number;
+  InterceptionReturnTouchdowns?: number;
+  Interceptions?: number;
+  KickReturns?: number;
+  KickReturnTouchdowns?: number;
+  KickReturnYards?: number;
+  Name?: string;
+  Number?: number;
+  PassesDefended?: number;
+  PassingAttempts?: number;
+  PassingCompletionPercentage?: number;
+  PassingCompletions?: number;
+  PassingInterceptions?: number;
+  PassingLong?: number;
+  PassingRating?: number;
+  PassingSacks?: number;
+  PassingSackYards?: number;
+  PassingTouchdowns?: number;
+  PassingYards?: number;
+  PassingYardsPerAttempt?: number;
+  PassingYardsPerCompletion?: number;
+  Played?: number;
+  PlayerID: number;
+  PlayerSeasonID?: number;
+  Position?: string;
+  PositionCategory?: string;
+  PuntReturns?: number;
+  PuntReturnTouchdowns?: number;
+  PuntReturnYards?: number;
+  QuarterbackHits?: number;
+  ReceivingLong?: number;
+  ReceivingTargets?: number;
+  ReceivingTouchdowns?: number;
+  ReceivingYards?: number;
+  ReceivingYardsPerReception?: number;
+  Receptions?: number;
+  RushingAttempts?: number;
+  RushingLong?: number;
+  RushingTouchdowns?: number;
+  RushingYards?: number;
+  RushingYardsPerAttempt?: number;
+  Sacks?: number;
+  SackYards?: number;
+  Season?: number;
+  SeasonType?: number;
+  SoloTackles?: number;
+  Started?: number;
+  TacklesForLoss?: number;
+  Team?: string;
+  TeamID?: number;
+  TwoPointConversionPasses?: number;
+  TwoPointConversionReceptions?: number;
+  TwoPointConversionRuns?: number;
+}
+
 export interface LeagueSetupData {
   name: string;
   description?: string;
@@ -78,7 +198,10 @@ export class LeagueSetupService {
   /**
    * Create a complete league setup
    */
-  async createLeague(data: LeagueSetupData): Promise<LeagueSetupResult> {
+  async createLeague(
+    data: LeagueSetupData,
+    sportsDataPlayers?: SportsPlayer[]
+  ): Promise<LeagueSetupResult> {
     // Initialize the service
     await this.initialize();
 
@@ -89,7 +212,10 @@ export class LeagueSetupService {
     const teams = this.createTeams(data.numberOfTeams, league.id);
 
     // Create enhanced players with personalities
-    const players = await this.setupPlayers(data.currentYear);
+    const players = await this.setupPlayers(
+      data.currentYear,
+      sportsDataPlayers
+    );
 
     // Initialize market context
     const marketContext = this.initializeMarketContext(players, data.rules);
@@ -156,21 +282,124 @@ export class LeagueSetupService {
    * Set up players with personalities and ratings
    */
   private async setupPlayers(
-    currentYear: number
+    currentYear: number,
+    sportsDataPlayers?: SportsPlayer[] // Use proper interface
   ): Promise<PlayerSetupResult[]> {
     // Import base players (this would come from your data source)
     const basePlayers = await this.importBasePlayers();
     const results: PlayerSetupResult[] = [];
 
-    for (const basePlayer of basePlayers) {
+    // Filter for fantasy-relevant positions only (including IDP)
+    const fantasyPositions = [
+      'QB',
+      'RB',
+      'WR',
+      'TE',
+      'K',
+      'DEF',
+      'DL',
+      'LB',
+      'DB',
+    ];
+
+    // If we have sports data players, use them as the base
+    let playersToProcess = basePlayers;
+    if (sportsDataPlayers && sportsDataPlayers.length > 0) {
+      // Debug: Log what we're getting from sports data
+      console.log(
+        '[LeagueSetupService] Sports data players received:',
+        sportsDataPlayers.length
+      );
+      console.log(
+        '[LeagueSetupService] Sample sports player:',
+        sportsDataPlayers[0]
+      );
+      console.log(
+        '[LeagueSetupService] Sample player FirstName:',
+        sportsDataPlayers[0]?.FirstName
+      );
+      console.log(
+        '[LeagueSetupService] Sample player LastName:',
+        sportsDataPlayers[0]?.LastName
+      );
+      console.log(
+        '[LeagueSetupService] Sample player Position:',
+        sportsDataPlayers[0]?.Position
+      );
+      console.log(
+        '[LeagueSetupService] Sample player PlayerID:',
+        sportsDataPlayers[0]?.PlayerID
+      );
+
+      // Filter sports data players for fantasy positions
+      const filteredSportsPlayers = sportsDataPlayers.filter(
+        (player) =>
+          player.Position && fantasyPositions.includes(player.Position)
+      );
+
+      console.log(
+        '[LeagueSetupService] Filtered sports players for fantasy positions:',
+        filteredSportsPlayers.length
+      );
+
+      if (filteredSportsPlayers.length > 0) {
+        playersToProcess = filteredSportsPlayers.map((sportsPlayer) => {
+          // Construct full name from FirstName and LastName
+          const fullName = `${sportsPlayer.FirstName || ''} ${
+            sportsPlayer.LastName || ''
+          }`.trim();
+
+          const mappedPlayer = {
+            id: sportsPlayer.PlayerID.toString(),
+            name: fullName || 'Unknown Player',
+            position: sportsPlayer.Position as Position, // Cast to Position type
+            age: this.calculateAgeFromBirthDate(sportsPlayer.BirthDate || ''),
+            overall: this.calculateOverallFromStats(sportsPlayer), // Calculate from actual stats
+            yearsExp: sportsPlayer.Experience || 0,
+            nflTeam: sportsPlayer.Team || 'FA',
+            devGrade: this.getDevGradeFromOverall(
+              this.calculateOverallFromStats(sportsPlayer)
+            ),
+            traits: {
+              // Keep minimal traits for personality system compatibility
+              speed: 0,
+              strength: 0,
+              agility: 0,
+              awareness: 0,
+              injury: 0,
+              schemeFit: [],
+            },
+            stats: [], // We'll need to link stats separately by PlayerID
+          };
+
+          // Debug: Log the mapped player
+          console.log('[LeagueSetupService] Mapped sports player:', {
+            originalFirstName: sportsPlayer.FirstName,
+            originalLastName: sportsPlayer.LastName,
+            fullName: fullName,
+            mappedName: mappedPlayer.name,
+            originalId: sportsPlayer.PlayerID,
+            mappedId: mappedPlayer.id,
+          });
+
+          return mappedPlayer;
+        });
+      }
+    }
+
+    const filteredPlayers = playersToProcess.filter((player) =>
+      fantasyPositions.includes(player.position)
+    );
+
+    for (const basePlayer of filteredPlayers) {
       // Create enhanced player with personality
       const enhancedPlayer = EnhancedPlayerFactory.createEnhancedPlayer(
         basePlayer,
         currentYear
       );
 
-      // Calculate overall rating
-      const overall = this.calculatePlayerOverall(enhancedPlayer);
+      // Use the calculated overall from stats
+      const overall = basePlayer.overall;
 
       // Calculate minimum contract requirements
       const minimumContract = this.calculateMinimumContract(
@@ -189,43 +418,36 @@ export class LeagueSetupService {
   }
 
   /**
-   * Calculate player overall rating
+   * Calculate overall rating from actual stats (2024 season performance)
    */
-  private calculatePlayerOverall(player: EnhancedPlayer): number {
-    const { stats, age, yearsExp, devGrade } = player;
-    let overall = 50; // Base rating
-
-    // Age-based adjustments
-    if (age >= 25 && age <= 28) overall += 5; // Prime years
-    else if (age >= 29 && age <= 32) overall += 2; // Veteran
-    else if (age >= 33) overall -= 5; // Declining
-
-    // Experience adjustments
-    if (yearsExp >= 3 && yearsExp <= 7) overall += 3; // Experienced
-    else if (yearsExp >= 8) overall -= 2; // Very experienced (declining)
-
-    // Development grade adjustments
-    switch (devGrade) {
-      case 'A':
-        overall += 15;
-        break;
-      case 'B':
-        overall += 10;
-        break;
-      case 'C':
-        overall += 5;
-        break;
-      case 'D':
-        overall -= 5;
-        break;
+  private calculateOverallFromStats(sportsPlayer: SportsPlayer): number {
+    // Base overall from sports data if available
+    if (sportsPlayer.overall && sportsPlayer.overall > 0) {
+      return sportsPlayer.overall;
     }
 
-    // Position-specific base ratings
-    const positionBase = this.getPositionBaseRating(player.position);
-    overall = Math.max(overall, positionBase);
+    // Fallback calculation based on fantasy points from previous season
+    if (sportsPlayer.fantasyPoints && sportsPlayer.fantasyPoints > 0) {
+      const fantasyPoints = sportsPlayer.fantasyPoints;
 
-    // Ensure overall is within bounds
-    return Math.max(50, Math.min(99, overall));
+      // Convert fantasy points to overall rating (adjust these thresholds based on your scoring system)
+      if (fantasyPoints >= 300) return 95; // Elite (e.g., CMC, Tyreek)
+      if (fantasyPoints >= 250) return 90; // Top tier
+      if (fantasyPoints >= 200) return 85; // High tier
+      if (fantasyPoints >= 150) return 80; // Above average
+      if (fantasyPoints >= 100) return 75; // Average
+      if (fantasyPoints >= 50) return 70; // Below average
+      return 65; // Low tier
+    }
+
+    // If no stats available, use position-based default
+    const position = sportsPlayer.Position || 'QB'; // Default to QB if Position is undefined
+    if (!position) {
+      return this.getPositionBaseRating('QB'); // Fallback to QB if still undefined
+    }
+    // At this point, position is guaranteed to be a string, so we can safely cast it
+    const safePosition = position as Position;
+    return this.getPositionBaseRating(safePosition);
   }
 
   /**
@@ -241,6 +463,16 @@ export class LeagueSetupService {
         return 58;
       case 'TE':
         return 55;
+      case 'K':
+        return 52; // Kickers start lower
+      case 'DEF':
+        return 58; // Team defenses start moderate
+      case 'DL':
+        return 56; // Defensive linemen start moderate
+      case 'LB':
+        return 57; // Linebackers start moderate
+      case 'DB':
+        return 55; // Defensive backs start moderate
       default:
         return 50;
     }
@@ -294,6 +526,16 @@ export class LeagueSetupService {
         return 1.2; // RBs are moderately valuable
       case 'TE':
         return 1.3; // TEs are somewhat valuable
+      case 'K':
+        return 0.8; // Kickers are less valuable
+      case 'DEF':
+        return 1.1; // Team defenses are moderately valuable
+      case 'DL':
+        return 1.0; // Defensive linemen are standard value
+      case 'LB':
+        return 1.1; // Linebackers are moderately valuable
+      case 'DB':
+        return 1.0; // Defensive backs are standard value
       default:
         return 1.0;
     }
@@ -360,6 +602,11 @@ export class LeagueSetupService {
       RB: 0.3, // RBs are plentiful
       WR: 0.4, // WRs are somewhat scarce
       TE: 0.6, // TEs are moderately scarce
+      K: 0.5, // Kickers are moderately scarce
+      DEF: 0.7, // Defenses are scarce
+      DL: 0.4, // Defensive linemen are somewhat scarce
+      LB: 0.5, // Linebackers are moderately scarce
+      DB: 0.4, // Defensive backs are somewhat scarce
     };
 
     // Adjust based on league roster requirements
@@ -388,8 +635,18 @@ export class LeagueSetupService {
     const marketTrends: Record<Position, 'rising' | 'falling' | 'stable'> =
       {} as any;
 
-    // Define the positions we support
-    const positions: Position[] = ['QB', 'RB', 'WR', 'TE'];
+    // Define the positions we support (including IDP)
+    const positions: Position[] = [
+      'QB',
+      'RB',
+      'WR',
+      'TE',
+      'K',
+      'DEF',
+      'DL',
+      'LB',
+      'DB',
+    ];
 
     for (const position of positions) {
       const positionPlayers = players.filter(
@@ -462,61 +719,327 @@ export class LeagueSetupService {
   }
 
   /**
-   * Import base players (placeholder - replace with actual data source)
+   * Import base players from sports data or generate sample data
    */
   private async importBasePlayers(): Promise<Player[]> {
-    // This is a placeholder - replace with actual player import logic
     const players: Player[] = [];
 
-    // Generate some sample players for testing
-    const positions: Position[] = ['QB', 'RB', 'WR', 'TE'];
-    const names = [
-      'Patrick Mahomes',
-      'Josh Allen',
-      'Lamar Jackson',
-      'Jalen Hurts',
-      'Christian McCaffrey',
-      'Saquon Barkley',
-      'Derrick Henry',
-      'Nick Chubb',
-      'Tyreek Hill',
-      'Stefon Diggs',
-      'Davante Adams',
-      'Justin Jefferson',
-      'Travis Kelce',
-      'Mark Andrews',
-      'George Kittle',
-      'T.J. Hockenson',
-    ];
+    // Generate a full roster of players for fantasy football
+    // We need approximately 300-400 players for a 12-team league with 25-30 man rosters
 
-    for (let i = 0; i < names.length; i++) {
-      const position = positions[i % positions.length];
+    // Generate 32 QBs (one per NFL team + extras)
+    for (let i = 0; i < 32; i++) {
       const age = 24 + (i % 8); // Ages 24-31
-      const overall = 80 + (i % 15); // Overall 80-94
-
+      const overall = 75 + (i % 20); // Overall 75-94
       players.push({
-        id: `player_${i}`,
-        name: names[i],
-        position,
+        id: `qb_${i}`,
+        name: `QB ${i + 1}`,
+        position: 'QB',
         age,
         overall,
         yearsExp: age - 22,
-        nflTeam: 'FA',
-        devGrade:
-          overall >= 90 ? 'A' : overall >= 85 ? 'B' : overall >= 80 ? 'C' : 'D',
+        nflTeam: this.getRandomNFLTeam(),
+        devGrade: overall >= 90 ? 'A' : overall >= 85 ? 'B' : 'C',
         traits: {
-          speed: 70 + (i % 20),
-          strength: 60 + (i % 25),
-          agility: 70 + (i % 20),
-          awareness: 65 + (i % 25),
-          injury: 50 + (i % 30),
+          // Minimal traits for compatibility
+          speed: 0,
+          strength: 0,
+          agility: 0,
+          awareness: 0,
+          injury: 0,
           schemeFit: [],
         },
         stats: [],
       });
     }
 
+    // Generate 64 RBs (2 per NFL team + extras)
+    for (let i = 0; i < 64; i++) {
+      const age = 23 + (i % 6); // Ages 23-28
+      const overall = 78 + (i % 17); // Overall 78-94
+      players.push({
+        id: `rb_${i}`,
+        name: `RB ${i + 1}`,
+        position: 'RB',
+        age,
+        overall,
+        yearsExp: age - 22,
+        nflTeam: this.getRandomNFLTeam(),
+        devGrade: overall >= 90 ? 'A' : overall >= 85 ? 'B' : 'C',
+        traits: {
+          // Minimal traits for compatibility
+          speed: 0,
+          strength: 0,
+          agility: 0,
+          awareness: 0,
+          injury: 0,
+          schemeFit: [],
+        },
+        stats: [],
+      });
+    }
+
+    // Generate 96 WRs (3 per NFL team + extras)
+    for (let i = 0; i < 96; i++) {
+      const age = 24 + (i % 7); // Ages 24-30
+      const overall = 76 + (i % 19); // Overall 76-94
+      players.push({
+        id: `wr_${i}`,
+        name: `WR ${i + 1}`,
+        position: 'WR',
+        age,
+        overall,
+        yearsExp: age - 22,
+        nflTeam: this.getRandomNFLTeam(),
+        devGrade: overall >= 90 ? 'A' : overall >= 85 ? 'B' : 'C',
+        traits: {
+          // Minimal traits for compatibility
+          speed: 0,
+          strength: 0,
+          agility: 0,
+          awareness: 0,
+          injury: 0,
+          schemeFit: [],
+        },
+        stats: [],
+      });
+    }
+
+    // Generate 48 TEs (1.5 per NFL team + extras)
+    for (let i = 0; i < 48; i++) {
+      const age = 25 + (i % 7); // Ages 25-31
+      const overall = 75 + (i % 20); // Overall 75-94
+      players.push({
+        id: `te_${i}`,
+        name: `TE ${i + 1}`,
+        position: 'TE',
+        age,
+        overall,
+        yearsExp: age - 22,
+        nflTeam: this.getRandomNFLTeam(),
+        devGrade: overall >= 90 ? 'A' : overall >= 85 ? 'B' : 'C',
+        traits: {
+          // Minimal traits for compatibility
+          speed: 0,
+          strength: 0,
+          agility: 0,
+          awareness: 0,
+          injury: 0,
+          schemeFit: [],
+        },
+        stats: [],
+      });
+    }
+
+    // Generate 32 Kickers (1 per NFL team)
+    for (let i = 0; i < 32; i++) {
+      const age = 28 + (i % 6); // Ages 28-33
+      const overall = 72 + (i % 18); // Overall 72-89
+      players.push({
+        id: `k_${i}`,
+        name: `K ${i + 1}`,
+        position: 'K',
+        age,
+        overall,
+        yearsExp: age - 22,
+        nflTeam: this.getRandomNFLTeam(),
+        devGrade: overall >= 85 ? 'A' : overall >= 80 ? 'B' : 'C',
+        traits: {
+          // Minimal traits for compatibility
+          speed: 0,
+          strength: 0,
+          agility: 0,
+          awareness: 0,
+          injury: 0,
+          schemeFit: [],
+        },
+        stats: [],
+      });
+    }
+
+    // Generate 32 Team Defenses (1 per NFL team)
+    for (let i = 0; i < 32; i++) {
+      const age = 1; // Team defenses don't age
+      const overall = 75 + (i % 20); // Overall 75-94
+      players.push({
+        id: `def_${i}`,
+        name: `DEF ${this.getRandomNFLTeam()}`,
+        position: 'DEF',
+        age,
+        overall,
+        yearsExp: 0,
+        nflTeam: this.getRandomNFLTeam(),
+        devGrade: overall >= 90 ? 'A' : overall >= 85 ? 'B' : 'C',
+        traits: {
+          // Minimal traits for compatibility
+          speed: 0,
+          strength: 0,
+          agility: 0,
+          awareness: 0,
+          injury: 100, // Team defenses don't get injured
+          schemeFit: [],
+        },
+        stats: [],
+      });
+    }
+
+    // Generate 48 DL (1.5 per NFL team + extras)
+    for (let i = 0; i < 48; i++) {
+      const age = 25 + (i % 7); // Ages 25-31
+      const overall = 76 + (i % 19); // Overall 76-94
+      players.push({
+        id: `dl_${i}`,
+        name: `DL ${i + 1}`,
+        position: 'DL',
+        age,
+        overall,
+        yearsExp: age - 22,
+        nflTeam: this.getRandomNFLTeam(),
+        devGrade: overall >= 90 ? 'A' : overall >= 85 ? 'B' : 'C',
+        traits: {
+          // Minimal traits for compatibility
+          speed: 0,
+          strength: 0,
+          agility: 0,
+          awareness: 0,
+          injury: 0,
+          schemeFit: [],
+        },
+        stats: [],
+      });
+    }
+
+    // Generate 48 LBs (1.5 per NFL team + extras)
+    for (let i = 0; i < 48; i++) {
+      const age = 24 + (i % 7); // Ages 24-30
+      const overall = 77 + (i % 18); // Overall 77-94
+      players.push({
+        id: `lb_${i}`,
+        name: `LB ${i + 1}`,
+        position: 'LB',
+        age,
+        overall,
+        yearsExp: age - 22,
+        nflTeam: this.getRandomNFLTeam(),
+        devGrade: overall >= 90 ? 'A' : overall >= 85 ? 'B' : 'C',
+        traits: {
+          // Minimal traits for compatibility
+          speed: 0,
+          strength: 0,
+          agility: 0,
+          awareness: 0,
+          injury: 0,
+          schemeFit: [],
+        },
+        stats: [],
+      });
+    }
+
+    // Generate 48 DBs (1.5 per NFL team + extras)
+    for (let i = 0; i < 48; i++) {
+      const age = 24 + (i % 7); // Ages 24-30
+      const overall = 76 + (i % 19); // Overall 76-94
+      players.push({
+        id: `db_${i}`,
+        name: `DB ${i + 1}`,
+        position: 'DB',
+        age,
+        overall,
+        yearsExp: age - 22,
+        nflTeam: this.getRandomNFLTeam(),
+        devGrade: overall >= 90 ? 'A' : overall >= 85 ? 'B' : 'C',
+        traits: {
+          // Minimal traits for compatibility
+          speed: 0,
+          strength: 0,
+          agility: 0,
+          awareness: 0,
+          injury: 0,
+          schemeFit: [],
+        },
+        stats: [],
+      });
+    }
+
+    console.log(`Generated ${players.length} base players for league setup`);
     return players;
+  }
+
+  /**
+   * Calculate age from birth date string
+   */
+  private calculateAgeFromBirthDate(birthDate: string): number {
+    if (!birthDate) return 25;
+
+    try {
+      const birth = new Date(birthDate);
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+
+      if (
+        monthDiff < 0 ||
+        (monthDiff === 0 && today.getDate() < birth.getDate())
+      ) {
+        age--;
+      }
+
+      return age;
+    } catch (error) {
+      console.warn('Error calculating age from birth date:', birthDate, error);
+      return 25;
+    }
+  }
+
+  /**
+   * Get development grade from overall rating
+   */
+  private getDevGradeFromOverall(overall: number): 'A' | 'B' | 'C' | 'D' {
+    if (overall >= 90) return 'A';
+    if (overall >= 85) return 'B';
+    if (overall >= 80) return 'C';
+    return 'D';
+  }
+
+  /**
+   * Get a random NFL team for player assignment
+   */
+  private getRandomNFLTeam(): string {
+    const teams = [
+      'ARI',
+      'ATL',
+      'BAL',
+      'BUF',
+      'CAR',
+      'CHI',
+      'CIN',
+      'CLE',
+      'DAL',
+      'DEN',
+      'DET',
+      'GB',
+      'HOU',
+      'IND',
+      'JAX',
+      'KC',
+      'LV',
+      'LAC',
+      'LAR',
+      'MIA',
+      'MIN',
+      'NE',
+      'NO',
+      'NYG',
+      'NYJ',
+      'PHI',
+      'PIT',
+      'SEA',
+      'SF',
+      'TB',
+      'TEN',
+      'WAS',
+    ];
+    return teams[Math.floor(Math.random() * teams.length)];
   }
 
   /**

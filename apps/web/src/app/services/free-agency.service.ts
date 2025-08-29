@@ -263,6 +263,30 @@ export class FreeAgencyService {
         throw new Error('No active FA week');
       }
 
+      // Get player data for contract validation
+      const player = this.sportsDataService.getPlayerById(parseInt(playerId));
+      if (!player) {
+        throw new Error('Player not found');
+      }
+
+      // Get current league for rules and validation
+      const currentLeague = this.leagueService.selectedLeague();
+      if (!currentLeague) {
+        throw new Error('No active league found');
+      }
+
+      // Validate contract against new dynamic minimum calculation
+      const dynamicMinimum = await this.calculateDynamicPlayerMinimum(
+        player,
+        currentLeague.rules
+      );
+
+      if (offer.apy < dynamicMinimum) {
+        throw new Error(
+          `Bid must be at least $${dynamicMinimum.toLocaleString()} (dynamic minimum)`
+        );
+      }
+
       // Create bid with cleaner ID format (no week number in ID)
       const bid: FABid = {
         id: `${currentWeek.leagueId}_bid_${Date.now()}`,
@@ -281,6 +305,15 @@ export class FreeAgencyService {
 
       // Don't update local state immediately - let the Firestore listener handle it
       // This prevents duplicate entries when the listener fires
+
+      console.log(`[FA Service] Bid submitted successfully:`, {
+        bidId: bid.id,
+        playerId,
+        teamId,
+        offerValue: offer.apy,
+        dynamicMinimum,
+        leagueRules: currentLeague.rules,
+      });
 
       return bid;
     } catch (error) {
@@ -371,15 +404,39 @@ export class FreeAgencyService {
         throw new Error('No active FA week found');
       }
 
+      console.log(
+        `[FA Service] Starting week advancement from week ${currentWeek.weekNumber}`
+      );
+
       this.isAdvancingWeek.set(true);
       this.weekAdvancementProgress.set('Processing player decisions...');
 
+      // Get current league for rules and validation
+      const currentLeague = this.leagueService.selectedLeague();
+      if (!currentLeague) {
+        throw new Error('No active league found for week advancement');
+      }
+
+      console.log(`[FA Service] League context:`, {
+        leagueId: currentLeague.id,
+        leagueName: currentLeague.name,
+        scoringRules: currentLeague.rules.scoring,
+        rosterRules: currentLeague.rules.roster,
+        capRules: currentLeague.rules.cap,
+      });
+
       // Process weekly player evaluation before advancing
+      console.log(`[FA Service] Processing weekly player evaluation...`);
       await this.processWeeklyPlayerEvaluation();
 
       this.weekAdvancementProgress.set('Carrying over active bids...');
 
       // Carry over non-rejected bids to next week
+      console.log(
+        `[FA Service] Carrying over active bids to week ${
+          currentWeek.weekNumber + 1
+        }`
+      );
       await this.carryOverActiveBids(currentWeek.weekNumber + 1);
 
       this.weekAdvancementProgress.set('Updating player statuses...');
@@ -391,16 +448,31 @@ export class FreeAgencyService {
         updatedAt: new Date(),
       });
 
+      console.log(
+        `[FA Service] Week ${currentWeek.weekNumber} marked as completed`
+      );
+
       this.weekAdvancementProgress.set('Creating next week...');
 
-      // Create next week
-      const nextWeek = await this.createFAWeek(
+      // Create next week with enhanced settings
+      const nextWeek = await this.createEnhancedFAWeek(
         currentWeek.leagueId,
-        currentWeek.weekNumber + 1
+        currentWeek.weekNumber + 1,
+        currentLeague.rules
       );
 
       // Update current week reference
       this.currentFAWeek.set(nextWeek);
+
+      console.log(
+        `[FA Service] Week ${nextWeek.weekNumber} created successfully:`,
+        {
+          nextWeekId: nextWeek.id,
+          phase: nextWeek.phase,
+          startDate: nextWeek.startDate,
+          endDate: nextWeek.endDate,
+        }
+      );
 
       this.weekAdvancementProgress.set('Week advancement complete!');
 
@@ -410,12 +482,91 @@ export class FreeAgencyService {
         this.weekAdvancementProgress.set('');
       }, 3000);
 
+      console.log(`[FA Service] Week advancement completed successfully`);
       return true;
     } catch (error) {
       console.error('Error advancing week:', error);
       this.isAdvancingWeek.set(false);
       this.weekAdvancementProgress.set('Error advancing week');
       return false;
+    }
+  }
+
+  /**
+   * Create an enhanced FA week with personality and rating considerations
+   */
+  private async createEnhancedFAWeek(
+    leagueId: string,
+    weekNumber: number,
+    leagueRules: any
+  ): Promise<FAWeek> {
+    console.log(
+      `[FA Service] Creating enhanced FA week ${weekNumber} for league ${leagueId}`
+    );
+
+    // Determine phase based on week number and league rules
+    const phase = this.determineFAWeekPhase(weekNumber, leagueRules);
+
+    // Calculate week duration based on league settings
+    const weekDuration = this.calculateWeekDuration(weekNumber, leagueRules);
+
+    const faWeek: FAWeek = {
+      id: `${leagueId}_week_${weekNumber}`,
+      leagueId,
+      weekNumber,
+      phase,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + weekDuration),
+      status: 'active',
+      readyTeams: [],
+      evaluationResults: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    console.log(`[FA Service] Enhanced FA week created:`, {
+      weekId: faWeek.id,
+      phase: faWeek.phase,
+      duration: weekDuration,
+      startDate: faWeek.startDate,
+      endDate: faWeek.endDate,
+    });
+
+    // Save to Firestore
+    const faWeekRef = doc(this.firestore, 'faWeeks', faWeek.id);
+    await setDoc(faWeekRef, faWeek);
+
+    return faWeek;
+  }
+
+  /**
+   * Determine FA week phase based on week number and league rules
+   */
+  private determineFAWeekPhase(
+    weekNumber: number,
+    leagueRules: any
+  ): 'FA_WEEK' | 'OPEN_FA' {
+    // Early weeks (1-4): Structured FA with bidding rounds
+    // Later weeks (5+): Open FA with immediate signings
+    if (weekNumber <= 4) {
+      return 'FA_WEEK';
+    } else {
+      return 'OPEN_FA';
+    }
+  }
+
+  /**
+   * Calculate week duration based on week number and league rules
+   */
+  private calculateWeekDuration(weekNumber: number, leagueRules: any): number {
+    // Early weeks: longer duration for strategic bidding
+    // Later weeks: shorter duration for quick signings
+    if (weekNumber <= 2) {
+      return 7 * 24 * 60 * 60 * 1000; // 7 days
+    } else if (weekNumber <= 4) {
+      return 5 * 24 * 60 * 60 * 1000; // 5 days
+    } else {
+      return 3 * 24 * 60 * 60 * 1000; // 3 days
     }
   }
 
@@ -564,7 +715,7 @@ export class FreeAgencyService {
       await this.sportsDataService.waitForData();
 
       // Get all active players from sports data service
-      const allPlayers = this.sportsDataService.getActivePlayers();
+      const allPlayers = this.sportsDataService.activePlayers();
 
       const availablePlayers: FAWeekPlayer[] = allPlayers
         .filter((player) => {
@@ -611,7 +762,7 @@ export class FreeAgencyService {
     try {
       await this.sportsDataService.waitForData();
 
-      const allPlayers = this.sportsDataService.getActivePlayers();
+      const allPlayers = this.sportsDataService.activePlayers();
 
       const additionalPlayers: FAWeekPlayer[] = allPlayers
         .filter((player) => {
@@ -654,7 +805,7 @@ export class FreeAgencyService {
     try {
       await this.sportsDataService.waitForData();
 
-      const allPlayers = this.sportsDataService.getActivePlayers();
+      const allPlayers = this.sportsDataService.activePlayers();
       const searchQuery = query.toLowerCase();
 
       const searchResults: FAWeekPlayer[] = allPlayers
@@ -813,6 +964,12 @@ export class FreeAgencyService {
         throw new Error('No active FA week found');
       }
 
+      // Get current league for rules and validation
+      const currentLeague = this.leagueService.selectedLeague();
+      if (!currentLeague) {
+        throw new Error('No active league found for player evaluation');
+      }
+
       // Get all pending bids for the current week
       const pendingBids = this.activeBids().filter(
         (bid) =>
@@ -826,21 +983,35 @@ export class FreeAgencyService {
         return;
       }
 
-      // Create market context for evaluation
-      const marketContext = await this.createMarketContext();
-      console.log('[FA Service] Market context created:', marketContext);
-
-      // Get all players for evaluation
-      const allPlayers = await this.getAllPlayersForEvaluation();
-      console.log('[FA Service] Players for evaluation:', allPlayers.length);
-
-      // Process evaluation using FAWeekManager
-      const evaluationResults = await this.evaluateAllPlayerBids(
-        pendingBids,
-        allPlayers,
+      // Create enhanced market context with new personality system
+      const marketContext = await this.createEnhancedMarketContext(
+        currentLeague
+      );
+      console.log(
+        '[FA Service] Enhanced market context created:',
         marketContext
       );
-      console.log('[FA Service] Evaluation results:', evaluationResults.length);
+
+      // Get all players for evaluation with enhanced data
+      const allPlayers = await this.getAllEnhancedPlayersForEvaluation(
+        currentLeague
+      );
+      console.log(
+        '[FA Service] Enhanced players for evaluation:',
+        allPlayers.length
+      );
+
+      // Process evaluation using enhanced logic
+      const evaluationResults = await this.evaluateAllPlayerBidsWithPersonality(
+        pendingBids,
+        allPlayers,
+        marketContext,
+        currentLeague.rules
+      );
+      console.log(
+        '[FA Service] Enhanced evaluation results:',
+        evaluationResults.length
+      );
 
       // Apply evaluation results
       await this.applyEvaluationResults(evaluationResults);
@@ -849,7 +1020,7 @@ export class FreeAgencyService {
       await this.updateFAWeekStatus('evaluating');
 
       console.log(
-        '[FA Service] Weekly player evaluation completed successfully'
+        '[FA Service] Enhanced weekly player evaluation completed successfully'
       );
     } catch (error) {
       console.error('Error processing weekly player evaluation:', error);
@@ -858,40 +1029,502 @@ export class FreeAgencyService {
   }
 
   /**
-   * Create market context for player evaluation
+   * Create enhanced market context with personality and rating considerations
    */
-  private async createMarketContext(): Promise<any> {
-    const currentWeek = this.currentFAWeek();
-    if (!currentWeek) {
-      throw new Error('No active FA week');
-    }
+  private async createEnhancedMarketContext(league: any): Promise<any> {
+    console.log('[FA Service] Creating enhanced market context...');
 
     // Get recent contracts for market context
     const recentContracts = await this.getRecentContracts();
 
     // Calculate positional demand based on available players and team needs
-    const positionalDemand = await this.calculatePositionalDemand();
+    const positionalDemand = await this.calculateEnhancedPositionalDemand(
+      league
+    );
 
     // Get team cap space information
     const teamCapSpace = await this.getTeamCapSpace();
 
     // Determine season stage
-    const seasonStage = this.determineSeasonStage(currentWeek.weekNumber);
+    const currentWeek = this.currentFAWeek();
+    const seasonStage = currentWeek
+      ? this.determineSeasonStage(currentWeek.weekNumber)
+      : 'EarlyFA';
 
     // Get league roster information for realistic market saturation
     const leagueRosterInfo = await this.getLeagueRosterInfo();
 
-    // Return domain-compatible market context
-    return {
+    // Enhanced market context with personality factors
+    const enhancedContext = {
       competingOffers: 0, // Default value
       positionalDemand,
       capSpaceAvailable: 0, // Default value
       recentComps: recentContracts,
       seasonStage: seasonStage === 'OpenFA' ? 'Camp' : seasonStage,
       teamReputation: 0.5, // Default neutral reputation
-      currentWeek: currentWeek.weekNumber,
-      leagueRosterInfo, // League roster information for realistic market behavior
+      currentWeek: currentWeek?.weekNumber || 1,
+      leagueRosterInfo,
+      // New personality and rating factors
+      personalityInfluence: this.calculatePersonalityInfluence(),
+      ratingTierImpact: this.calculateRatingTierImpact(),
+      marketVolatility: this.calculateMarketVolatility(league),
+      leagueScoringImpact: this.calculateLeagueScoringImpact(
+        league.rules.scoring
+      ),
     };
+
+    console.log(
+      '[FA Service] Enhanced market context created:',
+      enhancedContext
+    );
+    return enhancedContext;
+  }
+
+  /**
+   * Calculate personality influence on market behavior
+   */
+  private calculatePersonalityInfluence(): Record<string, number> {
+    // Different personality types affect market behavior
+    return {
+      Balanced: 1.0, // Neutral influence
+      Aggressive: 1.2, // More likely to accept higher offers
+      Conservative: 0.8, // More likely to reject risky offers
+      Loyal: 1.1, // Values team stability
+      Mercenary: 1.3, // Values highest bid
+      'Team Player': 0.9, // Values team fit over money
+      'Prima Donna': 1.4, // Demands premium treatment
+    };
+  }
+
+  /**
+   * Calculate rating tier impact on market behavior
+   */
+  private calculateRatingTierImpact(): Record<string, number> {
+    // Higher-rated players have more market power
+    return {
+      'Elite (95+)': 1.5, // Maximum market power
+      'Pro Bowl (90-94)': 1.3, // High market power
+      'Starter (85-89)': 1.1, // Moderate market power
+      'Average (80-84)': 1.0, // Standard market power
+      'Below Average (75-79)': 0.9, // Reduced market power
+      'Backup (70-74)': 0.7, // Limited market power
+      'Practice Squad (<70)': 0.5, // Minimal market power
+    };
+  }
+
+  /**
+   * Calculate market volatility based on league settings
+   */
+  private calculateMarketVolatility(league: any): number {
+    // More teams = higher volatility
+    // More cap space = higher volatility
+    const teamCount = league.numberOfTeams || 12;
+    const salaryCap = league.rules.cap.salaryCap || 200000000;
+
+    let volatility = 1.0;
+
+    if (teamCount > 16) volatility *= 1.3;
+    else if (teamCount > 12) volatility *= 1.2;
+    else if (teamCount > 8) volatility *= 1.1;
+
+    if (salaryCap > 250000000) volatility *= 1.2;
+    else if (salaryCap > 200000000) volatility *= 1.1;
+
+    return Math.min(volatility, 1.5); // Cap at 1.5x
+  }
+
+  /**
+   * Calculate league scoring impact on market behavior
+   */
+  private calculateLeagueScoringImpact(scoring: any): Record<string, number> {
+    // Different scoring systems favor different positions
+    const impact: Record<string, number> = {};
+
+    if (scoring.ppr > 0) {
+      // PPR leagues favor WRs and TEs
+      impact['WR'] = 1.2;
+      impact['TE'] = 1.1;
+      impact['RB'] = 1.0;
+      impact['QB'] = 1.0;
+    } else {
+      // Standard scoring favors RBs
+      impact['RB'] = 1.2;
+      impact['WR'] = 0.9;
+      impact['TE'] = 0.9;
+      impact['QB'] = 1.0;
+    }
+
+    return impact;
+  }
+
+  /**
+   * Get all enhanced players for evaluation with personality and rating data
+   */
+  private async getAllEnhancedPlayersForEvaluation(
+    league: any
+  ): Promise<Player[]> {
+    console.log('[FA Service] Getting enhanced players for evaluation...');
+
+    const allPlayers = this.sportsDataService.activePlayers();
+    console.log(
+      '[FA Service] Raw players from sports data:',
+      allPlayers.length
+    );
+
+    // Convert SportsPlayer to enhanced Player interface
+    const enhancedPlayers: Player[] = allPlayers.map((sportsPlayer) => {
+      // Calculate enhanced overall rating using new system
+      const enhancedOverall = this.calculateEnhancedOverallRating(
+        sportsPlayer,
+        league.rules
+      );
+
+      // Generate personality based on player characteristics
+      const personality = this.generatePlayerPersonality(
+        sportsPlayer,
+        enhancedOverall
+      );
+
+      // Calculate market value using new contract system
+      const marketValue = this.calculatePlayerMarketValue(
+        sportsPlayer,
+        enhancedOverall,
+        league.rules
+      );
+
+      return {
+        id: sportsPlayer.PlayerID.toString(),
+        name: `${sportsPlayer.FirstName} ${sportsPlayer.LastName}`,
+        position: sportsPlayer.Position as Position,
+        age: sportsPlayer.Age || 25,
+        overall: enhancedOverall,
+        yearsExp: sportsPlayer.Experience || 0,
+        nflTeam: sportsPlayer.Team || 'FA',
+        status: sportsPlayer.Status,
+        devGrade: this.calculateDevGrade(enhancedOverall),
+        traits: this.calculatePlayerTraits(sportsPlayer, enhancedOverall),
+        stats: [], // Empty stats for FA players - stats are in the enhanced player object
+        // Enhanced properties
+        personality,
+        marketValue,
+        ratingTier: this.getRatingTier(enhancedOverall),
+        fantasyImpact: this.calculateFantasyImpact(
+          sportsPlayer,
+          league.rules.scoring
+        ),
+      };
+    });
+
+    console.log(
+      '[FA Service] Enhanced players created:',
+      enhancedPlayers.length
+    );
+    return enhancedPlayers;
+  }
+
+  /**
+   * Calculate enhanced overall rating using new system
+   */
+  private calculateEnhancedOverallRating(
+    player: any,
+    leagueRules: any
+  ): number {
+    // Use the new rating system if available
+    if (player.overall && player.overall > 0) {
+      return player.overall;
+    }
+
+    // Fallback calculation
+    const baseRating = 70;
+    const experienceBonus = Math.min(player.Experience || 0, 10) * 0.5;
+    const agePenalty = Math.max(0, (player.Age || 25) - 28) * 0.3;
+
+    return Math.max(
+      50,
+      Math.min(99, Math.round(baseRating + experienceBonus - agePenalty))
+    );
+  }
+
+  /**
+   * Generate player personality based on characteristics
+   */
+  private generatePlayerPersonality(player: any, overall: number): string {
+    const personalities = [
+      'Balanced',
+      'Aggressive',
+      'Conservative',
+      'Loyal',
+      'Mercenary',
+      'Team Player',
+      'Prima Donna',
+    ];
+
+    // Elite players are more likely to be Prima Donna or Mercenary
+    if (overall >= 95) {
+      return Math.random() > 0.7 ? 'Prima Donna' : 'Mercenary';
+    }
+
+    // High-rated players are more likely to be Aggressive
+    if (overall >= 90) {
+      return Math.random() > 0.6 ? 'Aggressive' : 'Balanced';
+    }
+
+    // Veterans are more likely to be Loyal or Conservative
+    if ((player.Experience || 0) > 8) {
+      return Math.random() > 0.6 ? 'Loyal' : 'Conservative';
+    }
+
+    // Young players are more likely to be Team Player
+    if ((player.Age || 25) < 25) {
+      return Math.random() > 0.7 ? 'Team Player' : 'Balanced';
+    }
+
+    // Default to Balanced
+    return 'Balanced';
+  }
+
+  /**
+   * Calculate player market value using new contract system
+   */
+  private calculatePlayerMarketValue(
+    player: any,
+    overall: number,
+    leagueRules: any
+  ): number {
+    try {
+      // Use the league service's new contract calculation
+      const minimumContract = this.leagueService[
+        'calculateMarketAdjustedContract'
+      ](
+        overall,
+        player.Position,
+        this.sportsDataService.activePlayers(),
+        leagueRules,
+        12 // Default to 12 teams
+      );
+
+      // Market value is typically 1.2x minimum contract
+      return Math.round(minimumContract * 1.2);
+    } catch (error) {
+      console.error('[FA Service] Error calculating market value:', error);
+
+      // Fallback calculation
+      return Math.round(overall * 600000); // $600K per overall point
+    }
+  }
+
+  /**
+   * Calculate development grade from overall rating
+   */
+  private calculateDevGrade(overall: number): 'A' | 'B' | 'C' | 'D' {
+    if (overall >= 90) return 'A';
+    if (overall >= 80) return 'B';
+    if (overall >= 70) return 'C';
+    return 'D';
+  }
+
+  /**
+   * Calculate player traits based on overall and position
+   */
+  private calculatePlayerTraits(player: any, overall: number): any {
+    const baseTraits = {
+      speed: 50,
+      strength: 50,
+      agility: 50,
+      awareness: 50,
+      injury: 50,
+      schemeFit: [],
+    };
+
+    // Adjust traits based on overall rating
+    const ratingMultiplier = overall / 70;
+
+    baseTraits.speed = Math.min(99, Math.round(50 * ratingMultiplier));
+    baseTraits.strength = Math.min(99, Math.round(50 * ratingMultiplier));
+    baseTraits.agility = Math.min(99, Math.round(50 * ratingMultiplier));
+    baseTraits.awareness = Math.min(99, Math.round(50 * ratingMultiplier));
+    baseTraits.injury = Math.max(1, Math.round(100 - 50 * ratingMultiplier));
+
+    return baseTraits;
+  }
+
+  /**
+   * Get rating tier from overall rating
+   */
+  private getRatingTier(overall: number): string {
+    if (overall >= 95) return 'Elite (95+)';
+    if (overall >= 90) return 'Pro Bowl (90-94)';
+    if (overall >= 85) return 'Starter (85-89)';
+    if (overall >= 80) return 'Average (80-84)';
+    if (overall >= 75) return 'Below Average (75-79)';
+    if (overall >= 70) return 'Backup (70-74)';
+    return 'Practice Squad (<70)';
+  }
+
+  /**
+   * Calculate fantasy impact based on scoring rules
+   */
+  private calculateFantasyImpact(player: any, scoring: any): number {
+    // Base impact on overall rating
+    let impact = (player.overall || 70) / 100;
+
+    // Adjust based on position and scoring rules
+    if (scoring.ppr > 0) {
+      if (player.Position === 'WR' || player.Position === 'TE') {
+        impact *= 1.2; // Boost for PPR positions
+      }
+    } else {
+      if (player.Position === 'RB') {
+        impact *= 1.2; // Boost for standard scoring
+      }
+    }
+
+    return Math.min(1.0, Math.max(0.1, impact));
+  }
+
+  /**
+   * Calculate enhanced positional demand with personality factors
+   */
+  private async calculateEnhancedPositionalDemand(
+    league: any
+  ): Promise<number> {
+    console.log('[FA Service] Calculating enhanced positional demand...');
+
+    const availablePlayers = this.availablePlayers();
+    const totalPlayers = availablePlayers.length;
+
+    if (totalPlayers === 0) return 0.5;
+
+    // Calculate demand based on position scarcity and personality distribution
+    const positionCounts = availablePlayers.reduce((acc, player) => {
+      acc[player.position] = (acc[player.position] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Get personality distribution for each position
+    const personalityDemand = this.calculatePersonalityDemand(availablePlayers);
+
+    // Combine scarcity and personality demand
+    const avgPlayersPerPosition =
+      totalPlayers / Object.keys(positionCounts).length;
+    const scarcityDemand =
+      Object.values(positionCounts).reduce((sum, count) => {
+        return sum + avgPlayersPerPosition / count;
+      }, 0) / Object.keys(positionCounts).length;
+
+    const finalDemand = (scarcityDemand + personalityDemand) / 2;
+    const normalizedDemand = Math.min(
+      1,
+      Math.max(0, finalDemand / avgPlayersPerPosition)
+    );
+
+    console.log('[FA Service] Enhanced positional demand calculated:', {
+      scarcityDemand,
+      personalityDemand,
+      finalDemand,
+      normalizedDemand,
+    });
+
+    return normalizedDemand;
+  }
+
+  /**
+   * Calculate personality-based demand
+   */
+  private calculatePersonalityDemand(players: any[]): number {
+    // Players with certain personalities are more in demand
+    const personalityValues: Record<string, number> = {
+      Balanced: 1.0,
+      Aggressive: 1.1,
+      Conservative: 0.9,
+      Loyal: 1.2,
+      Mercenary: 1.3,
+      'Team Player': 1.1,
+      'Prima Donna': 0.8,
+    };
+
+    let totalDemand = 0;
+    let playerCount = 0;
+
+    players.forEach((player) => {
+      // For now, assume balanced personality (can be enhanced later)
+      const personality = 'Balanced';
+      totalDemand += personalityValues[personality] || 1.0;
+      playerCount++;
+    });
+
+    return playerCount > 0 ? totalDemand / playerCount : 1.0;
+  }
+
+  /**
+   * Evaluate all player bids using FAWeekManager
+   */
+  private async evaluateAllPlayerBids(
+    bids: FABid[],
+    players: Player[],
+    marketContext: any
+  ): Promise<FAEvaluationResult[]> {
+    console.log('[FA Service] evaluateAllPlayerBids called with:', {
+      bidCount: bids.length,
+      playerCount: players.length,
+      marketContext: marketContext,
+    });
+
+    // Import FAWeekManager from domain
+    const { FAWeekManager } = await import('@fantasy-football-dynasty/domain');
+    console.log('[FA Service] FAWeekManager imported successfully');
+
+    // Use the existing FAWeekManager to process evaluation
+    const results = FAWeekManager.processFAWeekEvaluation(
+      bids,
+      players,
+      marketContext,
+      this.defaultSettings
+    );
+
+    console.log(
+      '[FA Service] FAWeekManager evaluation completed, results:',
+      results.length
+    );
+    return results;
+  }
+
+  /**
+   * Evaluate all player bids with enhanced personality and rating system
+   */
+  private async evaluateAllPlayerBidsWithPersonality(
+    bids: FABid[],
+    players: Player[],
+    marketContext: any,
+    leagueRules: any
+  ): Promise<FAEvaluationResult[]> {
+    console.log(
+      '[FA Service] Evaluating bids with enhanced personality system:',
+      {
+        bidCount: bids.length,
+        playerCount: players.length,
+        marketContext: marketContext,
+        leagueRules: leagueRules,
+      }
+    );
+
+    // Import FAWeekManager from domain
+    const { FAWeekManager } = await import('@fantasy-football-dynasty/domain');
+    console.log('[FA Service] FAWeekManager imported successfully');
+
+    // Use the existing FAWeekManager to process evaluation
+    const results = FAWeekManager.processFAWeekEvaluation(
+      bids,
+      players,
+      marketContext,
+      this.defaultSettings
+    );
+
+    console.log(
+      '[FA Service] Enhanced evaluation completed, results:',
+      results.length
+    );
+    return results;
   }
 
   /**
@@ -938,68 +1571,6 @@ export class FreeAgencyService {
       console.error('[FA Service] Error getting league roster info:', error);
       return undefined;
     }
-  }
-
-  /**
-   * Get all players needed for evaluation
-   */
-  private async getAllPlayersForEvaluation(): Promise<Player[]> {
-    const allPlayers = this.sportsDataService.getActivePlayers();
-
-    // Convert SportsPlayer to Player interface
-    return allPlayers.map((sportsPlayer) => ({
-      id: sportsPlayer.PlayerID.toString(),
-      name: `${sportsPlayer.FirstName} ${sportsPlayer.LastName}`,
-      position: sportsPlayer.Position as Position,
-      age: sportsPlayer.Age || 25,
-      overall: sportsPlayer.overall || 70,
-      yearsExp: sportsPlayer.Experience || 0,
-      nflTeam: sportsPlayer.Team || 'FA',
-      status: sportsPlayer.Status,
-      devGrade: 'C' as const, // Default grade for FA players
-      traits: {
-        speed: 50,
-        strength: 50,
-        agility: 50,
-        awareness: 50,
-        injury: 50,
-        schemeFit: [],
-      },
-      stats: [], // Empty stats for FA players
-    }));
-  }
-
-  /**
-   * Evaluate all player bids using FAWeekManager
-   */
-  private async evaluateAllPlayerBids(
-    bids: FABid[],
-    players: Player[],
-    marketContext: any
-  ): Promise<FAEvaluationResult[]> {
-    console.log('[FA Service] evaluateAllPlayerBids called with:', {
-      bidCount: bids.length,
-      playerCount: players.length,
-      marketContext: marketContext,
-    });
-
-    // Import FAWeekManager from domain
-    const { FAWeekManager } = await import('@fantasy-football-dynasty/domain');
-    console.log('[FA Service] FAWeekManager imported successfully');
-
-    // Use the existing FAWeekManager to process evaluation
-    const results = FAWeekManager.processFAWeekEvaluation(
-      bids,
-      players,
-      marketContext,
-      this.defaultSettings
-    );
-
-    console.log(
-      '[FA Service] FAWeekManager evaluation completed, results:',
-      results.length
-    );
-    return results;
   }
 
   /**
@@ -1545,4 +2116,64 @@ export class FreeAgencyService {
    * 4. Add player status change listeners
    * 5. Consider player data versioning for different leagues
    */
+  private async calculateDynamicPlayerMinimum(
+    player: any,
+    leagueRules: any
+  ): Promise<number> {
+    try {
+      // Get player stats for fantasy performance calculation
+      const playerStats = player.stats || {};
+
+      // Calculate minimum using the new dynamic system
+      const overall = player.overall || 70;
+      const position = player.Position;
+
+      // Use the league service's new contract calculation
+      const minimumContract = this.leagueService[
+        'calculateMarketAdjustedContract'
+      ](
+        overall,
+        position,
+        this.sportsDataService.activePlayers(),
+        leagueRules,
+        12 // Default to 12 teams if not available
+      );
+
+      console.log(`[FA Service] Dynamic minimum calculated:`, {
+        playerName: `${player.FirstName} ${player.LastName}`,
+        position,
+        overall,
+        minimumContract,
+        fantasyPoints: playerStats.FantasyPoints || 'N/A',
+        fantasyPointsPPR: playerStats.FantasyPointsPPR || 'N/A',
+      });
+
+      return minimumContract;
+    } catch (error) {
+      console.error('[FA Service] Error calculating dynamic minimum:', error);
+
+      // Fallback to basic calculation
+      const baseValue = (player.overall || 70) * 500000;
+      const positionMultiplier = this.getPositionMultiplier(player.Position);
+      return Math.round((baseValue * positionMultiplier) / 100000) * 100000;
+    }
+  }
+
+  /**
+   * Get position multiplier for fallback calculation
+   */
+  private getPositionMultiplier(position: string): number {
+    const multipliers: Record<string, number> = {
+      QB: 2.0,
+      RB: 1.8,
+      WR: 1.6,
+      TE: 1.4,
+      K: 0.3,
+      DEF: 0.4,
+      DL: 0.8,
+      LB: 0.8,
+      DB: 0.7,
+    };
+    return multipliers[position] || 1.0;
+  }
 }

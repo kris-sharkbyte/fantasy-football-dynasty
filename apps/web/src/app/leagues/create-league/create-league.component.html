@@ -639,6 +639,20 @@
               [loading]="isSubmitting()"
               [disabled]="!leagueForm.valid"
             ></p-button>
+            
+            @if (isSettingUpPlayers()) {
+            <div class="mt-3 p-3 bg-blue-50 rounded-lg">
+              <div class="flex items-center gap-2">
+                <p-progressSpinner 
+                  styleClass="w-4 h-4" 
+                  strokeWidth="4"
+                ></p-progressSpinner>
+                <span class="text-blue-800 text-sm">
+                  Setting up players with personalities...
+                </span>
+              </div>
+            </div>
+            }
             }
 
             <p-button
