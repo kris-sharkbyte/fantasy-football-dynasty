@@ -250,23 +250,6 @@ export class EnhancedPlayerFactory {
     player: Player,
     traits: PersonalityTraits
   ): TradePreferences {
-    const noTradeCities: string[] = [];
-
-    // High loyalty players are less likely to have no-trade cities
-    if (traits.teamLoyalty === 'very_high' && Math.random() > 0.7) {
-      noTradeCities.push('*'); // Won't accept any trades
-    } else if (traits.teamLoyalty === 'high' && Math.random() > 0.8) {
-      // Add 1-2 specific cities they won't go to
-      const cities = ['CIN', 'BUF', 'GB', 'PIT'];
-      const numCities = Math.floor(Math.random() * 2) + 1;
-      for (let i = 0; i < numCities; i++) {
-        const city = cities[Math.floor(Math.random() * cities.length)];
-        if (!noTradeCities.includes(city)) {
-          noTradeCities.push(city);
-        }
-      }
-    }
-
     // Extension probability based on risk tolerance and age
     let extensionProbability = 0.3; // Base 30%
     if (traits.riskTolerance === 'very_low') extensionProbability += 0.3;
@@ -285,7 +268,6 @@ export class EnhancedPlayerFactory {
       tradeDeadlineBehavior = 'wait_for_best';
 
     return {
-      noTradeCities,
       requiresExtensionProbability: Math.min(0.9, extensionProbability),
       reportingDelayIfUnhappy: Math.floor(Math.random() * 3) + 1, // 1-3 days
       tradeDeadlineBehavior,

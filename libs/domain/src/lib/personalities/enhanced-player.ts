@@ -193,7 +193,6 @@ export interface PersonalityBlending {
  * Trade and extension preferences
  */
 export interface TradePreferences {
-  noTradeCities: string[]; // Cities/teams player won't accept trades to
   requiresExtensionProbability: number; // 0.0-1.0, chance of requiring extension on arrival
   reportingDelayIfUnhappy: number; // Days delay if traded to unwanted location
   tradeDeadlineBehavior:

@@ -353,12 +353,8 @@ export class PersonalityEngine {
    * Check if player would accept a trade to the given team
    */
   static wouldAcceptTrade(player: EnhancedPlayer, teamCity: string): boolean {
-    const tradePrefs = player.personality.tradePreferences;
-
-    // Check no-trade cities
-    if (tradePrefs.noTradeCities.includes('*')) return false; // Won't accept any trades
-    if (tradePrefs.noTradeCities.includes(teamCity)) return false; // Won't accept trade to this city
-
+    // In fantasy football, trades are league decisions, not player preferences
+    // Players can be traded to any team regardless of their personality
     return true;
   }
 

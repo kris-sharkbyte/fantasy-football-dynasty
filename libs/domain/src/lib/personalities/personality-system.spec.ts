@@ -105,6 +105,14 @@ describe('Personality System', () => {
         'winning_teams',
         'stable_markets',
       ];
+
+      // Log the actual value for debugging
+      console.log(
+        'WR location preference:',
+        wrPlayer.personality.traits.locationPreference
+      );
+      console.log('Expected values:', expectedLocationPreferences);
+
       expect(expectedLocationPreferences).toContain(
         wrPlayer.personality.traits.locationPreference
       );

@@ -2102,3 +2102,15 @@ export class EnhancedPlayerMinimumCalculator {
     return 'stable';
   }
 }
+
+// Export the new LeagueSetupService
+export { LeagueSetupService } from './league-setup.service';
+export type {
+  LeagueSetupData,
+  PlayerSetupResult,
+  MinimumContract,
+  LeagueSetupResult,
+  LeagueMarketContext,
+  APYPercentiles,
+  GuaranteePercentiles,
+} from './league-setup.service';
