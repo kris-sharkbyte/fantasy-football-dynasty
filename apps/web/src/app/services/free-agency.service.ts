@@ -878,6 +878,9 @@ export class FreeAgencyService {
     // Determine season stage
     const seasonStage = this.determineSeasonStage(currentWeek.weekNumber);
 
+    // Get league roster information for realistic market saturation
+    const leagueRosterInfo = await this.getLeagueRosterInfo();
+
     // Return domain-compatible market context
     return {
       competingOffers: 0, // Default value
@@ -886,7 +889,55 @@ export class FreeAgencyService {
       recentComps: recentContracts,
       seasonStage: seasonStage === 'OpenFA' ? 'Camp' : seasonStage,
       teamReputation: 0.5, // Default neutral reputation
+      currentWeek: currentWeek.weekNumber,
+      leagueRosterInfo, // League roster information for realistic market behavior
     };
+  }
+
+  /**
+   * Get league roster information for market saturation calculation
+   */
+  private async getLeagueRosterInfo(): Promise<any> {
+    try {
+      // Get current league from the FA week
+      const currentWeek = this.currentFAWeek();
+      if (!currentWeek) {
+        console.warn('[FA Service] No current FA week for league roster info');
+        return undefined;
+      }
+
+      // Get league data from league service
+      const leagueData = this.leagueService.selectedLeague();
+      if (!leagueData) {
+        console.warn('[FA Service] No current league data for roster info');
+        return undefined;
+      }
+
+      // Extract roster information
+      const rosterRules = leagueData.rules.roster;
+      if (!rosterRules) {
+        console.warn('[FA Service] No roster rules found in league data');
+        return undefined;
+      }
+
+      // Get team count from league members
+      const teamCount = this.leagueService.leagueMembers().length;
+      if (teamCount === 0) {
+        console.warn('[FA Service] No teams found in league');
+        return undefined;
+      }
+
+      return {
+        teamCount,
+        positionRequirements: rosterRules.positionRequirements,
+        maxPlayers: rosterRules.maxPlayers,
+        allowIR: rosterRules.allowIR,
+        maxIR: rosterRules.maxIR,
+      };
+    } catch (error) {
+      console.error('[FA Service] Error getting league roster info:', error);
+      return undefined;
+    }
   }
 
   /**

@@ -1,14 +1,15 @@
-import { Injectable, signal, computed, inject } from '@angular/core';
+import { Injectable, signal, computed } from '@angular/core';
 import {
-  NegotiationEngine,
   NegotiationSession,
   Offer,
+  CounterOffer,
   NegotiationResult,
+  NegotiationEngine,
   MarketContext,
 } from '@fantasy-football-dynasty/domain';
-import { PlayerDataService, SleeperPlayer } from './player-data.service';
-import { TeamService } from './team.service';
+import { PlayerDataService } from './player-data.service';
 
+// Local interface for negotiation state
 export interface NegotiationState {
   session: NegotiationSession | null;
   currentOffer: Offer | null;
@@ -22,9 +23,6 @@ export interface NegotiationState {
   providedIn: 'root',
 })
 export class NegotiationService {
-  private readonly playerDataService = inject(PlayerDataService);
-  private readonly teamService = inject(TeamService);
-
   // Private state signals
   private _activeSessions = signal<NegotiationSession[]>([]);
   private _currentSession = signal<NegotiationSession | null>(null);
@@ -45,8 +43,10 @@ export class NegotiationService {
     () => this._currentSession()?.history || []
   );
 
+  constructor(private playerDataService: PlayerDataService) {}
+
   /**
-   * Start a new negotiation session for a player
+   * Start a new negotiation session with a player
    */
   startNegotiation(
     playerId: string,
@@ -55,7 +55,7 @@ export class NegotiationService {
   ): NegotiationSession | null {
     const player = this.playerDataService.getPlayer(playerId);
     if (!player) {
-      console.error('Player not found for negotiation:', playerId);
+      console.error('Player not found for negotiation');
       return null;
     }
 
@@ -67,16 +67,32 @@ export class NegotiationService {
       recentComps: [], // Will be populated from real data later
       seasonStage: 'EarlyFA',
       teamReputation: 0, // Neutral reputation for now
+      currentWeek: 1, // Default to week 1 for negotiation service
     };
 
-    // Create negotiation session with league rules
-    const session = NegotiationEngine.createSession(
+    // Create negotiation session with basic rules (will be enhanced later)
+    const session: NegotiationSession = {
+      id: `negotiation_${playerId}_${teamId}_${Date.now()}`,
       playerId,
       teamId,
-      player,
+      status: 'active',
+      round: 1,
+      patience: 100,
+      reservation: {
+        aav: (player as any).overall * 100000, // Base reservation value
+        gtdPct: 0.3, // 30% guaranteed
+        years: 3, // 3 years preferred
+      },
+      askAnchor: {
+        aav: (player as any).overall * 120000, // Ask anchor value
+        gtdPct: 0.5, // 50% guaranteed
+        years: 4, // 4 years preferred
+      },
+      history: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
       marketContext,
-      leagueRules
-    );
+    };
 
     // Store session
     this._activeSessions.update((sessions) => [...sessions, session]);
@@ -231,6 +247,7 @@ export class NegotiationService {
       recentComps: [],
       seasonStage: 'EarlyFA',
       teamReputation: 0,
+      currentWeek: 1, // Default to week 1 for negotiation service
     };
   }
 

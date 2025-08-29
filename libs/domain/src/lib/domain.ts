@@ -711,6 +711,15 @@ export interface MarketContext {
   recentComps: Contract[]; // Similar contracts signed recently
   seasonStage: 'EarlyFA' | 'MidFA' | 'Camp' | 'MidSeason';
   teamReputation: number; // Team's negotiation reputation (-1 to 1)
+  currentWeek: number; // Added for FAWeekManager
+  // League roster information for realistic market saturation
+  leagueRosterInfo?: {
+    teamCount: number;
+    positionRequirements: Record<string, number>;
+    maxPlayers: number;
+    allowIR: boolean;
+    maxIR: number;
+  };
 }
 
 export interface NegotiationResult {
@@ -1199,6 +1208,61 @@ export class FAWeekManager {
   }
 
   /**
+   * Calculate week-based acceptance threshold adjustment
+   * Players become less picky as free agency weeks progress
+   */
+  private static calculateWeekBasedAcceptanceThreshold(
+    currentWeek: number,
+    player: Player,
+    baseThreshold: number = 0.7
+  ): number {
+    // Week 1-2: Players are picky (maintain base threshold)
+    if (currentWeek <= 2) {
+      return baseThreshold;
+    }
+
+    // Week 3-4: Players getting less picky (10% reduction)
+    if (currentWeek <= 4) {
+      return baseThreshold * 0.9; // 63% threshold
+    }
+
+    // Week 5+: Players are desperate (30% reduction)
+    if (currentWeek <= 6) {
+      return baseThreshold * 0.7; // 49% threshold
+    }
+
+    // Week 7+: Players are very desperate (50% reduction)
+    return baseThreshold * 0.5; // 35% threshold
+  }
+
+  /**
+   * Calculate week-based desperation multiplier for scoring
+   * This affects how players evaluate offers in later weeks
+   */
+  private static calculateWeekBasedDesperationMultiplier(
+    currentWeek: number,
+    player: Player
+  ): number {
+    // Week 1-2: Normal evaluation
+    if (currentWeek <= 2) {
+      return 1.0;
+    }
+
+    // Week 3-4: Slight desperation (5% boost to offers)
+    if (currentWeek <= 4) {
+      return 1.05;
+    }
+
+    // Week 5+: Moderate desperation (15% boost to offers)
+    if (currentWeek <= 6) {
+      return 1.15;
+    }
+
+    // Week 7+: High desperation (25% boost to offers)
+    return 1.25;
+  }
+
+  /**
    * Evaluate bids for a specific player
    */
   private static evaluatePlayerBids(
@@ -1219,8 +1283,16 @@ export class FAWeekManager {
     const shortlistedBids = scoredBids.slice(1, settings.shortlistSize + 1);
     const rejectedBids = scoredBids.slice(settings.shortlistSize + 1);
 
-    // Determine if best offer is acceptable
-    const isAcceptable = acceptedBid.score >= 0.7; // 70% threshold
+    // Calculate week-based acceptance threshold
+    const baseThreshold = 0.7; // 70% base threshold
+    const weekAdjustedThreshold = this.calculateWeekBasedAcceptanceThreshold(
+      marketContext.currentWeek,
+      player,
+      baseThreshold
+    );
+
+    // Determine if best offer is acceptable based on week-adjusted threshold
+    const isAcceptable = acceptedBid.score >= weekAdjustedThreshold;
 
     if (isAcceptable) {
       return {
@@ -1347,6 +1419,15 @@ export class FAWeekManager {
     const teamScore = this.calculateTeamScore(bid.teamId, marketContext);
     score += teamScore * 0.1;
 
+    // Apply week-based desperation multiplier
+    const desperationMultiplier = this.calculateWeekBasedDesperationMultiplier(
+      marketContext.currentWeek,
+      player
+    );
+
+    // Boost the score based on desperation (makes offers more attractive in later weeks)
+    score *= desperationMultiplier;
+
     return score;
   }
 
@@ -1360,10 +1441,16 @@ export class FAWeekManager {
     // Base from player overall and position
     let baseAAV = player.overall * 100000; // $100k per overall point
 
-    // Adjust for market conditions
-    if (marketContext.positionalDemand > 0.7) {
+    // Calculate realistic positional demand based on league roster settings
+    const positionalDemand = this.calculateLeagueAwarePositionalDemand(
+      player.position,
+      marketContext
+    );
+
+    // Adjust for market conditions based on realistic demand
+    if (positionalDemand > 0.7) {
       baseAAV *= 1.2; // High demand = 20% premium
-    } else if (marketContext.positionalDemand < 0.3) {
+    } else if (positionalDemand < 0.3) {
       baseAAV *= 0.8; // Low demand = 20% discount
     }
 
@@ -1373,6 +1460,99 @@ export class FAWeekManager {
     }
 
     return baseAAV;
+  }
+
+  /**
+   * Calculate realistic positional demand based on league roster settings
+   * This makes the market behavior realistic for fantasy football leagues
+   */
+  private static calculateLeagueAwarePositionalDemand(
+    position: string,
+    marketContext: MarketContext
+  ): number {
+    // If no league roster info, fall back to basic position demand
+    if (!marketContext.leagueRosterInfo) {
+      return this.calculateBasicPositionalDemand(position);
+    }
+
+    const { teamCount, positionRequirements, maxPlayers } =
+      marketContext.leagueRosterInfo;
+
+    // Calculate total starting spots needed for this position
+    const startersNeeded = teamCount * (positionRequirements[position] || 0);
+
+    // Calculate total roster spots available
+    const totalRosterSpots = teamCount * maxPlayers;
+
+    // Calculate how saturated this position is
+    const positionSaturation = startersNeeded / totalRosterSpots;
+
+    // Convert saturation to demand (inverse relationship)
+    // More saturation = lower demand = lower prices
+    let demand = 1 - positionSaturation;
+
+    // Apply position-specific adjustments for fantasy football reality
+    switch (position) {
+      case 'QB':
+        // QB demand varies dramatically by league settings
+        if (startersNeeded >= 24) {
+          demand = 0.9; // 2QB league - very scarce
+        } else if (startersNeeded >= 18) {
+          demand = 0.7; // Superflex league - scarce
+        } else {
+          demand = 0.3; // 1QB league - saturated
+        }
+        break;
+
+      case 'WR':
+        // WR is almost always saturated in fantasy
+        demand = Math.min(demand, 0.4); // Cap at 40% demand
+        break;
+
+      case 'RB':
+        // RB demand depends on roster size and scoring
+        if (startersNeeded >= 48) {
+          demand = 0.6; // Large rosters = moderate demand
+        } else {
+          demand = 0.4; // Standard rosters = saturated
+        }
+        break;
+
+      case 'TE':
+        // TE demand is usually moderate
+        demand = Math.max(demand, 0.5); // Minimum 50% demand
+        break;
+
+      case 'K':
+      case 'DEF':
+        // K and DEF are always saturated
+        demand = 0.2;
+        break;
+
+      default:
+        // Other positions (DL, LB, DB) - moderate demand
+        demand = Math.max(demand, 0.4);
+    }
+
+    // Ensure demand is within bounds
+    return Math.max(0.1, Math.min(1.0, demand));
+  }
+
+  /**
+   * Fallback method for basic positional demand (when league info unavailable)
+   */
+  private static calculateBasicPositionalDemand(position: string): number {
+    // Basic position demand (will be replaced by league-aware calculation)
+    const demandMap: Record<string, number> = {
+      QB: 0.6, // Moderate demand (assumes 1QB league)
+      RB: 0.5, // Moderate demand
+      WR: 0.4, // Saturated
+      TE: 0.6, // Moderate demand
+      K: 0.2, // Very saturated
+      DEF: 0.3, // Saturated
+    };
+
+    return demandMap[position] || 0.5;
   }
 
   /**
