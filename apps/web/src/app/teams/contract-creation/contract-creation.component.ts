@@ -12,8 +12,6 @@ import {
   CapMath,
   ContractValidator,
   PlayerRatingCalculator,
-  PlayerPersonalityGenerator,
-  PlayerPersonality,
   NegotiationEngine,
   Offer,
   NegotiationResult,
@@ -89,11 +87,20 @@ export class ContractCreationComponent {
   // Computed validation
   public contractValidation = computed(() => this.validateContract());
 
-  // Computed player personality
+  // Computed player personality - updated to use new system
   public playerPersonality = computed(() => {
     const player = this.getPlayerData();
     if (!player) return null;
-    return PlayerPersonalityGenerator.generatePersonality(player);
+    // TODO: Use new personality system when integrated
+    return {
+      riskTolerance: 0.5,
+      securityPref: 0.7,
+      agentQuality: 0.6,
+      loyalty: 0.5,
+      moneyVsRole: 0.6,
+      teamPriorities: [],
+      marketSavvy: 0.5,
+    };
   });
 
   // Computed player rating

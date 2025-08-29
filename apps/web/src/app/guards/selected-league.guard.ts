@@ -10,7 +10,8 @@ export const selectedLeagueGuard: CanActivateFn = async (route, state) => {
 
   // Get the league ID from the route parameters
   const leagueId = route.paramMap.get('id') || route.paramMap.get('leagueId');
-  if (!leagueId) {
+  const selectedLeagueId = leagueService.selectedLeagueId();
+  if (!leagueId || selectedLeagueId !== leagueId) {
     console.error('No league ID found in route parameters');
     router.navigate(['/leagues']);
     return false;

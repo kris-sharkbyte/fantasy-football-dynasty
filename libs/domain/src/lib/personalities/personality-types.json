@@ -1,0 +1,281 @@
+{
+  "personality_schema_version": "1.0.0",
+  "personality_types": {
+    "aggressive_negotiator": {
+      "name": "Aggressive Negotiator",
+      "rarity": 0.15,
+      "traits": {
+        "negotiation_style": "aggressive",
+        "risk_tolerance": "high",
+        "team_loyalty": "low",
+        "location_preference": "big_markets",
+        "deadline_behavior": "pressure_team"
+      },
+      "weights": {
+        "money_priority": 0.9,
+        "winning_priority": 0.4,
+        "location_priority": 0.7,
+        "guarantee_priority": 0.6,
+        "length_priority": 0.3
+      },
+      "behaviors": {
+        "holdout_threshold": 0.8,
+        "counter_offer_multiplier": 1.3,
+        "deadline_softening": 0.0,
+        "comparison_weight": 0.9,
+        "deadline_susceptibility": 0.1
+      },
+      "feedback_templates": {
+        "reject_low_offer": [
+          "I'm worth more than this. Close the gap or I'm testing the market.",
+          "Numbers don't lie—we're {gap_to_market}% short of market."
+        ],
+        "counter_offer": [
+          "Guarantee ${counter_delta_guaranteed} and we'll sign today.",
+          "Add {counter_years} years and {counter_apy_increase} APY."
+        ],
+        "holdout_warning": [
+          "I won't report without market value.",
+          "Show me the money or I'm holding out."
+        ],
+        "accept": [
+          "Finally, an offer that respects my value.",
+          "This is what I've been waiting for."
+        ],
+        "gm_note": [
+          "Player weighed money ({money_priority}) and location ({location_match}) heavily. Ego factor: {ego_level}."
+        ]
+      }
+    },
+    "patient_negotiator": {
+      "name": "Patient Negotiator",
+      "rarity": 0.25,
+      "traits": {
+        "negotiation_style": "patient",
+        "risk_tolerance": "medium",
+        "team_loyalty": "medium",
+        "location_preference": "neutral",
+        "deadline_behavior": "wait_for_best"
+      },
+      "weights": {
+        "money_priority": 0.7,
+        "winning_priority": 0.6,
+        "location_priority": 0.4,
+        "guarantee_priority": 0.8,
+        "length_priority": 0.7
+      },
+      "behaviors": {
+        "holdout_threshold": 0.6,
+        "counter_offer_multiplier": 1.1,
+        "deadline_softening": 0.02,
+        "comparison_weight": 0.7,
+        "deadline_susceptibility": 0.5
+      },
+      "feedback_templates": {
+        "reject_low_offer": [
+          "I'm willing to wait for the right opportunity.",
+          "This offer doesn't meet my standards. I can afford to be patient."
+        ],
+        "counter_offer": [
+          "I need more guarantees for a deal of this length.",
+          "Let's find a middle ground that works for both sides."
+        ],
+        "holdout_warning": [
+          "I'm not rushing into anything that doesn't feel right.",
+          "I'll wait for the right situation to develop."
+        ],
+        "accept": [
+          "This feels like the right opportunity at the right time.",
+          "I appreciate the team's patience in finding common ground."
+        ],
+        "gm_note": [
+          "Player prioritized guarantees ({guarantee_priority}) and length ({length_priority}). Agent quality: {agent_quality}."
+        ]
+      }
+    },
+    "desperate_signer": {
+      "name": "Desperate Signer",
+      "rarity": 0.2,
+      "traits": {
+        "negotiation_style": "desperate",
+        "risk_tolerance": "low",
+        "team_loyalty": "high",
+        "location_preference": "neutral",
+        "deadline_behavior": "accept_quickly"
+      },
+      "weights": {
+        "money_priority": 0.5,
+        "winning_priority": 0.7,
+        "location_priority": 0.2,
+        "guarantee_priority": 0.9,
+        "length_priority": 0.8
+      },
+      "behaviors": {
+        "holdout_threshold": 0.3,
+        "counter_offer_multiplier": 1.05,
+        "deadline_softening": 0.05,
+        "comparison_weight": 0.4,
+        "deadline_susceptibility": 0.8
+      },
+      "feedback_templates": {
+        "reject_low_offer": [
+          "I really want to play, but I need some guarantees.",
+          "I'm not trying to be difficult, I just need security."
+        ],
+        "counter_offer": [
+          "Could you add a little more guaranteed money?",
+          "Just a small bump in guarantees would help."
+        ],
+        "holdout_warning": [
+          "I'm not trying to hold out, I just need security.",
+          "I want to be on the field, but I need protection."
+        ],
+        "accept": [
+          "I'm excited to get back to playing football.",
+          "Thank you for giving me this opportunity."
+        ],
+        "gm_note": [
+          "Player highly values guarantees ({guarantee_priority}) and security. Injury anxiety: {injury_anxiety}."
+        ]
+      }
+    },
+    "loyal_teammate": {
+      "name": "Loyal Teammate",
+      "rarity": 0.15,
+      "traits": {
+        "negotiation_style": "cooperative",
+        "risk_tolerance": "medium",
+        "team_loyalty": "very_high",
+        "location_preference": "current_team",
+        "deadline_behavior": "compromise"
+      },
+      "weights": {
+        "money_priority": 0.6,
+        "winning_priority": 0.8,
+        "location_priority": 0.9,
+        "guarantee_priority": 0.7,
+        "length_priority": 0.6
+      },
+      "behaviors": {
+        "holdout_threshold": 0.4,
+        "counter_offer_multiplier": 1.0,
+        "deadline_softening": 0.03,
+        "comparison_weight": 0.3,
+        "deadline_susceptibility": 0.6
+      },
+      "feedback_templates": {
+        "reject_low_offer": [
+          "I love this team, but I need fair compensation.",
+          "I want to stay here, but the offer needs to be fair."
+        ],
+        "counter_offer": [
+          "I'm willing to work with you on this.",
+          "Let's find a solution that works for everyone."
+        ],
+        "holdout_warning": [
+          "I don't want to hold out, let's work something out.",
+          "I'm committed to this team, but I need fair treatment."
+        ],
+        "accept": [
+          "I'm excited to continue building something special with this team!",
+          "This is where I want to be. Let's make it work."
+        ],
+        "gm_note": [
+          "Player strongly values team loyalty ({team_loyalty}) and location ({location_priority}). Role promise: {role_promise}."
+        ]
+      }
+    },
+    "contender_chaser": {
+      "name": "Contender Chaser",
+      "rarity": 0.1,
+      "traits": {
+        "negotiation_style": "flexible",
+        "risk_tolerance": "medium",
+        "team_loyalty": "low",
+        "location_preference": "winning_teams",
+        "deadline_behavior": "prioritize_opportunity"
+      },
+      "weights": {
+        "money_priority": 0.5,
+        "winning_priority": 0.9,
+        "location_priority": 0.3,
+        "guarantee_priority": 0.6,
+        "length_priority": 0.4
+      },
+      "behaviors": {
+        "holdout_threshold": 0.5,
+        "counter_offer_multiplier": 1.1,
+        "deadline_softening": 0.02,
+        "comparison_weight": 0.6,
+        "deadline_susceptibility": 0.4
+      },
+      "feedback_templates": {
+        "reject_low_offer": [
+          "I want to win. Show me this team is serious about contending.",
+          "I'll take less money if you're building a winner."
+        ],
+        "counter_offer": [
+          "I'll take less money if you're building a winner.",
+          "Show me the playoff plan and I'll be flexible on terms."
+        ],
+        "holdout_warning": [
+          "I'm not holding out for money, I'm waiting for the right opportunity.",
+          "I want to win championships, not just get paid."
+        ],
+        "accept": [
+          "I want to win championships, and this team gives me that opportunity!",
+          "This is exactly the kind of situation I've been looking for."
+        ],
+        "gm_note": [
+          "Player prioritized winning ({winning_priority}) over money ({money_priority}). Team competitiveness: {team_competitiveness}."
+        ]
+      }
+    },
+    "conservative_veteran": {
+      "name": "Conservative Veteran",
+      "rarity": 0.15,
+      "traits": {
+        "negotiation_style": "conservative",
+        "risk_tolerance": "very_low",
+        "team_loyalty": "medium",
+        "location_preference": "stable_markets",
+        "deadline_behavior": "seek_security"
+      },
+      "weights": {
+        "money_priority": 0.7,
+        "winning_priority": 0.5,
+        "location_priority": 0.6,
+        "guarantee_priority": 0.9,
+        "length_priority": 0.8
+      },
+      "behaviors": {
+        "holdout_threshold": 0.7,
+        "counter_offer_multiplier": 1.2,
+        "deadline_softening": 0.01,
+        "comparison_weight": 0.8,
+        "deadline_susceptibility": 0.3
+      },
+      "feedback_templates": {
+        "reject_low_offer": [
+          "I need more guaranteed money for my family's security.",
+          "At my age, I can't afford to take risks."
+        ],
+        "counter_offer": [
+          "I want more guarantees, even if it means less total money.",
+          "Security over upside. That's what I need."
+        ],
+        "holdout_warning": [
+          "I'm not playing without proper guarantees.",
+          "My family depends on this. I need security."
+        ],
+        "accept": [
+          "This gives me the security I need for my family.",
+          "I appreciate the team understanding my situation."
+        ],
+        "gm_note": [
+          "Player highly values guarantees ({guarantee_priority}) and security. Age factor: {age_factor}, family considerations: {family_priority}."
+        ]
+      }
+    }
+  }
+}

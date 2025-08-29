@@ -1,0 +1,177 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Personality Types Schema",
+  "description": "Schema for validating personality type definitions during development",
+  "type": "object",
+  "required": ["personality_schema_version", "personality_types"],
+  "properties": {
+    "personality_schema_version": {
+      "type": "string",
+      "description": "Version of the personality schema for compatibility tracking"
+    },
+    "personality_types": {
+      "type": "object",
+      "description": "Collection of personality archetypes with their characteristics",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name", "rarity", "traits", "weights", "behaviors", "feedback_templates"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Human-readable name for the personality type"
+          },
+          "rarity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Probability weight for this personality type (will be normalized)"
+          },
+          "traits": {
+            "type": "object",
+            "required": ["negotiation_style", "risk_tolerance", "team_loyalty", "location_preference", "deadline_behavior"],
+            "properties": {
+              "negotiation_style": {
+                "type": "string",
+                "enum": ["aggressive", "patient", "desperate", "cooperative", "flexible", "conservative"],
+                "description": "Primary negotiation approach"
+              },
+              "risk_tolerance": {
+                "type": "string",
+                "enum": ["very_low", "low", "medium", "high", "very_high"],
+                "description": "Willingness to take risks in contracts"
+              },
+              "team_loyalty": {
+                "type": "string",
+                "enum": ["very_low", "low", "medium", "high", "very_high"],
+                "description": "Preference for staying with current team"
+              },
+              "location_preference": {
+                "type": "string",
+                "enum": ["big_markets", "warm_weather", "rural_areas", "neutral", "current_team", "winning_teams", "stable_markets"],
+                "description": "Geographic and team preference"
+              },
+              "deadline_behavior": {
+                "type": "string",
+                "enum": ["pressure_team", "wait_for_best", "accept_quickly", "compromise", "prioritize_opportunity", "seek_security"],
+                "description": "How they react to deadline pressure"
+              }
+            }
+          },
+          "weights": {
+            "type": "object",
+            "required": ["money_priority", "winning_priority", "location_priority", "guarantee_priority", "length_priority"],
+            "properties": {
+              "money_priority": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Importance of total compensation"
+              },
+              "winning_priority": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Importance of team success"
+              },
+              "location_priority": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Importance of location/market"
+              },
+              "guarantee_priority": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Importance of guaranteed money"
+              },
+              "length_priority": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Importance of contract length"
+              }
+            },
+            "additionalProperties": false
+          },
+          "behaviors": {
+            "type": "object",
+            "required": ["holdout_threshold", "counter_offer_multiplier", "deadline_softening", "comparison_weight", "deadline_susceptibility"],
+            "properties": {
+              "holdout_threshold": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Minimum offer score to avoid holdout"
+              },
+              "counter_offer_multiplier": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 2,
+                "description": "Multiplier for counter-offer demands"
+              },
+              "deadline_softening": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 0.1,
+                "description": "Per-week reduction in holdout threshold"
+              },
+              "comparison_weight": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "How much market comparisons affect decisions"
+              },
+              "deadline_susceptibility": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "How much deadline pressure affects decisions"
+              }
+            },
+            "additionalProperties": false
+          },
+          "feedback_templates": {
+            "type": "object",
+            "required": ["reject_low_offer", "counter_offer", "holdout_warning", "accept", "gm_note"],
+            "properties": {
+              "reject_low_offer": {
+                "type": "array",
+                "items": { "type": "string" },
+                "minItems": 1,
+                "description": "Templates for rejecting low offers"
+              },
+              "counter_offer": {
+                "type": "array",
+                "items": { "type": "string" },
+                "minItems": 1,
+                "description": "Templates for counter-offers"
+              },
+              "holdout_warning": {
+                "type": "array",
+                "items": { "type": "string" },
+                "minItems": 1,
+                "description": "Templates for holdout warnings"
+              },
+              "accept": {
+                "type": "array",
+                "items": { "type": "string" },
+                "minItems": 1,
+                "description": "Templates for accepting offers"
+              },
+              "gm_note": {
+                "type": "array",
+                "items": { "type": "string" },
+                "minItems": 1,
+                "description": "Private notes for GMs about decision factors"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
