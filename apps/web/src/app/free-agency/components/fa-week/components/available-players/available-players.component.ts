@@ -190,7 +190,7 @@ export class AvailablePlayersComponent {
   /**
    * Get bid count for a specific player
    */
-  public getPlayerBidCount = (playerId: string): number => {
+  public getPlayerBidCount = (playerId: number): number => {
     return this.activeBids().filter((bid) => bid.playerId === playerId).length;
   };
 
@@ -306,7 +306,7 @@ export class AvailablePlayersComponent {
   /**
    * Check if a team has already bid on a player
    */
-  public hasTeamBid(playerId: string): boolean {
+  public hasTeamBid(playerId: number): boolean {
     const currentTeamId = this.currentUserTeam()?.teamId;
     if (!currentTeamId) return false;
 

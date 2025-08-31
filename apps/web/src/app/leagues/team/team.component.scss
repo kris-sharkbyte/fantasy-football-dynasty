@@ -1,0 +1,53 @@
+// Team Component Styles
+// Most styling is handled by Tailwind CSS and PrimeNG components
+
+:host {
+  display: block;
+}
+
+// Custom card shadows
+.p-card {
+  @apply transition-shadow duration-200;
+  
+  &:hover {
+    @apply shadow-xl;
+  }
+}
+
+// Custom tab styling
+.p-tabview {
+  .p-tabview-nav {
+    @apply border-b border-gray-200 dark:border-gray-700;
+    
+    .p-tabview-nav-link {
+      @apply text-gray-600 dark:text-gray-400 border-transparent;
+      
+      &:hover {
+        @apply text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600;
+      }
+      
+      &.p-highlight {
+        @apply text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400;
+      }
+    }
+  }
+}
+
+// Custom button styling
+.p-button {
+  @apply transition-all duration-200;
+  
+  &:hover {
+    @apply transform scale-105;
+  }
+}
+
+// Custom progress spinner
+.p-progressspinner {
+  @apply text-blue-600 dark:text-blue-400;
+}
+
+// Custom message styling
+.p-message {
+  @apply border-0 shadow-lg;
+}

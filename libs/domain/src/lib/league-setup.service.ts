@@ -269,6 +269,18 @@ export class LeagueSetupService {
         ownerUserId: '', // Will be set when owner joins
         capSpace: 200000000, // $200M salary cap
         roster: [],
+        location: {
+          city: 'New York',
+          state: 'NY',
+          timezone: 'EST',
+          marketSize: 'large',
+          climate: 'temperate',
+          stadiumName: 'Default Stadium',
+          stadiumCapacity: 70000,
+          isContender: false,
+          isStable: true,
+          taxRate: 0.0685,
+        },
         createdAt: new Date(),
         updatedAt: new Date(),
       };

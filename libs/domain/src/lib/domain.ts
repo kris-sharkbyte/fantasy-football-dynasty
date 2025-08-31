@@ -1725,7 +1725,7 @@ export class OpenFAManager {
    * Process immediate signing for open FA
    */
   static processOpenFASigning(
-    playerId: string,
+    playerId: number,
     teamId: string,
     leagueId: string,
     contract: ContractOffer

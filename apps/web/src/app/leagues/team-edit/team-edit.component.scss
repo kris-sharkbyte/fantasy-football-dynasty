@@ -1,0 +1,79 @@
+// Team Edit Component Styles
+// Most styling is handled by Tailwind CSS and PrimeNG components
+
+:host {
+  display: block;
+}
+
+// Custom form validation styles
+.form-error {
+  @apply text-red-600 dark:text-red-400 text-sm mt-1;
+}
+
+// Custom card shadows
+.p-card {
+  @apply transition-shadow duration-200;
+  
+  &:hover {
+    @apply shadow-xl;
+  }
+}
+
+// Custom dropdown styling
+.p-dropdown {
+  @apply w-full;
+  
+  &.p-focus {
+    @apply ring-2 ring-blue-500 ring-opacity-50;
+  }
+}
+
+// Custom input styling
+.p-inputtext {
+  @apply w-full;
+  
+  &.p-focus {
+    @apply ring-2 ring-blue-500 ring-opacity-50;
+  }
+  
+  &.ng-invalid.ng-touched {
+    @apply border-red-500 ring-red-500 ring-opacity-50;
+  }
+}
+
+// Custom button styling
+.p-button {
+  @apply transition-all duration-200;
+  
+  &:not(:disabled):hover {
+    @apply transform scale-105;
+  }
+}
+
+// Custom checkbox styling
+input[type="checkbox"] {
+  @apply rounded border-gray-300 text-blue-600 focus:ring-blue-500;
+  
+  &:focus {
+    @apply ring-2 ring-blue-500 ring-opacity-50;
+  }
+}
+
+// Dark mode adjustments
+@media (prefers-color-scheme: dark) {
+  .bg-gray-50 {
+    @apply bg-gray-800;
+  }
+  
+  .border-gray-200 {
+    @apply border-gray-700;
+  }
+  
+  .text-gray-700 {
+    @apply text-gray-300;
+  }
+  
+  .text-gray-600 {
+    @apply text-gray-400;
+  }
+}

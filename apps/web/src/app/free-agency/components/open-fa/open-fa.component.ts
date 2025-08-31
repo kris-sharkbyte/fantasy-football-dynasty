@@ -153,7 +153,7 @@ export class OpenFAComponent {
       if (!player) return;
 
       const signing = await this.freeAgencyService.processOpenFASigning(
-        player.id,
+        player.playerId,
         this.getCurrentTeamId()
       );
 

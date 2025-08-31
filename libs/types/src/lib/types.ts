@@ -108,6 +108,7 @@ export interface Team {
   ownerUserId: string;
   capSpace: number;
   roster: RosterSlot[];
+  location: TeamLocation;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -516,7 +517,7 @@ export interface FABid {
   id: string;
   leagueId: string;
   teamId: string;
-  playerId: string;
+  playerId: number;
   weekNumber: number;
   offer: ContractOffer;
   status: 'pending' | 'accepted' | 'shortlisted' | 'rejected';
@@ -604,7 +605,7 @@ export interface OpenFASigning {
   id: string;
   leagueId: string;
   teamId: string;
-  playerId: string;
+  playerId: number;
   contract: ContractOffer; // Auto-priced 1-year deal
   signedAt: Date;
   marketPrice: number; // The calculated market price
@@ -833,4 +834,17 @@ export interface EnhancedSportsPlayer extends SportsPlayer {
   marketValue?: number;
   fantasyPoints?: number;
   fantasyPointsPPR?: number;
+}
+
+export interface TeamLocation {
+  city: string;
+  state: string;
+  timezone: string;
+  marketSize: 'small' | 'medium' | 'large';
+  climate: 'cold' | 'temperate' | 'warm';
+  stadiumName: string;
+  stadiumCapacity: number;
+  isContender: boolean;
+  isStable: boolean;
+  taxRate: number; // State income tax rate for contract calculations
 }

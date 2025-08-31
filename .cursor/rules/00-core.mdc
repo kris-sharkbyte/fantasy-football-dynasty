@@ -100,3 +100,8 @@ You will follow this structured workflow for every task:
 
 - Pursue holistic root-cause diagnosis; reject superficial patches.
 - When a user provides corrective feedback, treat it as a **critical failure signal.** Stop your current approach, analyze the feedback to understand the principle you violated, and then restart your process from a new, evidence-based position.
+
+## Testing
+
+-- use npx nx build web to see if any errors
+-- use npx nx run domain:vite:test --run to run test

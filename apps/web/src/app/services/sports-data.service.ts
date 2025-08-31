@@ -364,6 +364,13 @@ export class SportsDataService {
   /**
    * Get team by key
    */
+  public getTeamById(teamId: number): SportsTeam | undefined {
+    return this._teams().find((t) => t.TeamID === teamId);
+  }
+
+  /**
+   * Get team by key
+   */
   public getTeamByKey(teamKey: string): SportsTeam | undefined {
     return this._teams().find((t) => t.Key === teamKey);
   }

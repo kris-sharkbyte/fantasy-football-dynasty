@@ -33,6 +33,7 @@ import {
   FreeAgencyRules,
   LeaguePhase,
   EnhancedSportsPlayer,
+  TeamLocation,
 } from '../../../../../libs/types/src/lib/types';
 import {
   LeagueSetupService,
@@ -74,6 +75,7 @@ export interface LeagueTeam {
   ownerUserId: string;
   capSpace: number;
   roster: any[];
+  location?: TeamLocation; // Optional for backward compatibility
   createdAt: Date;
   updatedAt: Date;
 }
@@ -311,20 +313,6 @@ export class LeagueService {
       const enhancedPlayers =
         this.sportsDataService.enhancedPlayers() as EnhancedSportsPlayer[];
 
-      // Debug: Log enhanced players to see what we're getting
-      console.log(
-        '[LeagueService] Enhanced Players from SportsDataService:',
-        enhancedPlayers.length
-      );
-      console.log(
-        '[LeagueService] Sample enhanced player:',
-        enhancedPlayers[0]
-      );
-      console.log(
-        '[LeagueService] Sample enhanced player overall:',
-        enhancedPlayers[0]?.overall
-      );
-
       // Create a simple result structure that matches what LeagueSetupService expects
       const result = {
         players: enhancedPlayers.map((player) => ({
@@ -369,21 +357,8 @@ export class LeagueService {
           player.enhancedPlayer.Team !== 'FA' // Only active players
       );
 
-      console.log(
-        `Setting up ${activePlayers.length} players for league ${leagueId}`
-      );
-
       for (const playerResult of activePlayers) {
         const { enhancedPlayer, overall, minimumContract } = playerResult;
-
-        // Debug: Log what we're about to store
-        console.log(`[LeagueService] Preparing player for Firestore:`, {
-          playerId: enhancedPlayer.PlayerID,
-          name: enhancedPlayer.FirstName + ' ' + enhancedPlayer.LastName,
-          position: enhancedPlayer.Position,
-          nflTeam: enhancedPlayer.Team,
-          overall: overall,
-        });
 
         const playerDoc = {
           playerId: enhancedPlayer.PlayerID.toString(), // Use PlayerID from enhanced player
@@ -491,20 +466,6 @@ export class LeagueService {
     // Round to nearest $100K for cleaner numbers
     const finalValue = Math.round(baseValue / 100000) * 100000;
 
-    // Log the calculation for debugging
-    console.log(`Contract calculation for ${position} ${overall} overall:`, {
-      position,
-      overall,
-      baseValue: overall * 500000,
-      positionMultiplier,
-      afterPosition: overall * 500000 * positionMultiplier,
-      ratingMultiplier: this.getRatingMultiplier(overall),
-      fantasyPoints: playerStats?.FantasyPoints || 'N/A',
-      fantasyPointsPPR: playerStats?.FantasyPointsPPR || 'N/A',
-      finalValue,
-      percentageOfCap: ((finalValue / salaryCap) * 100).toFixed(1) + '%',
-    });
-
     return finalValue;
   }
 
@@ -550,13 +511,6 @@ export class LeagueService {
     // Combine multipliers (base + fantasy + scoring)
     const dynamicMultiplier =
       baseMultipliers[position] * fantasyMultiplier * scoringMultiplier;
-
-    console.log(`Dynamic position multiplier for ${position}:`, {
-      baseMultiplier: baseMultipliers[position],
-      fantasyMultiplier,
-      scoringMultiplier,
-      finalMultiplier: dynamicMultiplier,
-    });
 
     return dynamicMultiplier;
   }
@@ -980,23 +934,6 @@ export class LeagueService {
     // Round to nearest $100K
     const finalValue = Math.round(marketAdjustedValue / 100000) * 100000;
 
-    // Log the market adjustment calculation
-    console.log(
-      `Market-adjusted contract for ${position} ${overall} overall:`,
-      {
-        position,
-        overall,
-        baseContract,
-        positionCount,
-        scarcityMultiplier,
-        playerRank: `${playerRank}/${totalInPosition}`,
-        rankMultiplier,
-        leagueDemand,
-        marketAdjustedValue: finalValue,
-        percentageOfCap: ((finalValue / salaryCap) * 100).toFixed(1) + '%',
-      }
-    );
-
     return finalValue;
   }
 
@@ -1059,14 +996,6 @@ export class LeagueService {
       // Heavy oversupply - significant discount
       demandMultiplier = 0.6;
     }
-
-    console.log(`League demand calculation for ${position}:`, {
-      requiredStarters,
-      totalStartersNeeded,
-      availablePlayers,
-      supplyDemandRatio: supplyDemandRatio.toFixed(2),
-      demandMultiplier,
-    });
 
     return demandMultiplier;
   }

@@ -52,9 +52,10 @@ import { Router, ActivatedRoute } from '@angular/router';
         <p-tab value="0" (click)="navigateToTab('league-info')">
           League Info
         </p-tab>
-        <p-tab value="1" (click)="navigateToTab('roster')"> My Roster </p-tab>
-        <p-tab value="2" (click)="navigateToTab('draft')"> Draft Room </p-tab>
-        <p-tab value="3" (click)="navigateToTab('free-agency')">
+        <p-tab value="1" (click)="navigateToTab('team')"> My Team </p-tab>
+        <p-tab value="2" (click)="navigateToTab('players')"> Players </p-tab>
+        <p-tab value="3" (click)="navigateToTab('draft')"> Draft Room </p-tab>
+        <p-tab value="4" (click)="navigateToTab('free-agency')">
           Free Agents
         </p-tab>
       </p-tablist>
@@ -144,9 +145,10 @@ export class LeagueHeaderComponent implements OnInit {
 
     if (!leagueId) return 0;
 
-    if (currentRoute.includes(`/leagues/${leagueId}/roster`)) return 1;
-    if (currentRoute.includes(`/draft/${leagueId}`)) return 2;
-    if (currentRoute.includes(`/leagues/${leagueId}/free-agency`)) return 3;
+    if (currentRoute.includes(`/leagues/${leagueId}/team`)) return 1;
+    if (currentRoute.includes(`/leagues/${leagueId}/players`)) return 2;
+    if (currentRoute.includes(`/draft/${leagueId}`)) return 3;
+    if (currentRoute.includes(`/leagues/${leagueId}/free-agency`)) return 4;
 
     // Default to league info (0) for league detail page
     return 0;
@@ -208,8 +210,11 @@ export class LeagueHeaderComponent implements OnInit {
       case 'league-info':
         this.router.navigate(['/leagues', leagueId]);
         break;
-      case 'roster':
-        this.router.navigate(['/leagues', leagueId, 'roster']);
+      case 'team':
+        this.router.navigate(['/leagues', leagueId, 'team']);
+        break;
+      case 'players':
+        this.router.navigate(['/leagues', leagueId, 'players']);
         break;
       case 'draft':
         this.router.navigate(['/draft', leagueId]);

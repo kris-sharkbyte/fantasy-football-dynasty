@@ -61,10 +61,24 @@ export const routes: Routes = [
         canActivate: [selectedLeagueGuard],
       },
       {
-        path: ':leagueId/roster',
+        path: ':leagueId/team',
         loadComponent: () =>
-          import('./leagues/my-roster/my-roster.component').then(
-            (m) => m.MyRosterComponent
+          import('./leagues/team/team.component').then((m) => m.TeamComponent),
+        canActivate: [selectedLeagueGuard],
+      },
+      {
+        path: ':leagueId/players',
+        loadComponent: () =>
+          import('./leagues/players/players.component').then(
+            (m) => m.PlayersComponent
+          ),
+        canActivate: [selectedLeagueGuard],
+      },
+      {
+        path: ':leagueId/team/edit',
+        loadComponent: () =>
+          import('./leagues/team-edit/team-edit.component').then(
+            (m) => m.TeamEditComponent
           ),
         canActivate: [selectedLeagueGuard],
       },

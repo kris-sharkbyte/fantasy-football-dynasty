@@ -5,11 +5,16 @@ import { BadgeModule } from 'primeng/badge';
 import { FreeAgencyService } from '../../../../../services/free-agency.service';
 import { LeagueService } from '../../../../../services/league.service';
 import { SportsDataService } from '../../../../../services/sports-data.service';
+import {
+  PlayerCardComponent,
+  PlayerCardData,
+  PlayerCardConfig,
+} from '../../../../../shared/components/player-card';
 
 @Component({
   selector: 'app-team-bids',
   standalone: true,
-  imports: [CommonModule, ButtonModule, BadgeModule],
+  imports: [CommonModule, ButtonModule, BadgeModule, PlayerCardComponent],
   templateUrl: './team-bids.component.html',
 })
 export class TeamBidsComponent {
@@ -198,5 +203,58 @@ export class TeamBidsComponent {
   viewRoster(): void {
     // TODO: Implement navigation to roster view
     console.log('Navigate to roster view');
+  }
+
+  /**
+   * Get player card data for a specific bid
+   */
+  getPlayerCardData(bid: any): PlayerCardData {
+    const playerId = bid.playerId;
+    const player = this.sportsDataService.getPlayerById(parseInt(playerId));
+
+    if (!player) {
+      return {
+        playerId: playerId,
+        firstName: 'Unknown',
+        lastName: 'Player',
+        position: 'Unknown',
+        team: 'Unknown Team',
+        overall: 0,
+        age: 0,
+        experience: 0,
+        status: 'unknown',
+      };
+    }
+
+    return {
+      playerId: playerId,
+      firstName: player.FirstName || 'Unknown',
+      lastName: player.LastName || 'Player',
+      position: player.Position || 'Unknown',
+      team: player.teamInfo?.FullName || 'Unknown Team',
+      overall: player.overall || 0,
+      age: player.Age || 0,
+      experience: player.Experience || 0,
+      status: bid.status || 'unknown',
+      photoUrl: this.getPlayerPhotoUrl(playerId) || undefined,
+      teamLogoUrl: this.getTeamLogoUrl(playerId) || undefined,
+    };
+  }
+
+  /**
+   * Get player card configuration for team bids
+   */
+  getPlayerCardConfig(): PlayerCardConfig {
+    return {
+      showOverall: true,
+      showAge: true,
+      showExperience: true,
+      showStatus: true,
+      showTeamLogo: true,
+      showPlayerPhoto: true,
+      size: 'medium',
+      layout: 'horizontal',
+      theme: 'dark',
+    };
   }
 }

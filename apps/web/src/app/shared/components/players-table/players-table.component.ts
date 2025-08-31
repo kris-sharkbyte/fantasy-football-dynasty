@@ -484,9 +484,6 @@ export class PlayersTableComponent implements OnInit {
           );
 
           if (!sportsPlayer) {
-            console.warn(
-              `No sports data found for player ID: ${leaguePlayer.playerId}`
-            );
             return null;
           }
 
@@ -776,15 +773,6 @@ export class PlayersTableComponent implements OnInit {
 
     // Get the minimumContract from the league data (it was spread in during enhancement)
     const minimumContract = (player as any).minimumContract;
-
-    // Debug logging to help understand what's happening
-    if (this.config?.showEstimatedMinimum && this.isBidMode()) {
-      console.log(`Getting minimum for player ${id}:`, {
-        playerName: `${player.FirstName} ${player.LastName}`,
-        minimumContract,
-        playerKeys: Object.keys(player),
-      });
-    }
 
     return minimumContract || null;
   }

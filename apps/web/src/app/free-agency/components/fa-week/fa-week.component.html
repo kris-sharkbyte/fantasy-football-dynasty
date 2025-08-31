@@ -34,17 +34,21 @@
   >
     @if (selectedPlayer()) {
     <div class="bid-modal-content">
-      <!-- Player Info -->
-      <div class="player-info">
-        <h3>{{ selectedPlayer()?.name }}</h3>
-        <p>
-          {{ selectedPlayer()?.position }} • {{ selectedPlayer()?.age }} years
-          old
-        </p>
+      <!-- Player Info with Shared Player Card -->
+      <div class="player-info-section">
+        <app-player-card
+          [playerData]="getPlayerCardData()"
+          [config]="getPlayerCardConfig()"
+        ></app-player-card>
+
         @if (playerMinimum()) {
-        <p class="player-minimum">
-          Estimated Minimum: {{ formatCurrency(playerMinimum() || 0) }}
-        </p>
+        <div class="player-minimum-info">
+          <p-tag
+            [value]="'Est. Min: ' + formatCurrency(playerMinimum() || 0)"
+            severity="info"
+            [rounded]="true"
+          ></p-tag>
+        </div>
         }
       </div>
 

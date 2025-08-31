@@ -8,11 +8,29 @@ export const selectedLeagueGuard: CanActivateFn = async (route, state) => {
   const router = inject(Router);
   const leagueMembershipService = inject(LeagueMembershipService);
 
+  console.log('SelectedLeagueGuard: Checking access for URL:', state.url);
+  console.log('SelectedLeagueGuard: Route params:', route.paramMap);
+
   // Get the league ID from the route parameters
   const leagueId = route.paramMap.get('id') || route.paramMap.get('leagueId');
   const selectedLeagueId = leagueService.selectedLeagueId();
+
+  console.log('SelectedLeagueGuard: League ID from route:', leagueId);
+  console.log(
+    'SelectedLeagueGuard: Currently selected league ID:',
+    selectedLeagueId
+  );
+
   if (!leagueId || selectedLeagueId !== leagueId) {
-    console.error('No league ID found in route parameters');
+    console.error(
+      'SelectedLeagueGuard: Access denied - No league ID found in route parameters or mismatch'
+    );
+    console.error(
+      'SelectedLeagueGuard: leagueId:',
+      leagueId,
+      'selectedLeagueId:',
+      selectedLeagueId
+    );
     router.navigate(['/leagues']);
     return false;
   }
@@ -28,17 +46,19 @@ export const selectedLeagueGuard: CanActivateFn = async (route, state) => {
     console.log('Selected league guard: Selected league ID:', leagueId);
 
     // Check route-specific permissions
-    const isRosterRoute = state.url.includes('/roster');
+    const isTeamRoute = state.url.includes('/team');
+    const isPlayersRoute = state.url.includes('/players');
 
-    if (isRosterRoute) {
-      // For roster route, check if user is a member using existing data
+    if (isTeamRoute || isPlayersRoute) {
+      // For team and players routes, check if user is a member using existing data
       // Don't call services - just validate what we already have
       const existingMemberships = leagueMembershipService.userMemberships();
       const isMember = existingMemberships.some(
         (m) => m.leagueId === leagueId && m.isActive
       );
 
-      console.log('Roster route membership check:', {
+      console.log('Route membership check:', {
+        route: isTeamRoute ? 'team' : 'players',
         leagueId,
         isMember,
         membershipsCount: existingMemberships.length,

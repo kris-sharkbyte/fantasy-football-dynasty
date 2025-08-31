@@ -37,135 +37,58 @@
     >
       <!-- Bid Content Grid -->
       <div class="flex flex-col space-y-4">
-        <!-- Player Info with Photo and Status Badge -->
+        <!-- Player Info with Shared Player Card -->
         <div class="flex items-start justify-between relative">
-          <!-- Team Logo Background -->
-          @if(getTeamLogoUrl(bid.playerId)) {
-          <div class="absolute inset-0 w-full h-full opacity-40">
-            <img
-              [src]="getTeamLogoUrl(bid.playerId)"
-              [alt]="getTeamName(bid.playerId)"
-              class="w-24 h-24 object-cover"
-            />
-          </div>
-          }
-          <!-- Player Photo with Team Logo Background -->
-          <div class="flex items-center space-x-4">
-            <div class="relative">
-              <!-- Fallback team indicator when no logo -->
-              @if (!getTeamLogoUrl(bid.playerId)) {
-              <div
-                class="absolute inset-0 w-full h-full bg-gradient-to-br from-blue-600 to-purple-600 opacity-60 flex items-center justify-center"
-              >
-                <span class="text-white text-xs font-bold">
-                  {{ getTeamInitials(bid.playerId) }}
-                </span>
-              </div>
-              }
-              <!-- Player Photo -->
-              @if(getPlayerPhotoUrl(bid.playerId)) {
-              <div class="relative z-10 w-full h-full">
-                <img
-                  [src]="getPlayerPhotoUrl(bid.playerId)"
-                  [alt]="
-                    getPlayerFirstName(bid.playerId) +
-                    ' ' +
-                    getPlayerLastName(bid.playerId)
-                  "
-                  class="w-full h-full object-cover"
-                  (error)="onImageError($event)"
-                />
-                @if(!getPlayerPhotoUrl(bid.playerId)) {
-                <div
-                  class="w-full h-full bg-gray-600 flex items-center justify-center text-gray-400 text-lg font-medium rounded-full"
-                >
-                  {{ getPlayerInitials(bid.playerId) }}
-                </div>
-                }
-              </div>
-              }
-            </div>
+          <!-- Use Shared Player Card Component -->
+          <app-player-card
+            [playerData]="getPlayerCardData(bid)"
+            [config]="getPlayerCardConfig()"
+          ></app-player-card>
+        </div>
 
-            <!-- Player Details -->
-            <div class="flex-1 min-w-0">
-              <div class="text-white font-semibold text-xl mb-2">
-                {{ getPlayerFirstName(bid.playerId) }}
-                {{ getPlayerLastName(bid.playerId) }}
-              </div>
-              <div class="text-gray-400 text-base mb-1">
-                {{ getTeamName(bid.playerId) }}
-              </div>
-              <div class="text-gray-400 text-sm">
-                {{ getPlayerNumber(bid.playerId) }} •
-                {{ getPlayerPosition(bid.playerId) }}
-              </div>
-            </div>
+        <!-- Bid Details -->
+        <div class="flex flex-col space-y-2">
+          <div class="flex justify-between items-center">
+            <span class="text-gray-400 text-sm">Contract Value:</span>
+            <span class="text-white font-semibold">
+              {{
+                formatCurrency(
+                  bid.offer.totalValue || bid.offer.apy * bid.offer.years
+                )
+              }}
+            </span>
           </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-400 text-sm">Years:</span>
+            <span class="text-white">{{ bid.offer.years }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-400 text-sm">APY:</span>
+            <span class="text-white">{{ formatCurrency(bid.offer.apy) }}</span>
+          </div>
+        </div>
 
-          <!-- Status Badge - Top Right -->
-          <div class="flex-shrink-0">
+        <!-- Bid Status and Actions -->
+        <div class="flex justify-between items-center">
+          <div class="flex items-center space-x-2">
             <p-badge
-              [value]="bid.status | titlecase"
+              [value]="bid.status"
               [severity]="getStatusSeverity(bid.status)"
-              class="text-sm"
-            >
-            </p-badge>
-          </div>
-        </div>
-
-        <!-- Bid Offer Details - Bottom -->
-        <div class="bg-gray-700 rounded-lg p-4">
-          <div class="flex items-center justify-between mb-3">
-            <div class="text-white font-bold text-2xl">
-              {{ formatCurrency(bid.offer.totalValue) }}
-            </div>
-            <div class="text-gray-400 text-sm">
-              {{ bid.offer.years }} year(s)
-            </div>
-          </div>
-          <div class="text-green-400 font-medium text-lg mb-3">
-            {{ formatCurrency(bid.offer.apy) }}/yr
+            ></p-badge>
+            <span class="text-gray-400 text-xs">
+              {{ bid.submittedAt | date : 'short' }}
+            </span>
           </div>
 
-          <!-- Feedback - Under the Offer -->
-          <div
-            *ngIf="bid.feedback"
-            class="text-gray-300 text-sm italic border-t border-gray-600 pt-3"
-          >
-            {{ bid.feedback }}
-          </div>
-
-          <!-- Success Message for Accepted Bids -->
-          <div
-            *ngIf="bid.status === 'accepted'"
-            class="text-green-400 text-sm font-medium mt-3 text-center"
-          >
-            🎉 Player signed successfully!
-          </div>
-        </div>
-
-        <!-- Actions -->
-        <div class="flex justify-center space-x-3">
-          <p-button
-            *ngIf="bid.status === 'pending'"
-            label="Cancel Bid"
-            severity="danger"
-            size="small"
-            (onClick)="cancelBid(bid.id)"
-            class="w-full sm:w-auto"
-          >
-          </p-button>
-
-          <!-- View Roster Button for Accepted Bids -->
-          <p-button
-            *ngIf="bid.status === 'accepted'"
-            label="View Roster"
-            severity="success"
-            size="small"
-            (onClick)="viewRoster()"
-            class="w-full sm:w-auto"
-          >
-          </p-button>
+          @if (bid.status === 'pending') {
+          <button
+            pButton
+            label="Cancel"
+            icon="pi pi-times"
+            (click)="cancelBid(bid.id)"
+            class="p-button-danger p-button-sm"
+          ></button>
+          }
         </div>
       </div>
     </div>

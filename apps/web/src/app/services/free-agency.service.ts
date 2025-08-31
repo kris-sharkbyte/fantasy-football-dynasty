@@ -47,6 +47,7 @@ export interface FAWeekBid {
 
 export interface FAWeekPlayer {
   id: string;
+  playerId: number;
   name: string;
   position: string;
   age: number;
@@ -248,7 +249,7 @@ export class FreeAgencyService {
    * Submit a bid for a player - direct Firestore operation
    */
   async submitBid(
-    playerId: string,
+    playerId: number,
     teamId: string,
     offer: ContractOffer
   ): Promise<FABid | null> {
@@ -264,7 +265,7 @@ export class FreeAgencyService {
       }
 
       // Get player data for contract validation
-      const player = this.sportsDataService.getPlayerById(parseInt(playerId));
+      const player = this.sportsDataService.getPlayerById(playerId);
       if (!player) {
         throw new Error('Player not found');
       }
@@ -737,6 +738,7 @@ export class FreeAgencyService {
         .slice(0, 200) // Increased from 50 to 200 for better initial load
         .map((player) => ({
           id: player.PlayerID.toString(),
+          playerId: player.PlayerID,
           name: `${player.FirstName} ${player.LastName}`,
           position: player.Position,
           age: player.Age,
@@ -782,6 +784,7 @@ export class FreeAgencyService {
         .slice(offset, offset + limit)
         .map((player) => ({
           id: player.PlayerID.toString(),
+          playerId: player.PlayerID,
           name: `${player.FirstName} ${player.LastName}`,
           position: player.Position,
           age: player.Age,
@@ -832,6 +835,7 @@ export class FreeAgencyService {
         .slice(0, 100) // Limit search results to 100
         .map((player) => ({
           id: player.PlayerID.toString(),
+          playerId: player.PlayerID,
           name: `${player.FirstName} ${player.LastName}`,
           position: player.Position,
           age: player.Age,
@@ -909,10 +913,12 @@ export class FreeAgencyService {
   /**
    * Update player bid status
    */
-  private updatePlayerBidStatus(playerId: string, status: string): void {
+  private updatePlayerBidStatus(playerId: number, status: string): void {
     this.availablePlayers.update((players) =>
       players.map((player) =>
-        player.id === playerId ? { ...player, status: status as any } : player
+        player.playerId === playerId
+          ? { ...player, status: status as any }
+          : player
       )
     );
   }
@@ -920,7 +926,7 @@ export class FreeAgencyService {
   /**
    * Get bids for a specific player
    */
-  getPlayerBids(playerId: string): FABid[] {
+  getPlayerBids(playerId: number): FABid[] {
     return this.activeBids().filter((bid) => bid.playerId === playerId);
   }
 
@@ -1852,7 +1858,7 @@ export class FreeAgencyService {
    * Process open FA immediate signing - direct Firestore operation
    */
   async processOpenFASigning(
-    playerId: string,
+    playerId: number,
     teamId: string
   ): Promise<OpenFASigning | null> {
     try {
@@ -1903,9 +1909,9 @@ export class FreeAgencyService {
    * Get player status information
    */
   getPlayerStatusInfo(
-    playerId: string
+    playerId: number
   ): { isRetired: boolean; status: string; team: string } | null {
-    const player = this.sportsDataService.getPlayerById(parseInt(playerId));
+    const player = this.sportsDataService.getPlayerById(playerId);
     if (!player) return null;
 
     const isRetired = player.Status !== 'Active';
@@ -1920,10 +1926,8 @@ export class FreeAgencyService {
   /**
    * Get enhanced player minimum using market ripple effects and league cap context
    */
-  async getEnhancedPlayerMinimum(playerId: string): Promise<number | null> {
-    const sportsPlayer = this.sportsDataService.getPlayerById(
-      parseInt(playerId)
-    );
+  async getEnhancedPlayerMinimum(playerId: number): Promise<number | null> {
+    const sportsPlayer = this.sportsDataService.getPlayerById(playerId);
 
     if (!sportsPlayer) return null;
 

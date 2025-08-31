@@ -16,12 +16,19 @@ import {
 } from '../../../services/free-agency.service';
 import { LeagueService } from '../../../services/league.service';
 import { EnhancedPlayerMinimumService } from '../../../services/enhanced-player-minimum.service';
+import { SportsDataService } from '../../../services/sports-data.service';
 import { FAWeekHeaderComponent } from './components/fa-week-header';
 import { TeamBidsComponent } from './components/team-bids';
 import { SalaryCapComponent } from './components/salary-cap';
 import { PlayerDecisionsComponent } from './components/player-decisions';
 import { ContractInputsComponent } from '../../../teams/negotiation/components/contract-inputs/contract-inputs.component';
 import { PlayersTableComponent } from '../../../shared/components/players-table/players-table.component';
+import {
+  PlayerCardComponent,
+  PlayerCardData,
+  PlayerCardConfig,
+} from '../../../shared/components/player-card';
+import { SportsPlayer } from 'libs/types/src/lib/types';
 
 @Component({
   selector: 'app-fa-week',
@@ -44,6 +51,7 @@ import { PlayersTableComponent } from '../../../shared/components/players-table/
     PlayerDecisionsComponent,
     ContractInputsComponent,
     PlayersTableComponent,
+    PlayerCardComponent,
   ],
   templateUrl: './fa-week.component.html',
   styleUrls: ['./fa-week.component.scss'],
@@ -54,9 +62,10 @@ export class FAWeekComponent implements OnInit {
   private readonly enhancedPlayerMinimumService = inject(
     EnhancedPlayerMinimumService
   );
+  private readonly sportsDataService = inject(SportsDataService);
 
   // State signals
-  public selectedPlayer = signal<FAWeekPlayer | null>(null);
+  public selectedPlayer = signal<SportsPlayer | null>(null);
   public showBidModal = signal<boolean>(false);
   public bidForm = signal({ years: 1, baseSalary: 0, signingBonus: 0 });
   public isSubmitting = signal<boolean>(false);
@@ -132,7 +141,8 @@ export class FAWeekComponent implements OnInit {
   /**
    * Open bid modal for a player
    */
-  openBidModal(player: FAWeekPlayer): void {
+  openBidModal(player: SportsPlayer): void {
+    console.log('zzzplayer', player);
     this.selectedPlayer.set(player);
     this.initializeBidForm(player);
     this.showBidModal.set(true);
@@ -150,10 +160,10 @@ export class FAWeekComponent implements OnInit {
   /**
    * Initialize bid form with player minimum
    */
-  private async initializeBidForm(player: FAWeekPlayer): Promise<void> {
+  private async initializeBidForm(player: SportsPlayer): Promise<void> {
     try {
       const minimum = await this.freeAgencyService.getEnhancedPlayerMinimum(
-        player.id
+        player.PlayerID
       );
       this.playerMinimum.set(minimum);
 
@@ -223,7 +233,7 @@ export class FAWeekComponent implements OnInit {
 
       // Submit bid
       const bid = await this.freeAgencyService.submitBid(
-        player.id,
+        player.PlayerID,
         currentUserTeamId,
         contractOffer
       );
@@ -252,5 +262,84 @@ export class FAWeekComponent implements OnInit {
       return `$${(amount / 1000).toFixed(0)}K`;
     }
     return `$${amount.toLocaleString()}`;
+  }
+
+  /**
+   * Get player card data for the selected player
+   */
+  getPlayerCardData(): PlayerCardData {
+    const player = this.selectedPlayer();
+    console.log('player', player);
+    if (!player) {
+      return {
+        playerId: 0,
+        firstName: '',
+        lastName: '',
+        position: '',
+        team: '',
+        overall: 0,
+        age: 0,
+        experience: 0,
+        status: 'available',
+      };
+    }
+
+    // Get enhanced player data from sports data service
+    const enhancedPlayer = this.sportsDataService.getPlayerById(
+      player.PlayerID
+    );
+    console.log(enhancedPlayer);
+    const team = this.sportsDataService.getTeamById(
+      enhancedPlayer?.TeamID || 0
+    );
+    console.log(team);
+    return {
+      playerId: player.PlayerID,
+      firstName: player.FirstName,
+      lastName: player.LastName,
+      position: player.Position,
+      team: player.Team || '',
+      overall: player.overall,
+      age: player.Age,
+      experience: enhancedPlayer?.Experience || 0,
+      status: player.Status,
+      photoUrl: enhancedPlayer?.PhotoUrl || '',
+      teamLogoUrl: team?.WikipediaLogoUrl || '',
+    };
+  }
+
+  /**
+   * Get player card configuration for the bid modal
+   */
+  getPlayerCardConfig(): PlayerCardConfig {
+    return {
+      showOverall: true,
+      showAge: true,
+      showExperience: true,
+      showStatus: false,
+      showTeamLogo: true,
+      showPlayerPhoto: true,
+      size: 'large',
+      layout: 'horizontal',
+      theme: 'dark',
+    };
+  }
+
+  /**
+   * Get player photo URL (placeholder implementation)
+   */
+  private getPlayerPhotoUrl(playerId: string): string | undefined {
+    // This would typically come from a player photo service
+    // For now, return undefined to show initials
+    return undefined;
+  }
+
+  /**
+   * Get team logo URL (placeholder implementation)
+   */
+  private getTeamLogoUrl(playerId: string): string | undefined {
+    // This would typically come from a team logo service
+    // For now, return undefined to show team initials
+    return undefined;
   }
 }

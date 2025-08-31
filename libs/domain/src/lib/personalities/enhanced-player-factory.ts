@@ -635,7 +635,11 @@ export class EnhancedPlayerFactory {
       type: primaryType,
       weight: 0.8,
       cities: this.getCitiesForPreferenceType(primaryType),
+      states: [],
+      climates: [],
+      marketSizes: [],
       currentTeamMatch: false,
+      taxSensitivity: Math.random() * 0.5, // Random tax sensitivity 0-0.5
     });
 
     // Secondary location preference (optional)
@@ -645,7 +649,11 @@ export class EnhancedPlayerFactory {
         type: secondaryType,
         weight: 0.4,
         cities: this.getCitiesForPreferenceType(secondaryType),
+        states: [],
+        climates: [],
+        marketSizes: [],
         currentTeamMatch: false,
+        taxSensitivity: Math.random() * 0.3, // Lower tax sensitivity for secondary preference
       });
     }
 

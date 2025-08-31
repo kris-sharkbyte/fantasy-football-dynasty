@@ -275,7 +275,16 @@ export class CreateLeagueComponent {
       };
 
       const leagueId = await this.leagueService.createLeague(createLeagueData);
-      this.router.navigate(['/leagues', leagueId]);
+
+      console.log('League created successfully, ID:', leagueId);
+
+      // Set the selected league to prevent navigation kickouts
+      this.leagueService.setSelectedLeagueId(leagueId);
+      console.log('Selected league ID set to:', leagueId);
+
+      // Navigate to the team page to set up team settings
+      console.log('Navigating to team page:', ['/leagues', leagueId, 'team']);
+      this.router.navigate(['/leagues', leagueId, 'team']);
     } catch (error) {
       console.error('Error creating league:', error);
     } finally {

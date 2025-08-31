@@ -17,6 +17,7 @@ import { MessageModule } from 'primeng/message';
 import { LeagueService } from '../../services/league.service';
 import { League } from '@fantasy-football-dynasty/types';
 import { MessageService } from 'primeng/api';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-join-league-modal',
@@ -38,6 +39,7 @@ import { MessageService } from 'primeng/api';
   styleUrls: ['./join-league-modal.component.scss'],
 })
 export class JoinLeagueModalComponent {
+  private readonly router = inject(Router);
   visible: boolean = false;
   isLoading = signal(false);
   searchResults = signal<League[]>([]);
@@ -116,12 +118,13 @@ export class JoinLeagueModalComponent {
   }
 
   async joinByCode(): Promise<void> {
-    if (this.joinCodeForm.invalid) {
-      return;
-    }
-
     const joinCode = this.joinCodeForm.get('joinCode')?.value;
+    if (joinCode) {
+      await this.joinLeagueByCode(joinCode);
+    }
+  }
 
+  async joinLeagueByCode(joinCode: string): Promise<void> {
     try {
       this.isLoading.set(true);
       const result = await this.leagueService.joinLeagueByCode(joinCode);
@@ -132,9 +135,21 @@ export class JoinLeagueModalComponent {
           summary: 'Success!',
           detail: result.message,
         });
+
+        // Set the selected league to prevent navigation kickouts
+        if (result.leagueId) {
+          this.leagueService.setSelectedLeagueId(result.leagueId);
+          console.log('Selected league ID set to:', result.leagueId);
+        }
+
         this.hide();
-        // Optionally navigate to the league
-        // this.router.navigate(['/leagues', result.leagueId]);
+        // Navigate to the team page
+        console.log('Navigating to team page:', [
+          '/leagues',
+          result.leagueId,
+          'team',
+        ]);
+        this.router.navigate(['/leagues', result.leagueId, 'team']);
       } else {
         this.messageService.add({
           severity: 'error',
@@ -167,7 +182,21 @@ export class JoinLeagueModalComponent {
           summary: 'Success!',
           detail: result.message,
         });
+
+        // Set the selected league to prevent navigation kickouts
+        if (result.leagueId) {
+          this.leagueService.setSelectedLeagueId(result.leagueId);
+          console.log('Selected league ID set to:', result.leagueId);
+        }
+
         this.hide();
+        // Navigate to the team page
+        console.log('Navigating to team page:', [
+          '/leagues',
+          result.leagueId,
+          'team',
+        ]);
+        this.router.navigate(['/leagues', result.leagueId, 'team']);
       } else {
         this.messageService.add({
           severity: 'error',

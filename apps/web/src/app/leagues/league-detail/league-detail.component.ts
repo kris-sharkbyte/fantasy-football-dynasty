@@ -1,5 +1,6 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { LeagueHeaderComponent } from '../components/league-header.component';
 import { EditTeamModalComponent } from './edit-team-modal';
 import { LeagueSettingsComponent } from '../league-settings';
@@ -23,6 +24,7 @@ export class LeagueDetailComponent implements OnInit {
   private readonly leagueMembershipService = inject(LeagueMembershipService);
   private readonly leagueService = inject(LeagueService);
   private readonly freeAgencyService = inject(FreeAgencyService);
+  private readonly router = inject(Router);
 
   editTeamModalVisible = false;
   showSettingsView = false;
@@ -82,6 +84,16 @@ export class LeagueDetailComponent implements OnInit {
       }
     } catch (error) {
       console.error('Error advancing FA week:', error);
+    }
+  }
+
+  /**
+   * Navigate to the current user's team page
+   */
+  navigateToTeam(): void {
+    const leagueId = this.leagueId();
+    if (leagueId) {
+      this.router.navigate(['/leagues', leagueId, 'team']);
     }
   }
 }

@@ -1,0 +1,304 @@
+<div class="container mx-auto px-4 py-6 max-w-7xl">
+  <!-- Header -->
+  <div class="mb-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          {{ teamName }}
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400">
+          Manage your team roster, settings, and view team information.
+        </p>
+      </div>
+      <p-button
+        label="Edit Team"
+        icon="pi pi-pencil"
+        (onClick)="onEditTeam()"
+        styleClass="px-6"
+      >
+      </p-button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading()" class="flex justify-center items-center py-12">
+    <p-progressSpinner
+      styleClass="w-12 h-12"
+      strokeWidth="4"
+      fill="var(--surface-ground)"
+      animationDuration=".5s"
+    >
+    </p-progressSpinner>
+  </div>
+
+  <!-- Team Content -->
+  <div *ngIf="!isLoading()" class="space-y-6">
+    <!-- Team Overview Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Team Name -->
+      <p-card styleClass="shadow-lg">
+        <div class="text-center">
+          <div class="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-2">
+            {{ teamName }}
+          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Team Name</div>
+        </div>
+      </p-card>
+
+      <!-- Market Size -->
+      <p-card styleClass="shadow-lg">
+        <div class="text-center">
+          <div
+            class="text-2xl font-bold text-green-600 dark:text-green-400 mb-2"
+          >
+            {{ marketSizeLabel }}
+          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">
+            Market Size
+          </div>
+        </div>
+      </p-card>
+
+      <!-- Climate -->
+      <p-card styleClass="shadow-lg">
+        <div class="text-center">
+          <div
+            class="text-2xl font-bold text-orange-600 dark:text-orange-400 mb-2"
+          >
+            {{ climateLabel }}
+          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Climate</div>
+        </div>
+      </p-card>
+
+      <!-- Tax Rate -->
+      <p-card styleClass="shadow-lg">
+        <div class="text-center">
+          <div
+            class="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-2"
+          >
+            {{ taxRateLabel }}
+          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Tax Rate</div>
+        </div>
+      </p-card>
+    </div>
+
+    <!-- Team Details Tabs -->
+    <p-tabs value="0" styleClass="shadow-lg">
+      <p-tablist>
+        <p-tab value="0" leftIcon="pi pi-users">Roster</p-tab>
+        <p-tab value="1" leftIcon="pi pi-info-circle">Team Info</p-tab>
+        <p-tab value="2" leftIcon="pi pi-dollar">Cap Management</p-tab>
+      </p-tablist>
+
+      <p-tabpanels>
+        <!-- Roster Tab -->
+        <p-tabpanel value="0">
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                Team Roster
+              </h3>
+              <div class="text-sm text-gray-600 dark:text-gray-400">
+                {{ rosterPlayers().length }} Players
+              </div>
+            </div>
+
+            <!-- Players Table -->
+            <app-players-table [config]="playersTableConfig()" class="w-full">
+            </app-players-table>
+          </div>
+        </p-tabpanel>
+
+        <!-- Team Info Tab -->
+        <p-tabpanel value="1">
+          <div class="space-y-6">
+            <p-card header="Location & Stadium" styleClass="shadow-lg">
+              <div
+                *ngIf="currentTeam()?.location; else noLocation"
+                class="space-y-4"
+              >
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span class="font-medium text-gray-700 dark:text-gray-300"
+                      >City:</span
+                    >
+                    <div class="text-gray-900 dark:text-white">
+                      {{ currentTeam()?.location?.city }},
+                      {{ currentTeam()?.location?.state }}
+                    </div>
+                  </div>
+                  <div>
+                    <span class="font-medium text-gray-700 dark:text-gray-300"
+                      >Timezone:</span
+                    >
+                    <div class="text-gray-900 dark:text-white">
+                      {{ currentTeam()?.location?.timezone }}
+                    </div>
+                  </div>
+                  <div>
+                    <span class="font-medium text-gray-700 dark:text-gray-300"
+                      >Stadium:</span
+                    >
+                    <div class="text-gray-900 dark:text-white">
+                      {{ currentTeam()?.location?.stadiumName }}
+                    </div>
+                  </div>
+                  <div>
+                    <span class="font-medium text-gray-700 dark:text-gray-300"
+                      >Capacity:</span
+                    >
+                    <div class="text-gray-900 dark:text-white">
+                      {{
+                        currentTeam()?.location?.stadiumCapacity?.toLocaleString()
+                      }}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span class="font-medium text-gray-700 dark:text-gray-300"
+                      >Contender Status:</span
+                    >
+                    <div class="text-gray-900 dark:text-white">
+                      <span
+                        [class]="
+                          currentTeam()?.location?.isContender
+                            ? 'text-green-600'
+                            : 'text-gray-600'
+                        "
+                      >
+                        {{
+                          currentTeam()?.location?.isContender
+                            ? 'Contending Team'
+                            : 'Rebuilding Team'
+                        }}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <span class="font-medium text-gray-700 dark:text-gray-300"
+                      >Management Stability:</span
+                    >
+                    <div class="text-gray-900 dark:text-white">
+                      <span
+                        [class]="
+                          currentTeam()?.location?.isStable
+                            ? 'text-green-600'
+                            : 'text-gray-600'
+                        "
+                      >
+                        {{
+                          currentTeam()?.location?.isStable
+                            ? 'Stable Management'
+                            : 'Unstable Management'
+                        }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <ng-template #noLocation>
+                <div class="text-center py-8">
+                  <div class="text-gray-500 dark:text-gray-400 mb-4">
+                    <i class="pi pi-map-marker text-4xl"></i>
+                  </div>
+                  <p class="text-gray-600 dark:text-gray-400 mb-4">
+                    No team location information set yet.
+                  </p>
+                  <p-button
+                    label="Set Team Location"
+                    icon="pi pi-pencil"
+                    (onClick)="onEditTeam()"
+                    styleClass="px-6"
+                  >
+                  </p-button>
+                </div>
+              </ng-template>
+            </p-card>
+          </div>
+        </p-tabpanel>
+
+        <!-- Cap Management Tab -->
+        <p-tabpanel value="2">
+          <div class="space-y-4">
+            <p-card header="Salary Cap Overview" styleClass="shadow-lg">
+              <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div class="text-center">
+                    <div
+                      class="text-2xl font-bold text-green-600 dark:text-green-400"
+                    >
+                      ${{ (currentTeam()?.capSpace || 0).toLocaleString() }}
+                    </div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                      Available Cap Space
+                    </div>
+                  </div>
+                  <div class="text-center">
+                    <div
+                      class="text-2xl font-bold text-blue-600 dark:text-blue-400"
+                    >
+                      $0
+                    </div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                      Committed Cap
+                    </div>
+                  </div>
+                  <div class="text-center">
+                    <div
+                      class="text-2xl font-bold text-purple-600 dark:text-purple-400"
+                    >
+                      $0
+                    </div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                      Dead Money
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4"
+                >
+                  <div class="flex">
+                    <div class="flex-shrink-0">
+                      <svg
+                        class="h-5 w-5 text-blue-400"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fill-rule="evenodd"
+                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                          clip-rule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <div class="ml-3">
+                      <h3
+                        class="text-sm font-medium text-blue-800 dark:text-blue-200"
+                      >
+                        Cap Management
+                      </h3>
+                      <div
+                        class="mt-2 text-sm text-blue-700 dark:text-blue-300"
+                      >
+                        <p>
+                          Monitor your salary cap situation, track player
+                          contracts, and plan for future seasons.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </p-card>
+          </div>
+        </p-tabpanel>
+      </p-tabpanels>
+    </p-tabs>
+  </div>
+</div>
