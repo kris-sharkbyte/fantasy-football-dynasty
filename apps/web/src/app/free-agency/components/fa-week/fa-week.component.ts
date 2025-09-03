@@ -10,6 +10,9 @@ import { TagModule } from 'primeng/tag';
 import { TableModule } from 'primeng/table';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
+import { MessageModule } from 'primeng/message';
+import { ToastModule } from 'primeng/toast';
+import { MessageService } from 'primeng/api';
 import {
   FreeAgencyService,
   FAWeekPlayer,
@@ -45,6 +48,8 @@ import { SportsPlayer } from 'libs/types/src/lib/types';
     TableModule,
     IconFieldModule,
     InputIconModule,
+    MessageModule,
+    ToastModule,
     FAWeekHeaderComponent,
     TeamBidsComponent,
     SalaryCapComponent,
@@ -53,6 +58,7 @@ import { SportsPlayer } from 'libs/types/src/lib/types';
     PlayersTableComponent,
     PlayerCardComponent,
   ],
+  providers: [MessageService],
   templateUrl: './fa-week.component.html',
   styleUrls: ['./fa-week.component.scss'],
 })
@@ -63,6 +69,7 @@ export class FAWeekComponent implements OnInit {
     EnhancedPlayerMinimumService
   );
   private readonly sportsDataService = inject(SportsDataService);
+  private readonly messageService = inject(MessageService);
 
   // State signals
   public selectedPlayer = signal<SportsPlayer | null>(null);
@@ -231,6 +238,17 @@ export class FAWeekComponent implements OnInit {
         ),
       };
 
+      // Check if bid is below minimum and show warning
+      const playerMinimum = this.playerMinimum();
+      if (playerMinimum && contractOffer.apy < playerMinimum) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Low Bid Warning',
+          detail: `Your bid of $${contractOffer.apy.toLocaleString()} is below the estimated minimum of $${playerMinimum.toLocaleString()}. The player may not accept this offer.`,
+          life: 5000,
+        });
+      }
+
       // Submit bid
       const bid = await this.freeAgencyService.submitBid(
         player.PlayerID,
@@ -239,6 +257,12 @@ export class FAWeekComponent implements OnInit {
       );
 
       if (bid) {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Bid Submitted',
+          detail: `Bid submitted successfully for ${player.FirstName} ${player.LastName}`,
+          life: 3000,
+        });
         console.log('Bid submitted successfully:', bid);
         this.closeBidModal();
       } else {
@@ -246,7 +270,15 @@ export class FAWeekComponent implements OnInit {
       }
     } catch (error) {
       console.error('Error submitting bid:', error);
-      // Here you would typically show an error message to the user
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Bid Submission Failed',
+        detail:
+          error instanceof Error
+            ? error.message
+            : 'Failed to submit bid. Please try again.',
+        life: 5000,
+      });
     } finally {
       this.isSubmitting.set(false);
     }

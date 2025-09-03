@@ -276,17 +276,14 @@ export class FreeAgencyService {
         throw new Error('No active league found');
       }
 
-      // Validate contract against new dynamic minimum calculation
+      // Calculate dynamic minimum for informational purposes
       const dynamicMinimum = await this.calculateDynamicPlayerMinimum(
         player,
         currentLeague.rules
       );
 
-      if (offer.apy < dynamicMinimum) {
-        throw new Error(
-          `Bid must be at least $${dynamicMinimum.toLocaleString()} (dynamic minimum)`
-        );
-      }
+      // Note: We no longer block bids below minimum - users can submit lower offers
+      // The player may not accept, but we allow the attempt
 
       // Create bid with cleaner ID format (no week number in ID)
       const bid: FABid = {

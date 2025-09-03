@@ -50,10 +50,17 @@ export const selectedLeagueGuard: CanActivateFn = async (route, state) => {
     const isPlayersRoute = state.url.includes('/players');
 
     if (isTeamRoute || isPlayersRoute) {
-      // For team and players routes, check if user is a member using existing data
-      // Don't call services - just validate what we already have
+      // For team and players routes, check if user is a member
+      // First ensure memberships are loaded
       const existingMemberships = leagueMembershipService.userMemberships();
-      const isMember = existingMemberships.some(
+      if (existingMemberships.length === 0) {
+        console.log('No memberships loaded, loading user memberships...');
+        await leagueMembershipService.loadUserMemberships();
+      }
+
+      // Check membership after ensuring data is loaded
+      const memberships = leagueMembershipService.userMemberships();
+      const isMember = memberships.some(
         (m) => m.leagueId === leagueId && m.isActive
       );
 
@@ -61,12 +68,12 @@ export const selectedLeagueGuard: CanActivateFn = async (route, state) => {
         route: isTeamRoute ? 'team' : 'players',
         leagueId,
         isMember,
-        membershipsCount: existingMemberships.length,
+        membershipsCount: memberships.length,
       });
 
       if (!isMember) {
         console.error('User is not a member of league:', leagueId);
-        console.log('Existing memberships:', existingMemberships);
+        console.log('Existing memberships:', memberships);
         router.navigate(['/leagues']);
         return false;
       }

@@ -1174,6 +1174,9 @@ export class LeagueService {
       }
 
       this._userLeagues.set(leagues);
+
+      // Also load user memberships to keep services in sync
+      await this.leagueMembershipService.loadUserMemberships();
     } catch (error) {
       console.error('Error loading user leagues:', error);
       this._error.set(

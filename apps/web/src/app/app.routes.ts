@@ -138,6 +138,21 @@ export const routes: Routes = [
   },
 
   {
+    path: 'testing',
+    component: AppLayout,
+    canActivate: [AuthGuard],
+    children: [
+      {
+        path: 'offseason',
+        loadComponent: () =>
+          import('./testing/offseason-test/offseason-test.component').then(
+            (m) => m.OffseasonTestComponent
+          ),
+      },
+    ],
+  },
+
+  {
     path: '**',
     redirectTo: '',
   },

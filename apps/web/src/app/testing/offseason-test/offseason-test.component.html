@@ -1,0 +1,765 @@
+<div class="container mx-auto px-4 py-6 max-w-7xl">
+  <!-- Header -->
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+      🏈 Offseason Test Suite
+    </h1>
+    <p class="text-gray-600 dark:text-gray-400 text-lg">
+      Test the complete offseason flow: 4 weeks of FA bidding → Open FA → Player
+      signings
+    </p>
+  </div>
+
+  <!-- Test Configuration -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <!-- League Settings -->
+    <p-card header="League Configuration" styleClass="shadow-lg">
+      <div class="space-y-4">
+        <div>
+          <label
+            class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+          >
+            League Name
+          </label>
+          <input
+            type="text"
+            [value]="testConfig().leagueName"
+            (input)="onLeagueNameChange($event)"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Teams
+            </label>
+            <input
+              type="number"
+              [value]="testConfig().numberOfTeams"
+              (input)="onNumberOfTeamsChange($event)"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Max Contract Years
+            </label>
+            <input
+              type="number"
+              [value]="testConfig().maxContractYears"
+              (input)="onMaxContractYearsChange($event)"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label
+            class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+          >
+            Salary Cap
+          </label>
+          <div class="text-2xl font-bold text-green-600">
+            ${{ (testConfig().salaryCap / 1000000).toFixed(0) }}M
+          </div>
+        </div>
+      </div>
+    </p-card>
+
+    <!-- Roster Requirements -->
+    <p-card header="Roster Requirements" styleClass="shadow-lg">
+      <div class="space-y-3">
+        <div class="flex justify-between items-center">
+          <span class="text-gray-700 dark:text-gray-300">QB</span>
+          <span class="font-semibold">{{
+            testConfig().rosterRequirements['QB']
+          }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-gray-700 dark:text-gray-300">RB</span>
+          <span class="font-semibold">{{
+            testConfig().rosterRequirements['RB']
+          }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-gray-700 dark:text-gray-300">WR</span>
+          <span class="font-semibold">{{
+            testConfig().rosterRequirements['WR']
+          }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-gray-700 dark:text-gray-300">TE</span>
+          <span class="font-semibold">{{
+            testConfig().rosterRequirements['TE']
+          }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-gray-700 dark:text-gray-300">DEF</span>
+          <span class="font-semibold">{{
+            testConfig().rosterRequirements['DEF']
+          }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-gray-700 dark:text-gray-300">K</span>
+          <span class="font-semibold">{{
+            testConfig().rosterRequirements['K']
+          }}</span>
+        </div>
+        <hr class="my-3" />
+        <div class="flex justify-between items-center font-bold">
+          <span class="text-gray-700 dark:text-gray-300">Total</span>
+          <span class="text-blue-600">{{ totalRosterSize() }}</span>
+        </div>
+      </div>
+    </p-card>
+  </div>
+
+  <!-- Test Execution -->
+  <div class="mb-8">
+    <p-card header="Test Execution" styleClass="shadow-lg">
+      <div class="space-y-6">
+        <!-- Current Status -->
+        <div
+          class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4"
+        >
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg
+                class="h-5 w-5 text-blue-400"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-sm font-medium text-blue-800 dark:text-blue-200">
+                Current Status
+              </h3>
+              <div class="mt-2 text-sm text-blue-700 dark:text-blue-300">
+                <p>{{ currentStep() }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Offseason Progress -->
+        <div
+          *ngIf="testResult()?.success && totalPlayers() > 0"
+          class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4"
+        >
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div class="text-center">
+              <div class="text-lg font-bold text-green-600">
+                Week {{ currentWeek() }}
+              </div>
+              <div class="text-sm text-green-700 dark:text-green-300">
+                Current Week
+              </div>
+            </div>
+            <div class="text-center">
+              <div class="text-lg font-bold text-blue-600">
+                {{ totalPlayers() }}
+              </div>
+              <div class="text-sm text-blue-700 dark:text-blue-300">
+                Players Loaded
+              </div>
+            </div>
+            <div class="text-center">
+              <div class="text-lg font-bold text-purple-600">
+                {{ currentWeek() <= 4 ? 'FA Week' : 'Open FA' }}
+              </div>
+              <div class="text-sm text-purple-700 dark:text-purple-300">
+                Phase
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Week Results -->
+        <div
+          *ngIf="weekResults()"
+          class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4"
+        >
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg
+                class="h-5 w-5 text-yellow-400"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3
+                class="text-sm font-medium text-yellow-800 dark:text-yellow-200"
+              >
+                Week {{ weekResults()?.week }} Results
+              </h3>
+              <div class="mt-2 text-sm text-yellow-700 dark:text-yellow-300">
+                <p>{{ weekResults()?.message }}</p>
+                <p class="mt-1">
+                  <span class="font-medium">{{
+                    weekResults()?.bidsProcessed
+                  }}</span>
+                  bids processed,
+                  <span class="font-medium">{{
+                    weekResults()?.playersSigned
+                  }}</span>
+                  players signed
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="space-y-4">
+          <!-- Step 1: Create League -->
+          <div class="flex flex-wrap gap-4">
+            <button
+              pButton
+              type="button"
+              label="🚀 Start Offseason Test"
+              icon="pi pi-play"
+              (click)="startOffseasonTest()"
+              [disabled]="isLoading()"
+              class="p-button-success p-button-lg"
+            ></button>
+          </div>
+
+          <!-- Step 2: Load Players -->
+          <div class="flex flex-wrap gap-4">
+            <button
+              pButton
+              type="button"
+              label="👥 Load Players"
+              icon="pi pi-users"
+              (click)="loadPlayers()"
+              [disabled]="isLoading() || !testResult()?.success"
+              class="p-button-primary p-button-lg"
+            ></button>
+          </div>
+
+          <!-- Step 3: Offseason Flow -->
+          <div *ngIf="totalPlayers() > 0" class="space-y-4">
+            <div class="text-sm text-gray-600 dark:text-gray-400 font-medium">
+              🏈 Offseason Flow: Simulate Bidding → Advance Week → Repeat (4
+              weeks) → Open FA
+            </div>
+
+            <div class="flex flex-wrap gap-4">
+              <button
+                pButton
+                type="button"
+                label="💰 Simulate Bidding (Week {{ currentWeek() }})"
+                icon="pi pi-dollar"
+                (click)="simulateBidding()"
+                [disabled]="
+                  isLoading() || !testResult()?.success || currentWeek() > 4
+                "
+                class="p-button-info p-button-lg"
+              ></button>
+
+              <button
+                pButton
+                type="button"
+                label="⏭️ Advance Week"
+                icon="pi pi-forward"
+                (click)="advanceWeek()"
+                [disabled]="
+                  isLoading() ||
+                  !testResult()?.success ||
+                  currentWeek() > 4 ||
+                  !showBidAnalytics()
+                "
+                class="p-button-warning p-button-lg"
+              ></button>
+            </div>
+          </div>
+
+          <!-- Utility Buttons -->
+          <div
+            class="flex flex-wrap gap-4 pt-4 border-t border-gray-200 dark:border-gray-700"
+          >
+            <button
+              pButton
+              type="button"
+              label="🎯 Run Full Simulation"
+              icon="pi pi-cog"
+              (click)="runSimulation()"
+              [disabled]="isLoading() || !testResult()?.success"
+              class="p-button-secondary p-button-lg"
+            ></button>
+
+            <button
+              pButton
+              type="button"
+              label="🔄 Reset Test"
+              icon="pi pi-refresh"
+              (click)="resetTest()"
+              [disabled]="isLoading()"
+              class="p-button-outlined"
+            ></button>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div *ngIf="isLoading()" class="flex justify-center items-center py-8">
+          <p-progressSpinner
+            styleClass="w-12 h-12"
+            strokeWidth="4"
+            fill="var(--surface-ground)"
+            animationDuration=".5s"
+          >
+          </p-progressSpinner>
+        </div>
+      </div>
+    </p-card>
+  </div>
+
+  <!-- Test Progress -->
+  <div class="mb-8">
+    <p-card header="Test Progress" styleClass="shadow-lg">
+      <div class="space-y-4">
+        <div
+          *ngFor="let step of testSteps(); let i = index"
+          class="flex items-center space-x-3"
+        >
+          <!-- Step Status Icon -->
+          <div class="flex-shrink-0">
+            <span
+              *ngIf="getStepStatus(i) === 'completed'"
+              class="inline-flex items-center justify-center w-6 h-6 bg-green-100 text-green-800 rounded-full text-sm font-medium"
+            >
+              ✓
+            </span>
+            <span
+              *ngIf="getStepStatus(i) === 'current'"
+              class="inline-flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+            >
+              ⟳
+            </span>
+            <span
+              *ngIf="getStepStatus(i) === 'pending'"
+              class="inline-flex items-center justify-center w-6 h-6 bg-gray-100 text-gray-400 rounded-full text-sm font-medium"
+            >
+              ○
+            </span>
+          </div>
+
+          <!-- Step Label -->
+          <span
+            [class]="
+              getStepStatus(i) === 'completed'
+                ? 'text-green-700 font-medium'
+                : getStepStatus(i) === 'current'
+                ? 'text-blue-700 font-medium'
+                : 'text-gray-500'
+            "
+          >
+            {{ step }}
+          </span>
+        </div>
+      </div>
+    </p-card>
+  </div>
+
+  <!-- Test Results -->
+  <div *ngIf="testResult()" class="mb-8">
+    <p-card header="Test Results" styleClass="shadow-lg">
+      <div class="space-y-4">
+        <!-- Success/Error Message -->
+        <div
+          [class]="
+            testResult()?.success
+              ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+              : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+          "
+          class="rounded-lg p-4"
+        >
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg
+                *ngIf="testResult()?.success"
+                class="h-5 w-5 text-green-400"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              <svg
+                *ngIf="!testResult()?.success"
+                class="h-5 w-5 text-red-400"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3
+                [class]="
+                  testResult()?.success
+                    ? 'text-green-800 dark:text-green-200'
+                    : 'text-red-800 dark:text-red-200'
+                "
+                class="text-sm font-medium"
+              >
+                {{ testResult()?.success ? 'Test Successful' : 'Test Failed' }}
+              </h3>
+              <div
+                [class]="
+                  testResult()?.success
+                    ? 'text-green-700 dark:text-green-300'
+                    : 'text-red-700 dark:text-red-300'
+                "
+                class="mt-2 text-sm"
+              >
+                <p>{{ testResult()?.message }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Test Details -->
+        <div
+          *ngIf="testResult()?.details"
+          class="grid grid-cols-2 md:grid-cols-4 gap-4"
+        >
+          <div class="text-center">
+            <div class="text-2xl font-bold text-blue-600">
+              {{ testResult()?.details?.teamsCreated }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Teams</div>
+          </div>
+
+          <div class="text-center">
+            <div class="text-2xl font-bold text-green-600">
+              {{ testResult()?.details?.playersLoaded }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Players</div>
+          </div>
+
+          <div class="text-center">
+            <div class="text-2xl font-bold text-purple-600">
+              {{ testResult()?.details?.faWeeksCreated }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">FA Weeks</div>
+          </div>
+
+          <div class="text-center">
+            <div class="text-2xl font-bold text-orange-600">
+              {{ testResult()?.details?.initialPhase }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Phase</div>
+          </div>
+        </div>
+
+        <!-- League ID -->
+        <div
+          *ngIf="testResult()?.leagueId"
+          class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3"
+        >
+          <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">
+            League ID:
+          </div>
+          <div
+            class="font-mono text-sm bg-white dark:bg-gray-700 p-2 rounded border"
+          >
+            {{ testResult()?.leagueId }}
+          </div>
+        </div>
+      </div>
+    </p-card>
+  </div>
+
+  <!-- Bid Analytics Section -->
+  <div *ngIf="showBidAnalytics()" class="space-y-8">
+    <!-- League Summary -->
+    <div *ngIf="leagueSummary()" class="mb-8">
+      <p-card header="League Bid Summary" styleClass="shadow-lg">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+          <div class="text-center">
+            <div class="text-3xl font-bold text-blue-600">
+              {{ leagueSummary()?.totalBids }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+              Total Bids
+            </div>
+          </div>
+
+          <div class="text-center">
+            <div class="text-3xl font-bold text-green-600">
+              {{ leagueSummary()?.successfulBids }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+              Successful
+            </div>
+          </div>
+
+          <div class="text-center">
+            <div class="text-3xl font-bold text-red-600">
+              {{ leagueSummary()?.failedBids }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Failed</div>
+          </div>
+
+          <div class="text-center">
+            <div class="text-3xl font-bold text-yellow-600">
+              {{ leagueSummary()?.pendingBids }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Pending</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="text-center">
+            <div class="text-2xl font-bold text-purple-600">
+              {{ formatCurrency(leagueSummary()?.totalValue || 0) }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+              Total Value
+            </div>
+          </div>
+
+          <div class="text-center">
+            <div class="text-2xl font-bold text-indigo-600">
+              {{ formatCurrency(leagueSummary()?.averageBidAmount || 0) }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">Avg Bid</div>
+          </div>
+
+          <div class="text-center">
+            <div class="text-2xl font-bold text-orange-600">
+              {{ leagueSummary()?.mostActiveTeam || 'N/A' }}
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+              Most Active
+            </div>
+          </div>
+        </div>
+
+        <!-- Position Demand Chart -->
+        <div class="mt-6">
+          <h4 class="text-lg font-semibold mb-4">Position Demand</h4>
+          <div class="grid grid-cols-3 md:grid-cols-6 gap-4">
+            <div
+              *ngFor="let position of ['QB', 'RB', 'WR', 'TE', 'DEF', 'K']"
+              class="text-center"
+            >
+              <div class="text-xl font-bold text-gray-700">
+                {{ getPositionDemand(position) }}
+              </div>
+              <div class="text-sm text-gray-500">{{ position }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Weekly Progress -->
+        <div class="mt-6">
+          <h4 class="text-lg font-semibold mb-4">Weekly Progress</h4>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div
+              *ngFor="let week of leagueSummary()?.weeklyProgress"
+              class="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
+            >
+              <div class="text-lg font-bold text-blue-600">
+                Week {{ week.week }}
+              </div>
+              <div class="text-sm text-gray-600">
+                {{ week.bidsSubmitted }} bids
+              </div>
+              <div class="text-sm text-gray-600">
+                {{ week.playersSigned }} signed
+              </div>
+              <div class="text-sm text-gray-600">
+                {{ formatCurrency(week.totalValue) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </p-card>
+    </div>
+
+    <!-- Team Results Table -->
+    <div *ngIf="teamResults().length > 0" class="mb-8">
+      <p-card header="Team Results & Performance" styleClass="shadow-lg">
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-gray-200 dark:border-gray-700">
+                <th class="text-left p-3 font-semibold">Team</th>
+                <th class="text-center p-3 font-semibold">Bids</th>
+                <th class="text-center p-3 font-semibold">Success Rate</th>
+                <th class="text-center p-3 font-semibold">Spent</th>
+                <th class="text-center p-3 font-semibold">Cap Remaining</th>
+                <th class="text-center p-3 font-semibold">Roster %</th>
+                <th class="text-center p-3 font-semibold">Last Bid</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                *ngFor="let team of teamResults()"
+                class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                <td class="p-3 font-medium">{{ team.teamName }}</td>
+                <td class="p-3 text-center">
+                  <div class="flex flex-col">
+                    <span class="font-semibold">{{ team.totalBids }}</span>
+                    <div class="flex justify-center space-x-1 mt-1">
+                      <span
+                        class="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800"
+                        >{{ team.successfulBids }}</span
+                      >
+                      <span
+                        class="text-xs px-2 py-1 rounded-full bg-red-100 text-red-800"
+                        >{{ team.failedBids }}</span
+                      >
+                      <span
+                        class="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800"
+                        >{{ team.pendingBids }}</span
+                      >
+                    </div>
+                  </div>
+                </td>
+                <td class="p-3 text-center">
+                  <div class="text-lg font-bold text-green-600">
+                    {{
+                      calculateSuccessRate(team.successfulBids, team.totalBids)
+                    }}%
+                  </div>
+                </td>
+                <td class="p-3 text-center font-semibold text-green-600">
+                  {{ formatCurrency(team.totalSpent) }}
+                </td>
+                <td class="p-3 text-center font-semibold text-blue-600">
+                  {{ formatCurrency(team.capSpaceRemaining) }}
+                </td>
+                <td class="p-3 text-center">
+                  <div class="flex items-center justify-center">
+                    <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                      <div
+                        class="bg-blue-600 h-2 rounded-full"
+                        [style.width.%]="team.completionPercentage"
+                      ></div>
+                    </div>
+                    <span class="text-sm font-medium"
+                      >{{ team.completionPercentage }}%</span
+                    >
+                  </div>
+                </td>
+                <td class="p-3 text-center text-sm text-gray-600">
+                  {{
+                    team.lastBidTime
+                      ? (team.lastBidTime | date : 'short')
+                      : 'N/A'
+                  }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </p-card>
+    </div>
+
+    <!-- Detailed Bid History -->
+    <div *ngIf="teamResults().length > 0" class="mb-8">
+      <p-card header="Detailed Bid History" styleClass="shadow-lg">
+        <div class="space-y-4">
+          <div
+            *ngFor="let team of teamResults()"
+            class="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+          >
+            <h4 class="text-lg font-semibold mb-3 text-blue-600">
+              {{ team.teamName }}
+            </h4>
+
+            <div *ngIf="team.bidHistory.length > 0" class="space-y-2">
+              <div
+                *ngFor="let bid of team.bidHistory"
+                class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+              >
+                <div class="flex-1">
+                  <div class="flex items-center space-x-3">
+                    <span class="font-medium">{{ bid.playerName }}</span>
+                    <span class="text-sm text-gray-600">{{
+                      bid.position
+                    }}</span>
+                    <span class="text-sm text-gray-600"
+                      >{{ bid.contractYears }}y</span
+                    >
+                  </div>
+                  <div class="text-sm text-gray-500 mt-1">
+                    {{ bid.submittedAt | date : 'short' }}
+                  </div>
+                  <div
+                    *ngIf="bid.feedback"
+                    class="text-sm text-gray-600 mt-1 italic"
+                  >
+                    "{{ bid.feedback }}"
+                  </div>
+                </div>
+
+                <div class="flex items-center space-x-3">
+                  <span class="font-semibold text-green-600">{{
+                    formatCurrency(bid.bidAmount)
+                  }}</span>
+                  <span
+                    class="px-2 py-1 text-xs rounded-full"
+                    [class]="getStatusBadgeClass(bid.status)"
+                  >
+                    {{ bid.status }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              *ngIf="team.bidHistory.length === 0"
+              class="text-center text-gray-500 py-4"
+            >
+              No bids submitted yet
+            </div>
+          </div>
+        </div>
+      </p-card>
+    </div>
+
+    <!-- Refresh Button -->
+    <div class="text-center">
+      <button
+        pButton
+        type="button"
+        label="🔄 Refresh Analytics"
+        icon="pi pi-refresh"
+        (click)="refreshAnalytics()"
+        [disabled]="isLoading()"
+        class="p-button-outlined p-button-lg"
+      ></button>
+    </div>
+  </div>
+</div>

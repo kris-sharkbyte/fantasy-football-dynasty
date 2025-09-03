@@ -1,0 +1,9 @@
+---
+description: These are the commands to run for CLI in the NGX workspace
+globs:
+alwaysApply: true
+---
+
+-- Build the web server to view for errors: npx nx build web
+-- Testing : npx nx run domain:vite:test --run
+-- Testing a specific test: npx nx run domain:vite:test --run src/lib/\*spec.ts

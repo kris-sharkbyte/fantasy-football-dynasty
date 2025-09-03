@@ -51,12 +51,59 @@ export class TeamComponent implements OnInit {
     const team = this.currentTeam();
     const allPlayers = this.players();
 
-    if (!team?.roster || !allPlayers.length) return [];
+    console.log('Team roster data:', {
+      team: team,
+      roster: team?.roster,
+      rosterLength: team?.roster?.length,
+      allPlayersLength: allPlayers.length,
+      samplePlayer: allPlayers[0],
+    });
 
-    // Filter to only show roster players
-    return allPlayers.filter((player: any) =>
-      team.roster.some((rosterSlot) => rosterSlot.playerId === player.id)
+    if (!team?.roster || team.roster.length === 0) {
+      console.log('No roster data found for team');
+      return [];
+    }
+
+    if (!allPlayers.length) {
+      console.log('No league players loaded yet');
+      return [];
+    }
+
+    // Filter to only show roster players and enhance with roster data
+    const rosterPlayers = allPlayers
+      .filter((player: any) => {
+        const isOnRoster = team.roster.some(
+          (rosterSlot) => rosterSlot.playerId === player.playerId
+        );
+        if (isOnRoster) {
+          console.log(
+            'Found roster player:',
+            player.name,
+            'ID:',
+            player.playerId
+          );
+        }
+        return isOnRoster;
+      })
+      .map((player: any) => {
+        // Find the roster slot for this player to get additional info
+        const rosterSlot = team.roster.find(
+          (slot) => slot.playerId === player.playerId
+        );
+        return {
+          ...player,
+          rosterStatus: rosterSlot?.status || 'active',
+          rosterPosition: rosterSlot?.position || player.position,
+          rosterId: rosterSlot?.id,
+        };
+      });
+
+    console.log(
+      'Filtered roster players:',
+      rosterPlayers.length,
+      rosterPlayers
     );
+    return rosterPlayers;
   });
 
   // Players table configuration
@@ -96,7 +143,7 @@ export class TeamComponent implements OnInit {
 
       this.teamId.set(currentUserTeam.teamId);
 
-      // Load league players
+      // Load league players only if we need them for roster display
       const leagueId = this.leagueId();
       if (leagueId) {
         const players = await this.leagueService.getLeaguePlayers(leagueId);

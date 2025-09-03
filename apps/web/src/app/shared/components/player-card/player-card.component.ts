@@ -42,7 +42,7 @@ export interface PlayerCardConfig {
     >
       <!-- Player Photo Section -->
       @if (config.showPlayerPhoto) {
-      <div class="flex-shrink-0 flex justify-center sm:justify-start">
+      <div class="relative flex-shrink-0 flex justify-center sm:justify-start">
         <!-- Team Logo Background -->
         @if (config.showTeamLogo && playerData.teamLogoUrl) {
         <div class="relative inset-0 opacity-30">
@@ -54,7 +54,7 @@ export interface PlayerCardConfig {
         </div>
         }
         <div
-          class="relative overflow-hidden bg-gray-600"
+          class="absolute bottom-0 right-0 z-10 "
           [ngClass]="photoContainerClasses()"
         >
           <!-- Player Photo or Initials -->
@@ -62,7 +62,7 @@ export interface PlayerCardConfig {
           <img
             [src]="playerData.photoUrl"
             [alt]="playerData.firstName + ' ' + playerData.lastName"
-            class="w-full h-full object-cover relative z-10"
+            class="w-full h-full"
             (error)="onPhotoError()"
           />
           } @else {
@@ -167,7 +167,7 @@ export class PlayerCardComponent {
   });
 
   photoContainerClasses = computed(() => {
-    const baseClasses = 'relative overflow-hidden rounded-full bg-gray-600';
+    const baseClasses = 'overflow-hidden';
     const sizeClasses = this.getPhotoSizeClasses();
     const responsiveClasses = 'mb-2 sm:mb-0';
     const teamBgClasses =

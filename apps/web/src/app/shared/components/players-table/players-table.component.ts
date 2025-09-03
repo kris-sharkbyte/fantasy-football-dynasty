@@ -360,6 +360,8 @@ export class PlayersTableComponent implements OnInit {
 
   // Effect: Load league data when config changes
   constructor() {
+    console.log('PlayersTableComponent constructor');
+    console.log('config', this.config);
     effect(() => {
       const leagueId = this.config?.leagueId;
       if (leagueId) {
