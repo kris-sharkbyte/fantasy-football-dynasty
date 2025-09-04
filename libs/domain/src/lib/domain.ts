@@ -1125,28 +1125,65 @@ export class FAWeekManager {
     marketContext: MarketContext,
     settings: FAWeekSettings
   ): PlayerDecision {
-    // Sort bids by player preference (using existing negotiation logic)
+    // Sort bids by player preference with tiebreaker logic
     const scoredBids = bids
       .map((bid) => ({
         bid,
         score: this.scoreBidForPlayer(bid, player, marketContext),
       }))
-      .sort((a, b) => b.score - a.score);
+      .sort((a, b) => {
+        // Primary sort: by score (highest first)
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+
+        // Tiebreaker 1: Signing bonus (higher first)
+        const aBonus = a.bid.offer.signingBonus;
+        const bBonus = b.bid.offer.signingBonus;
+        if (bBonus !== aBonus) {
+          return bBonus - aBonus;
+        }
+
+        // Tiebreaker 2: Number of guarantees (more first)
+        const aGuarantees = a.bid.offer.guarantees.length;
+        const bGuarantees = b.bid.offer.guarantees.length;
+        if (bGuarantees !== aGuarantees) {
+          return bGuarantees - aGuarantees;
+        }
+
+        // Tiebreaker 3: Total value (higher first)
+        const aTotal = a.bid.offer.totalValue;
+        const bTotal = b.bid.offer.totalValue;
+        if (bTotal !== aTotal) {
+          return bTotal - aTotal;
+        }
+
+        // Tiebreaker 4: Contract length (shorter first - less commitment)
+        const aYears = a.bid.offer.years;
+        const bYears = b.bid.offer.years;
+        if (aYears !== bYears) {
+          return aYears - bYears;
+        }
+
+        // Final tiebreaker: Bid ID (alphabetical for consistency)
+        return a.bid.id.localeCompare(b.bid.id);
+      });
 
     const acceptedBid = scoredBids[0];
     const shortlistedBids = scoredBids.slice(1, settings.shortlistSize + 1);
     const rejectedBids = scoredBids.slice(settings.shortlistSize + 1);
 
-    // Calculate week-based acceptance threshold
-    const baseThreshold = 0.7; // 70% base threshold
-    const weekAdjustedThreshold = this.calculateWeekBasedAcceptanceThreshold(
-      marketContext.currentWeek,
+    // Use the contract analysis to determine if the offer is acceptable
+    // This includes the dynamic threshold based on offer quality
+    const contractAnalysis = this.createContractAnalysis(
+      acceptedBid.bid,
       player,
-      baseThreshold
+      marketContext
     );
 
-    // Determine if best offer is acceptable based on week-adjusted threshold
-    const isAcceptable = acceptedBid.score >= weekAdjustedThreshold;
+    // Determine if best offer is acceptable based on contract analysis threshold
+    const isAcceptable =
+      contractAnalysis.totalScore >= contractAnalysis.threshold;
 
     if (isAcceptable) {
       return {
@@ -1181,29 +1218,17 @@ export class FAWeekManager {
         ),
       };
     } else {
-      // Even when not acceptable, we need to account for ALL bids
-      // The highest scoring bid becomes the "primary consideration" (shortlisted)
-      // All other bids are either shortlisted or rejected based on settings
-      const primaryBid = acceptedBid; // This is the best offer, even if not acceptable
-      const remainingBids = scoredBids.slice(1);
-      const additionalShortlistedBids = remainingBids.slice(
-        0,
-        settings.shortlistSize
-      );
-      const rejectedBids = remainingBids.slice(settings.shortlistSize);
+      // When not acceptable, shortlist the top N bids (including the primary bid)
+      // All other bids are rejected
+      const shortlistedBids = scoredBids.slice(0, settings.shortlistSize);
+      const rejectedBids = scoredBids.slice(settings.shortlistSize);
 
       return {
         playerId: player.id,
         acceptedBidId: undefined,
-        shortlistedBidIds: [
-          primaryBid.bid.id,
-          ...additionalShortlistedBids.map((b) => b.bid.id),
-        ],
+        shortlistedBidIds: shortlistedBids.map((b) => b.bid.id),
         rejectedBidIds: rejectedBids.map((b) => b.bid.id),
-        feedback: this.generateShortlistFeedback(
-          [primaryBid, ...additionalShortlistedBids],
-          rejectedBids
-        ),
+        feedback: this.generateShortlistFeedback(shortlistedBids, rejectedBids),
         trustImpact:
           rejectedBids.length > 0
             ? this.calculateTrustImpact(rejectedBids[0].bid, false)
@@ -1212,22 +1237,22 @@ export class FAWeekManager {
         decisionReason: 'shortlisted',
         startingPositionProspects: this.analyzeStartingPositionProspects(
           player,
-          primaryBid.bid,
+          shortlistedBids[0].bid,
           marketContext
         ),
         contractAnalysis: this.createContractAnalysis(
-          primaryBid.bid,
+          shortlistedBids[0].bid,
           player,
           marketContext
         ),
         marketFactors: this.createMarketFactors(player, marketContext),
         playerNotes: this.generatePlayerNotes(
-          primaryBid.bid,
+          shortlistedBids[0].bid,
           player,
           'shortlisted'
         ),
         agentNotes: this.generateAgentNotes(
-          primaryBid.bid,
+          shortlistedBids[0].bid,
           player,
           'shortlisted'
         ),
@@ -1248,30 +1273,30 @@ export class FAWeekManager {
     // Base score from contract terms
     let score = 0;
 
-    // AAV score (0-1) - 30% weight (reduced from 40%)
+    // AAV score (0-1) - 50% weight (increased from 30%)
     const expectedAAV = this.calculateExpectedAAV(player, marketContext);
     const aavScore = Math.min(1, contract.apy / expectedAAV);
-    score += aavScore * 0.3;
+    score += aavScore * 0.5;
 
-    // Signing bonus score (0-1) - 25% weight (increased from 0%)
+    // Signing bonus score (0-1) - 20% weight (reduced from 25%)
     const expectedBonus = expectedAAV * 0.2; // Expected 20% signing bonus
     const bonusScore =
       contract.signingBonus > 0
         ? Math.min(1, contract.signingBonus / expectedBonus)
-        : 0.3; // Penalty for no signing bonus
-    score += bonusScore * 0.25;
+        : 0.6; // Reduced penalty from 0.3 to 0.6
+    score += bonusScore * 0.2;
 
-    // Guarantee score (0-1) - 20% weight (reduced from 30%)
+    // Guarantee score (0-1) - 15% weight (reduced from 20%)
     const guaranteeScore = Math.min(1, contract.guarantees.length / 2);
-    score += guaranteeScore * 0.2;
+    score += guaranteeScore * 0.15;
 
-    // Length preference (0-1) - 15% weight (reduced from 20%)
+    // Length preference (0-1) - 10% weight (reduced from 15%)
     const lengthScore = this.calculateLengthScore(contract, player);
-    score += lengthScore * 0.15;
+    score += lengthScore * 0.1;
 
-    // Team factors (0-1) - 10% weight (unchanged)
+    // Team factors (0-1) - 5% weight (reduced from 10%)
     const teamScore = this.calculateTeamScore(bid.teamId, marketContext);
-    score += teamScore * 0.1;
+    score += teamScore * 0.05;
 
     // Apply week-based desperation multiplier
     const desperationMultiplier = this.calculateWeekBasedDesperationMultiplier(
@@ -1591,20 +1616,57 @@ export class FAWeekManager {
 
     const aavScore = Math.min(1, contract.apy / expectedAAV);
     const expectedBonus = expectedAAV * 0.2;
+
+    // Improved signing bonus scoring - less harsh penalty for no bonus
     const signingBonusScore =
       contract.signingBonus > 0
         ? Math.min(1, contract.signingBonus / expectedBonus)
-        : 0.3;
+        : 0.6; // Reduced penalty from 0.3 to 0.6
+
+    // Improved guarantee scoring - less harsh penalty for no guarantees
     const guaranteeScore = Math.min(1, contract.guarantees.length / 2);
     const lengthScore = this.calculateLengthScore(contract, player);
     const teamScore = this.calculateTeamScore(bid.teamId, marketContext);
 
+    // Adjusted weights to prioritize APY more heavily
     const totalScore =
-      aavScore * 0.3 +
-      signingBonusScore * 0.25 +
-      guaranteeScore * 0.2 +
-      lengthScore * 0.15 +
-      teamScore * 0.1;
+      aavScore * 0.5 + // Increased from 0.3 to 0.5 - APY is most important
+      signingBonusScore * 0.2 + // Reduced from 0.25 to 0.2
+      guaranteeScore * 0.15 + // Reduced from 0.2 to 0.15
+      lengthScore * 0.1 + // Reduced from 0.15 to 0.1
+      teamScore * 0.05; // Reduced from 0.1 to 0.05
+
+    // Dynamic threshold based on offer quality AND week progression
+    let threshold = 0.7;
+
+    // Week-based desperation: players get more willing to accept as weeks progress
+    const weekMultiplier = this.calculateWeekBasedDesperationMultiplier(
+      marketContext.currentWeek,
+      player
+    );
+
+    // Base threshold adjustment for week progression
+    if (marketContext.currentWeek === 1) {
+      threshold = 0.9; // Very picky in week 1 - prefer to shortlist
+    } else if (marketContext.currentWeek === 2) {
+      threshold = 0.85; // Still picky in week 2 - prefer to shortlist
+    } else if (marketContext.currentWeek === 3) {
+      threshold = 0.7; // Normal pickiness in week 3
+    } else if (marketContext.currentWeek === 4) {
+      threshold = 0.6; // More willing in week 4
+    } else {
+      threshold = 0.5; // Very willing in week 5+
+    }
+
+    // APY-based adjustments (only if significantly overpaying)
+    if (contract.apy >= expectedAAV * 2.0) {
+      threshold *= 0.8; // 20% easier if massively overpaying
+    } else if (contract.apy >= expectedAAV * 1.5) {
+      threshold *= 0.9; // 10% easier if significantly overpaying
+    }
+
+    // Ensure threshold doesn't go below 0.3 (minimum)
+    threshold = Math.max(0.3, threshold);
 
     return {
       aavScore,
@@ -1613,7 +1675,7 @@ export class FAWeekManager {
       lengthScore,
       teamScore,
       totalScore,
-      threshold: 0.7, // Acceptance threshold
+      threshold,
     };
   }
 

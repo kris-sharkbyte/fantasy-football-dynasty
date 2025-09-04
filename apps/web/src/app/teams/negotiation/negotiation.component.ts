@@ -31,7 +31,6 @@ import { LeagueService } from '../../services/league.service';
 
 // Import child components
 import {
-  PlayerProfileComponent,
   OfferStatusComponent,
   ContractInputsComponent,
   TeamAnalysisComponent,
@@ -65,7 +64,6 @@ export interface ContractValidation {
     ProgressSpinnerModule,
     MessageModule,
     // Child components
-    PlayerProfileComponent,
     OfferStatusComponent,
     ContractInputsComponent,
     TeamAnalysisComponent,
@@ -107,10 +105,12 @@ export class NegotiationComponent implements OnInit {
     years: number;
     baseSalary: Record<number, number>;
     signingBonus: number;
+    guarantees: Guarantee[];
   } = {
     years: 1,
     baseSalary: { 1: 0 },
     signingBonus: 0,
+    guarantees: [],
   };
 
   // Formatted display values for inputs
@@ -254,7 +254,10 @@ export class NegotiationComponent implements OnInit {
    * Calculate total guaranteed amount
    */
   getGuaranteedAmount(): number {
-    return 0; // TODO: Implement guarantees
+    return this.contractData.guarantees.reduce(
+      (total, guarantee) => total + guarantee.amount,
+      0
+    );
   }
 
   /**
@@ -272,7 +275,7 @@ export class NegotiationComponent implements OnInit {
       endYear: new Date().getFullYear() + this.contractData.years - 1,
       baseSalary: this.contractData.baseSalary,
       signingBonus: this.contractData.signingBonus,
-      guarantees: [],
+      guarantees: this.contractData.guarantees,
       noTradeClause: false,
     };
 
@@ -656,6 +659,13 @@ export class NegotiationComponent implements OnInit {
   onSigningBonusChange(newBonus: number): void {
     this.contractData.signingBonus = newBonus;
     this.formattedBonus = this.getFormattedBonus();
+  }
+
+  /**
+   * Update guarantees when contract inputs change
+   */
+  onGuaranteesChange(newGuarantees: Guarantee[]): void {
+    this.contractData.guarantees = newGuarantees;
   }
 
   /**

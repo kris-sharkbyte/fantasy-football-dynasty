@@ -7,7 +7,8 @@
       class="w-full"
       [options]="yearsOptions()"
       optionLabel="label"
-      optionValue="1"
+      optionValue="value"
+      [ngModel]="currentYears"
       (onChange)="updateYears($event.value)"
     >
     </p-select>
@@ -70,6 +71,112 @@
         (mouseleave)="onMouseLeave()"
         title="Hold for rapid increase"
       ></button>
+    </div>
+  </div>
+
+  <!-- Guarantees Section -->
+  <div class="guarantees-section">
+    <div class="flex justify-between items-center mb-2">
+      <label>Guarantees:</label>
+      <button
+        pButton
+        icon="pi pi-plus"
+        label="Add Guarantee"
+        size="small"
+        (click)="addGuarantee()"
+        class="p-button-outlined p-button-sm"
+      ></button>
+    </div>
+
+    <!-- Total Guaranteed Amount -->
+    <div class="total-guarantees mb-3">
+      <span class="text-sm text-gray-600"
+        >Total Guaranteed: {{ formattedTotalGuarantees() }}</span
+      >
+    </div>
+
+    <!-- Guarantees List -->
+    <div class="guarantees-list space-y-2" *ngIf="currentGuarantees.length > 0">
+      <div
+        *ngFor="let guarantee of currentGuarantees; let i = index"
+        class="guarantee-item p-3 border rounded-lg"
+      >
+        <div class="flex gap-2 items-center mb-2">
+          <div class="flex-1">
+            <label class="text-sm font-medium">Year:</label>
+            <p-select
+              [options]="guaranteeYearOptions()"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="guarantee.year"
+              (onChange)="updateGuaranteeYear(i, $event.value)"
+              class="w-full"
+            ></p-select>
+          </div>
+
+          <div class="flex-1">
+            <label class="text-sm font-medium">Type:</label>
+            <p-select
+              [options]="guaranteeTypeOptions"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="guarantee.type"
+              (onChange)="updateGuaranteeType(i, $event.value)"
+              class="w-full"
+            ></p-select>
+          </div>
+
+          <button
+            pButton
+            icon="pi pi-trash"
+            severity="danger"
+            size="small"
+            (click)="removeGuarantee(i)"
+            title="Remove guarantee"
+            class="p-button-outlined"
+          ></button>
+        </div>
+
+        <div class="flex gap-2 items-center">
+          <label class="text-sm font-medium">Amount:</label>
+          <div class="flex gap-1 flex-1">
+            <button
+              pButton
+              icon="pi pi-minus"
+              size="small"
+              (mousedown)="onMouseDown('decrement', 'guarantee', 100000, i)"
+              (mouseup)="onMouseUp()"
+              (mouseleave)="onMouseLeave()"
+              title="Hold for rapid decrease"
+            ></button>
+            <input
+              pInputText
+              type="text"
+              [value]="formatGuaranteeAmount(guarantee.amount)"
+              readonly
+              class="guarantee-amount-input flex-1"
+            />
+            <button
+              pButton
+              icon="pi pi-plus"
+              size="small"
+              (mousedown)="onMouseDown('increment', 'guarantee', 100000, i)"
+              (mouseup)="onMouseUp()"
+              (mouseleave)="onMouseLeave()"
+              title="Hold for rapid increase"
+            ></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- No Guarantees Message -->
+    <div
+      *ngIf="currentGuarantees.length === 0"
+      class="text-center text-gray-500 py-4"
+    >
+      <p class="text-sm">No guarantees added yet</p>
+      <p class="text-xs">Click "Add Guarantee" to add contract guarantees</p>
     </div>
   </div>
 </div>

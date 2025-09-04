@@ -64,10 +64,12 @@
           [years]="contractData.years"
           [baseSalary]="contractData.baseSalary[1] || 0"
           [signingBonus]="contractData.signingBonus"
+          [guarantees]="contractData.guarantees"
           [mode]="'yearly'"
           (yearsChange)="onYearsChange($event)"
           (baseSalaryChange)="onBaseSalaryChange($event)"
           (signingBonusChange)="onSigningBonusChange($event)"
+          (guaranteesChange)="onGuaranteesChange($event)"
         ></app-contract-inputs>
 
         <!-- Negotiation Panel Component -->

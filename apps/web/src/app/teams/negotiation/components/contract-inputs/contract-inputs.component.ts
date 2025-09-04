@@ -11,14 +11,23 @@ import {
   OnInit,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { SelectModule } from 'primeng/select';
+import { InputTextModule } from 'primeng/inputtext';
 import { LeagueService } from '../../../../services/league.service';
+import { Guarantee } from '@fantasy-football-dynasty/types';
 
 @Component({
   selector: 'app-contract-inputs',
   standalone: true,
-  imports: [CommonModule, ButtonModule, SelectModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ButtonModule,
+    SelectModule,
+    InputTextModule,
+  ],
   templateUrl: './contract-inputs.component.html',
   styleUrls: ['./contract-inputs.component.scss'],
 })
@@ -29,17 +38,20 @@ export class ContractInputsComponent implements OnDestroy, OnInit {
   years = input<number>(1);
   baseSalary = input.required<number>();
   signingBonus = input.required<number>();
+  guarantees = input<Guarantee[]>([]);
   mode = input<'total' | 'yearly'>('yearly');
 
   // Outputs for parent component updates
   @Output() yearsChange = new EventEmitter<number>();
   @Output() baseSalaryChange = new EventEmitter<number>();
   @Output() signingBonusChange = new EventEmitter<number>();
+  @Output() guaranteesChange = new EventEmitter<Guarantee[]>();
 
   // Local state
   private _years = signal(1);
   private _baseSalary = signal(0);
   private _signingBonus = signal(0);
+  private _guarantees = signal<Guarantee[]>([]);
 
   // Years options computed from league rules
   yearsOptions = computed(() => {
@@ -77,15 +89,45 @@ export class ContractInputsComponent implements OnDestroy, OnInit {
   public get currentSigningBonus() {
     return this._signingBonus();
   }
+  public get currentGuarantees() {
+    return this._guarantees();
+  }
 
   // Click and hold state
   private _holdInterval: any = null;
   private _holdDelay = 150; // Initial delay before rapid increment starts
   private _rapidInterval = 50; // How fast to increment when holding
+  private _currentGuaranteeIndex: number | null = null; // Track which guarantee is being modified
 
   // Computed values
   formattedSalary = computed(() => this.formatCurrency(this._baseSalary()));
   formattedBonus = computed(() => this.formatCurrency(this._signingBonus()));
+
+  // Guarantee-related computed values
+  guaranteeYearOptions = computed(() => {
+    const years = this._years();
+    const options = [];
+    for (let i = 1; i <= years; i++) {
+      options.push({ label: `Year ${i}`, value: i });
+    }
+    return options;
+  });
+
+  guaranteeTypeOptions = [
+    { label: 'Full Guarantee', value: 'full' },
+    { label: 'Injury Only', value: 'injury-only' },
+  ];
+
+  totalGuaranteedAmount = computed(() => {
+    return this._guarantees().reduce(
+      (total, guarantee) => total + guarantee.amount,
+      0
+    );
+  });
+
+  formattedTotalGuarantees = computed(() =>
+    this.formatCurrency(this.totalGuaranteedAmount())
+  );
 
   // Effects
   constructor() {
@@ -110,6 +152,12 @@ export class ContractInputsComponent implements OnDestroy, OnInit {
       const signingBonusValue = this.signingBonus();
       if (signingBonusValue !== undefined) {
         this._signingBonus.set(signingBonusValue);
+      }
+    });
+    effect(() => {
+      const guaranteesValue = this.guarantees();
+      if (guaranteesValue !== undefined) {
+        this._guarantees.set(guaranteesValue);
       }
     });
   }
@@ -141,16 +189,28 @@ export class ContractInputsComponent implements OnDestroy, OnInit {
   // Click and hold methods
   onMouseDown(
     operation: 'increment' | 'decrement',
-    field: 'salary' | 'bonus',
-    amount: number
+    field: 'salary' | 'bonus' | 'guarantee',
+    amount: number,
+    guaranteeIndex?: number
   ) {
+    // Set current guarantee index if modifying guarantee
+    if (field === 'guarantee' && guaranteeIndex !== undefined) {
+      this._currentGuaranteeIndex = guaranteeIndex;
+    }
+
     // Immediate first increment/decrement
     if (operation === 'increment') {
       if (field === 'salary') this.incrementSalary(amount);
-      else this.incrementBonus(amount);
+      else if (field === 'bonus') this.incrementBonus(amount);
+      else if (field === 'guarantee' && this._currentGuaranteeIndex !== null) {
+        this.incrementGuaranteeAmount(this._currentGuaranteeIndex, amount);
+      }
     } else {
       if (field === 'salary') this.decrementSalary(amount);
-      else this.decrementBonus(amount);
+      else if (field === 'bonus') this.decrementBonus(amount);
+      else if (field === 'guarantee' && this._currentGuaranteeIndex !== null) {
+        this.decrementGuaranteeAmount(this._currentGuaranteeIndex, amount);
+      }
     }
 
     // Set up rapid increment/decrement after delay
@@ -158,10 +218,22 @@ export class ContractInputsComponent implements OnDestroy, OnInit {
       this._holdInterval = setInterval(() => {
         if (operation === 'increment') {
           if (field === 'salary') this.incrementSalary(amount);
-          else this.incrementBonus(amount);
+          else if (field === 'bonus') this.incrementBonus(amount);
+          else if (
+            field === 'guarantee' &&
+            this._currentGuaranteeIndex !== null
+          ) {
+            this.incrementGuaranteeAmount(this._currentGuaranteeIndex, amount);
+          }
         } else {
           if (field === 'salary') this.decrementSalary(amount);
-          else this.decrementBonus(amount);
+          else if (field === 'bonus') this.decrementBonus(amount);
+          else if (
+            field === 'guarantee' &&
+            this._currentGuaranteeIndex !== null
+          ) {
+            this.decrementGuaranteeAmount(this._currentGuaranteeIndex, amount);
+          }
         }
       }, this._rapidInterval);
     }, this._holdDelay);
@@ -169,10 +241,12 @@ export class ContractInputsComponent implements OnDestroy, OnInit {
 
   onMouseUp() {
     this.clearHoldInterval();
+    this._currentGuaranteeIndex = null; // Reset guarantee index
   }
 
   onMouseLeave() {
     this.clearHoldInterval();
+    this._currentGuaranteeIndex = null; // Reset guarantee index
   }
 
   private clearHoldInterval() {
@@ -238,5 +312,115 @@ export class ContractInputsComponent implements OnDestroy, OnInit {
     } else {
       return `$${value.toLocaleString()}`;
     }
+  }
+
+  // ============================================================================
+  // GUARANTEE MANAGEMENT METHODS
+  // ============================================================================
+
+  /**
+   * Add a new guarantee
+   */
+  addGuarantee(): void {
+    const newGuarantee: Guarantee = {
+      type: 'full',
+      amount: 0,
+      year: 1,
+    };
+
+    const currentGuarantees = this._guarantees();
+    const updatedGuarantees = [...currentGuarantees, newGuarantee];
+    this._guarantees.set(updatedGuarantees);
+    this.guaranteesChange.emit(updatedGuarantees);
+  }
+
+  /**
+   * Remove a guarantee by index
+   */
+  removeGuarantee(index: number): void {
+    const currentGuarantees = this._guarantees();
+    const updatedGuarantees = currentGuarantees.filter((_, i) => i !== index);
+    this._guarantees.set(updatedGuarantees);
+    this.guaranteesChange.emit(updatedGuarantees);
+  }
+
+  /**
+   * Update guarantee amount
+   */
+  updateGuaranteeAmount(index: number, amount: number): void {
+    const currentGuarantees = this._guarantees();
+    const updatedGuarantees = [...currentGuarantees];
+    updatedGuarantees[index] = {
+      ...updatedGuarantees[index],
+      amount: Math.max(0, amount),
+    };
+    this._guarantees.set(updatedGuarantees);
+    this.guaranteesChange.emit(updatedGuarantees);
+  }
+
+  /**
+   * Increment guarantee amount
+   */
+  incrementGuaranteeAmount(index: number, amount: number): void {
+    const currentGuarantees = this._guarantees();
+    const updatedGuarantees = [...currentGuarantees];
+    const currentAmount = updatedGuarantees[index].amount;
+    updatedGuarantees[index] = {
+      ...updatedGuarantees[index],
+      amount: currentAmount + amount,
+    };
+    this._guarantees.set(updatedGuarantees);
+    this.guaranteesChange.emit(updatedGuarantees);
+  }
+
+  /**
+   * Decrement guarantee amount
+   */
+  decrementGuaranteeAmount(index: number, amount: number): void {
+    const currentGuarantees = this._guarantees();
+    const updatedGuarantees = [...currentGuarantees];
+    const currentAmount = updatedGuarantees[index].amount;
+    updatedGuarantees[index] = {
+      ...updatedGuarantees[index],
+      amount: Math.max(0, currentAmount - amount),
+    };
+    this._guarantees.set(updatedGuarantees);
+    this.guaranteesChange.emit(updatedGuarantees);
+  }
+
+  /**
+   * Update guarantee year
+   */
+  updateGuaranteeYear(index: number, year: number): void {
+    const currentGuarantees = this._guarantees();
+    const updatedGuarantees = [...currentGuarantees];
+    updatedGuarantees[index] = { ...updatedGuarantees[index], year };
+    this._guarantees.set(updatedGuarantees);
+    this.guaranteesChange.emit(updatedGuarantees);
+  }
+
+  /**
+   * Update guarantee type
+   */
+  updateGuaranteeType(index: number, type: 'full' | 'injury-only'): void {
+    const currentGuarantees = this._guarantees();
+    const updatedGuarantees = [...currentGuarantees];
+    updatedGuarantees[index] = { ...updatedGuarantees[index], type };
+    this._guarantees.set(updatedGuarantees);
+    this.guaranteesChange.emit(updatedGuarantees);
+  }
+
+  /**
+   * Format guarantee amount for display
+   */
+  formatGuaranteeAmount(amount: number): string {
+    return this.formatCurrency(amount);
+  }
+
+  /**
+   * Get guarantee type label
+   */
+  getGuaranteeTypeLabel(type: 'full' | 'injury-only'): string {
+    return type === 'full' ? 'Full Guarantee' : 'Injury Only';
   }
 }
