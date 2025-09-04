@@ -16,11 +16,19 @@ import { MenuItem } from 'primeng/api';
 import { TabsModule } from 'primeng/tabs';
 import { LeagueService } from '../../services/league.service';
 import { Router, ActivatedRoute } from '@angular/router';
+import { FreeAgencyService } from '../../services/free-agency.service';
+import { FAWeekHeaderComponent } from '../../free-agency/components/fa-week/components/fa-week-header';
 
 @Component({
   selector: 'app-league-header',
   standalone: true,
-  imports: [CommonModule, ButtonModule, MenuModule, TabsModule],
+  imports: [
+    CommonModule,
+    ButtonModule,
+    MenuModule,
+    TabsModule,
+    FAWeekHeaderComponent,
+  ],
   template: `
     <div class="league-header">
       <div class="league-info">
@@ -46,6 +54,10 @@ import { Router, ActivatedRoute } from '@angular/router';
         ></p-menu>
       </div>
     </div>
+
+    @if (isFAWeekPhase()) {
+    <app-fa-week-header></app-fa-week-header>
+    }
 
     <p-tabs [value]="activeTabIndex()" scrollable>
       <p-tablist>
@@ -133,10 +145,12 @@ export class LeagueHeaderComponent implements OnInit {
   private readonly leagueService = inject(LeagueService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-
+  private readonly freeAgencyService = inject(FreeAgencyService);
   public league = this.leagueService.selectedLeague;
   public leagueId = this.leagueService.selectedLeagueId;
   @Output() openEditTeam = new EventEmitter<void>();
+
+  public isFAWeekPhase = computed(() => this.freeAgencyService.isFAWeekPhase());
 
   // Computed active tab based on current route
   public activeTabIndex = computed(() => {

@@ -5,6 +5,7 @@ import { LeagueService } from '../../../../../services/league.service';
 import { FreeAgencyService } from '../../../../../services/free-agency.service';
 import { NumberFormatService } from '../../../../../services/number-format.service';
 import { computed } from '@angular/core';
+import { Position } from '@fantasy-football-dynasty/types';
 
 @Component({
   selector: 'app-salary-cap',
@@ -64,6 +65,54 @@ export class SalaryCapComponent {
       this.activeBids().map((bid: any) => bid.teamId)
     );
     return teamIdsWithBids.size;
+  });
+
+  // Roster spot tracking
+  public rosterSpotTracking = computed(() => {
+    const league = this.selectedLeague();
+    const myTeam = this.currentUserTeam();
+    const myBids = this.currentTeamBids();
+
+    if (!league?.rules?.roster?.positionRequirements || !myTeam) {
+      return [];
+    }
+
+    const positionRequirements = league.rules.roster.positionRequirements;
+    const tracking: Array<{
+      position: Position;
+      required: number;
+      currentBids: number;
+      status: 'under-limit' | 'at-limit' | 'over-limit';
+    }> = [];
+
+    // Get all positions that have requirements
+    Object.entries(positionRequirements).forEach(([position, required]) => {
+      const pos = position as Position;
+      const requiredCount = required as number;
+
+      // Count non-rejected bids for this position
+      const currentBids = myBids.filter(
+        (bid) => bid.position === pos && bid.status !== 'rejected'
+      ).length;
+
+      // Determine status
+      let status: 'under-limit' | 'at-limit' | 'over-limit' = 'under-limit';
+      if (currentBids > requiredCount) {
+        status = 'over-limit';
+      } else if (currentBids === requiredCount) {
+        status = 'at-limit';
+      }
+
+      tracking.push({
+        position: pos,
+        required: requiredCount,
+        currentBids,
+        status,
+      });
+    });
+
+    // Sort by position for consistent display
+    return tracking.sort((a, b) => a.position.localeCompare(b.position));
   });
 
   /**

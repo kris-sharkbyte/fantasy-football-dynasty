@@ -1,75 +1,56 @@
 <div class="player-decisions-container">
-  <!-- Week Advancement Controls -->
-  @if (isCommissioner()) {
-  <div class="week-advancement-controls">
-    <p-card header="Week Advancement" styleClass="advancement-card">
-      <div class="advancement-content">
-        <div class="week-info">
-          <h3>Week {{ currentFAWeek()?.weekNumber || 0 }}</h3>
-          <p class="week-status">
-            Status:
-            <span
-              class="status-badge"
-              [class]="currentFAWeek()?.status || 'inactive'"
-            >
-              {{ currentFAWeek()?.status || 'Inactive' }}
-            </span>
-          </p>
-        </div>
-
-        @if (isReadyToAdvance()) {
-        <div class="ready-status">
-          <p-tag
-            value="All Teams Ready"
-            severity="success"
-            icon="pi pi-check"
-          ></p-tag>
-        </div>
-        } @else {
-        <div class="ready-status">
-          <p-tag
-            [value]="
-              'Teams Ready: ' +
-              (currentFAWeek()?.readyTeams?.length || 0) +
-              '/' +
-              totalTeamsCount()
-            "
-            severity="warning"
-            icon="pi pi-clock"
-          >
-          </p-tag>
-        </div>
-        }
-
-        <div class="advancement-actions">
-          <p-button
-            label="Advance Week"
-            icon="pi pi-forward"
-            (onClick)="advanceWeek()"
-            [disabled]="!isReadyToAdvance() || isAdvancingWeek()"
-            [loading]="isAdvancingWeek()"
-            severity="success"
-          >
-          </p-button>
-        </div>
-
-        @if (weekAdvancementProgress()) {
-        <div class="advancement-progress">
-          <p-progressSpinner
-            [style]="{ width: '20px', height: '20px' }"
-          ></p-progressSpinner>
-          <span>{{ weekAdvancementProgress() }}</span>
-        </div>
-        }
+  <!-- Market Trends Overview -->
+  @if (marketTrends()) {
+  <div class="market-trends-card">
+    <h4>Market Overview</h4>
+    <div class="trends-grid">
+      <div class="trend-item">
+        <span class="trend-label">Total Decisions:</span>
+        <span class="trend-value">{{ marketTrends()?.totalDecisions }}</span>
       </div>
-    </p-card>
+      <div class="trend-item">
+        <span class="trend-label">Accepted:</span>
+        <span class="trend-value success">{{
+          marketTrends()?.acceptedCount
+        }}</span>
+      </div>
+      <div class="trend-item">
+        <span class="trend-label">Shortlisted:</span>
+        <span class="trend-value warning">{{
+          marketTrends()?.shortlistedCount
+        }}</span>
+      </div>
+      <div class="trend-item">
+        <span class="trend-label">Rejected:</span>
+        <span class="trend-value danger">{{
+          marketTrends()?.rejectedCount
+        }}</span>
+      </div>
+      <div class="trend-item">
+        <span class="trend-label">Avg Contract Score:</span>
+        <span class="trend-value"
+          >{{
+            ((marketTrends()?.averageContractScore || 0) * 100).toFixed(0)
+          }}%</span
+        >
+      </div>
+      <div class="trend-item">
+        <span class="trend-label">Market Pressure:</span>
+        <span
+          class="trend-value"
+          [class]="getMarketPressureColor(marketTrends()?.marketPressure || 0)"
+        >
+          {{ getMarketPressureLabel(marketTrends()?.marketPressure || 0) }}
+        </span>
+      </div>
+    </div>
   </div>
   }
 
   <!-- Decision Summary Cards -->
   <div class="decision-summary-grid">
     <!-- Accepted Contracts -->
-    <p-card header="Accepted Contracts" styleClass="summary-card accepted">
+    <p-card header="Accepted Contracts" class="summary-card accepted">
       <div class="summary-content">
         <div class="summary-count">
           <span class="count">{{ acceptedContracts().length }}</span>
@@ -87,7 +68,7 @@
     </p-card>
 
     <!-- Shortlisted Bids -->
-    <p-card header="Shortlisted Bids" styleClass="summary-card shortlisted">
+    <p-card header="Shortlisted Bids" class="summary-card shortlisted">
       <div class="summary-content">
         <div class="summary-count">
           <span class="count">{{ shortlistedBids().length }}</span>
@@ -105,7 +86,7 @@
     </p-card>
 
     <!-- Rejected Bids -->
-    <p-card header="Rejected Bids" styleClass="summary-card rejected">
+    <p-card header="Rejected Bids" class="summary-card rejected">
       <div class="summary-content">
         <div class="summary-count">
           <span class="count">{{ rejectedBids().length }}</span>
@@ -125,7 +106,7 @@
 
   <!-- Player Decisions Table -->
   @if (playerDecisions().length > 0) {
-  <p-card header="Player Decisions" styleClass="decisions-card">
+  <p-card header="Player Decisions" class="decisions-card">
     <p-table
       [value]="playerDecisions()"
       [paginator]="true"
@@ -139,8 +120,10 @@
         <tr>
           <th>Player</th>
           <th>Decision</th>
+          <th>Market Context</th>
           <th>Starting Prospects</th>
-          <th>Contract Score</th>
+          <th>Contract Analysis</th>
+          <th>Trust Impact</th>
           <th>Actions</th>
         </tr>
       </ng-template>
@@ -150,15 +133,59 @@
           <td>
             <div class="player-info">
               <strong>{{ decision.playerId }}</strong>
+              <small class="player-id">ID: {{ decision.playerId }}</small>
             </div>
           </td>
           <td>
             @if (decision.decisions[0]) {
-            <p-tag
-              [value]="getDecisionStatusLabel(decision.decisions[0])"
-              [severity]="getDecisionStatusSeverity(decision.decisions[0])"
-            >
-            </p-tag>
+            <div class="decision-status">
+              <p-tag
+                [value]="getDecisionStatusLabel(decision.decisions[0])"
+                [severity]="getDecisionStatusSeverity(decision.decisions[0])"
+              >
+              </p-tag>
+              <small class="decision-timeline">
+                {{ getDecisionTimelineStatus(decision.decisions[0]) }}
+              </small>
+            </div>
+            }
+          </td>
+          <td>
+            @if (decision.decisions[0]?.marketFactors) {
+            <div class="market-context">
+              <div class="market-item">
+                <span class="label">Competing Offers:</span>
+                <span class="value">{{
+                  getCompetingOffersCount(decision.decisions[0])
+                }}</span>
+              </div>
+              <div class="market-item">
+                <span class="label">Position Demand:</span>
+                <p-tag
+                  [value]="getPositionalDemandLevel(decision.decisions[0])"
+                  [severity]="getPositionalDemandColor(decision.decisions[0])"
+                  size="small"
+                >
+                </p-tag>
+              </div>
+              <div class="market-item">
+                <span class="label">Market Pressure:</span>
+                <span
+                  class="value"
+                  [class]="
+                    getMarketPressureColor(
+                      decision.decisions[0].marketFactors.marketPressure
+                    )
+                  "
+                >
+                  {{
+                    getMarketPressureLabel(
+                      decision.decisions[0].marketFactors.marketPressure
+                    )
+                  }}
+                </span>
+              </div>
+            </div>
             }
           </td>
           <td>
@@ -185,27 +212,78 @@
                   ).toFixed(0)
                 }}% confidence
               </small>
+              <small class="team-depth">
+                {{ decision.decisions[0].startingPositionProspects.teamDepth }}
+                depth
+              </small>
             </div>
             }
           </td>
           <td>
             @if (decision.decisions[0]?.contractAnalysis) {
-            <div class="contract-score">
-              <span class="score"
-                >{{
-                  (
-                    decision.decisions[0].contractAnalysis.totalScore * 100
-                  ).toFixed(0)
-                }}%</span
-              >
-              <small class="threshold">
-                Threshold:
-                {{
-                  (
-                    decision.decisions[0].contractAnalysis.threshold * 100
-                  ).toFixed(0)
-                }}%
-              </small>
+            <div class="contract-analysis">
+              <div class="score-main">
+                <span class="score"
+                  >{{
+                    (
+                      decision.decisions[0].contractAnalysis.totalScore * 100
+                    ).toFixed(0)
+                  }}%</span
+                >
+                <small class="threshold">
+                  vs
+                  {{
+                    (
+                      decision.decisions[0].contractAnalysis.threshold * 100
+                    ).toFixed(0)
+                  }}% threshold
+                </small>
+              </div>
+              <div class="score-breakdown">
+                <small
+                  >AAV:
+                  {{
+                    (
+                      decision.decisions[0].contractAnalysis.aavScore * 100
+                    ).toFixed(0)
+                  }}%</small
+                >
+                <small
+                  >Bonus:
+                  {{
+                    (
+                      decision.decisions[0].contractAnalysis.signingBonusScore *
+                      100
+                    ).toFixed(0)
+                  }}%</small
+                >
+              </div>
+            </div>
+            }
+          </td>
+          <td>
+            @if (decision.decisions[0]?.trustImpact) {
+            <div class="trust-impact">
+              @for (teamId of getTrustImpactTeamIds(decision.decisions[0]);
+              track teamId) {
+              <div class="trust-item">
+                <span class="team-id">{{ teamId }}</span>
+                <span
+                  class="impact-value"
+                  [class]="
+                    getTrustImpactColor(
+                      decision.decisions[0].trustImpact![teamId]
+                    )
+                  "
+                >
+                  {{
+                    formatTrustImpact(
+                      decision.decisions[0].trustImpact![teamId]
+                    )
+                  }}
+                </span>
+              </div>
+              }
             </div>
             }
           </td>
@@ -374,6 +452,103 @@
       </div>
       }
 
+      <!-- Market Context -->
+      @if (selectedDecisionData()?.marketFactors) {
+      <div class="detail-section">
+        <h4>Market Context</h4>
+        <div class="market-details">
+          <div class="market-grid">
+            <div class="market-item">
+              <span class="label">Competing Offers:</span>
+              <span class="value">{{
+                getCompetingOffersCount(selectedDecisionData()!)
+              }}</span>
+            </div>
+            <div class="market-item">
+              <span class="label">Position Demand:</span>
+              <p-tag
+                [value]="getPositionalDemandLevel(selectedDecisionData()!)"
+                [severity]="getPositionalDemandColor(selectedDecisionData()!)"
+              >
+              </p-tag>
+            </div>
+            <div class="market-item">
+              <span class="label">Market Pressure:</span>
+              <span
+                class="value"
+                [class]="
+                  getMarketPressureColor(
+                    selectedDecisionData()!.marketFactors.marketPressure
+                  )
+                "
+              >
+                {{
+                  getMarketPressureLabel(
+                    selectedDecisionData()!.marketFactors.marketPressure
+                  )
+                }}
+              </span>
+            </div>
+            @if (selectedDecisionData()!.marketFactors.recentComparables.length
+            > 0) {
+            <div class="market-item full-width">
+              <span class="label">Recent Comparables:</span>
+              <div class="comparables">
+                @for (playerId of
+                selectedDecisionData()!.marketFactors.recentComparables; track
+                playerId) {
+                <span class="comparable-player">{{ playerId }}</span>
+                }
+              </div>
+            </div>
+            }
+          </div>
+        </div>
+      </div>
+      }
+
+      <!-- Trust Impact Analysis -->
+      @if (selectedDecisionData()?.trustImpact &&
+      getTrustImpactTeamIds(selectedDecisionData()!).length > 0) {
+      <div class="detail-section">
+        <h4>Trust Impact Analysis</h4>
+        <div class="trust-impact-details">
+          <p class="trust-description">
+            This decision affects the player's relationship with various teams
+            based on offer quality and negotiation history.
+          </p>
+          <div class="trust-grid">
+            @for (teamId of getTrustImpactTeamIds(selectedDecisionData()!);
+            track teamId) {
+            <div class="trust-item">
+              <span class="team-id">{{ teamId }}</span>
+              <span
+                class="impact-value"
+                [class]="
+                  getTrustImpactColor(
+                    selectedDecisionData()!.trustImpact![teamId]
+                  )
+                "
+              >
+                {{
+                  formatTrustImpact(
+                    selectedDecisionData()!.trustImpact![teamId]
+                  )
+                }}
+              </span>
+              <small class="impact-description">
+                @if (selectedDecisionData()!.trustImpact![teamId] > 0.1) {
+                Improved relationship } @else if
+                (selectedDecisionData()!.trustImpact![teamId] < -0.1) { Damaged
+                relationship } @else { Neutral impact }
+              </small>
+            </div>
+            }
+          </div>
+        </div>
+      </div>
+      }
+
       <!-- Player and Agent Notes -->
       <div class="detail-section">
         <h4>Player & Agent Feedback</h4>
@@ -393,6 +568,15 @@
               {{
                 selectedDecisionData()?.agentNotes ||
                   'No agent assessment available'
+              }}
+            </p>
+          </div>
+          <div class="feedback-item">
+            <h5>Decision Reasoning:</h5>
+            <p>
+              {{
+                selectedDecisionData()?.feedback ||
+                  'No detailed reasoning provided'
               }}
             </p>
           </div>

@@ -302,6 +302,7 @@ export class FreeAgencyService {
         leagueId: currentWeek.leagueId,
         teamId,
         playerId,
+        position: player.Position as Position, // Add missing position property
         weekNumber: currentWeek.weekNumber,
         offer,
         status: 'pending',

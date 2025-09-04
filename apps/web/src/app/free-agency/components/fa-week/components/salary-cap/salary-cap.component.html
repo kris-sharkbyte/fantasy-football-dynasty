@@ -18,4 +18,20 @@
       </span>
     </div>
   </div>
+
+  <!-- Roster Spot Tracking -->
+  @if (rosterSpotTracking().length > 0) {
+  <div class="roster-spot-tracking">
+    @for (spot of rosterSpotTracking(); track spot.position) {
+    <div class="position-spot" [class]="spot.status">
+      <span class="position-label position-color--{{ spot.position }}">
+        {{ spot.position }}
+      </span>
+      <span class="bid-count">{{ spot.currentBids }}</span>
+      <span class="separator">/</span>
+      <span class="required-count">{{ spot.required }}</span>
+    </div>
+    }
+  </div>
+  }
 </div>

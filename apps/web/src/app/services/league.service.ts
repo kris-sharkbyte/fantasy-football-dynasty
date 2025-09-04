@@ -17,6 +17,7 @@ import {
   getDoc,
   writeBatch,
   arrayUnion,
+  onSnapshot,
 } from '@angular/fire/firestore';
 import { AuthService } from './auth.service';
 import {
@@ -118,6 +119,9 @@ export class LeagueService {
   private _leagueMembers = signal<LeagueMember[]>([]);
   private _isLoadingLeagueData = signal(false);
 
+  // Real-time listener management
+  private unsubscribeFunctions: (() => void)[] = [];
+
   // Public readonly signals
   public userLeagues = this._userLeagues.asReadonly();
   public isLoading = this._isLoading.asReadonly();
@@ -170,10 +174,16 @@ export class LeagueService {
 
         // Load all league data when league is selected
         this.loadLeagueData(selectedLeagueId);
+
+        // Set up real-time listeners for the selected league
+        this.setupRealtimeListeners(selectedLeagueId);
       } else {
         // Clear cached data when no league is selected
         this._leagueTeams.set([]);
         this._leagueMembers.set([]);
+
+        // Clean up listeners
+        this.cleanupListeners();
       }
     });
   }
@@ -1246,6 +1256,73 @@ export class LeagueService {
     } finally {
       this._isLoadingLeagueData.set(false);
     }
+  }
+
+  /**
+   * Set up real-time listeners for league data
+   */
+  private setupRealtimeListeners(leagueId: string): void {
+    // Clean up existing listeners first
+    this.cleanupListeners();
+
+    // Listen to league members (which contain team data)
+    const membersRef = collection(this.db, 'leagueMembers');
+    const membersQuery = query(
+      membersRef,
+      where('leagueId', '==', leagueId),
+      where('isActive', '==', true),
+      orderBy('joinedAt', 'asc')
+    );
+
+    const unsubscribeMembers = onSnapshot(membersQuery, (snapshot) => {
+      const members: LeagueMember[] = [];
+      const teams: LeagueTeam[] = [];
+
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const member: LeagueMember = {
+          userId: data['userId'],
+          leagueId: data['leagueId'],
+          role: data['role'],
+          teamName: data['teamName'],
+          teamId: data['teamId'],
+          capSpace: data['capSpace'],
+          roster: data['roster'] || [],
+          joinedAt: data['joinedAt']?.toDate() || new Date(),
+          isActive: data['isActive'],
+          permissions: data['permissions'] || {},
+        };
+        members.push(member);
+
+        // Also create team data
+        const team: LeagueTeam = {
+          id: data['teamId'],
+          leagueId: data['leagueId'],
+          name: data['teamName'],
+          ownerUserId: data['userId'],
+          capSpace: data['capSpace'],
+          roster: data['roster'] || [],
+          createdAt: data['joinedAt']?.toDate() || new Date(),
+          updatedAt: data['joinedAt']?.toDate() || new Date(),
+        };
+        teams.push(team);
+      });
+
+      // Update signals
+      this._leagueMembers.set(members);
+      this._leagueTeams.set(teams);
+    });
+
+    // Store unsubscribe function
+    this.unsubscribeFunctions.push(unsubscribeMembers);
+  }
+
+  /**
+   * Clean up all real-time listeners
+   */
+  private cleanupListeners(): void {
+    this.unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
+    this.unsubscribeFunctions = [];
   }
 
   /**

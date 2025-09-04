@@ -1,0 +1,136 @@
+/* Position Color Classes */
+.position-color--QB {
+  background-color: #3b82f6 !important;
+  color: white !important;
+}
+
+.position-color--RB {
+  background-color: #10b981 !important;
+  color: white !important;
+}
+
+.position-color--WR {
+  background-color: #f59e0b !important;
+  color: white !important;
+}
+
+.position-color--TE {
+  background-color: #8b5cf6 !important;
+  color: white !important;
+}
+
+.position-color--K {
+  background-color: #ef4444 !important;
+  color: white !important;
+}
+
+.position-color--DEF {
+  background-color: #6b7280 !important;
+  color: white !important;
+}
+
+.position-color--DL {
+  background-color: #dc2626 !important;
+  color: white !important;
+}
+
+.position-color--LB {
+  background-color: #7c3aed !important;
+  color: white !important;
+}
+
+.position-color--DB {
+  background-color: #059669 !important;
+  color: white !important;
+}
+
+.position-color--DE {
+  background-color: #dc2626 !important;
+  color: white !important;
+}
+
+.position-color--LS {
+  background-color: #6b7280 !important;
+  color: white !important;
+}
+
+.position-color--P {
+  background-color: #6b7280 !important;
+  color: white !important;
+}
+
+.position-color--default {
+  background-color: #6b7280 !important;
+  color: white !important;
+}
+
+/* Position tag base styles */
+.position-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+/* Roster spot tracking styles */
+.roster-spot-tracking {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+
+  .position-spot {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background-color: var(--surface-100);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+
+    .position-label {
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .bid-count {
+      color: var(--text-color);
+    }
+
+    .required-count {
+      color: var(--text-color-secondary);
+    }
+
+    &.over-limit {
+      background-color: var(--red-50);
+      border: 1px solid var(--red-200);
+
+      .bid-count {
+        color: var(--red-600);
+        font-weight: 600;
+      }
+    }
+
+    &.at-limit {
+      background-color: var(--yellow-50);
+      border: 1px solid var(--yellow-200);
+
+      .bid-count {
+        color: var(--yellow-600);
+        font-weight: 600;
+      }
+    }
+
+    &.under-limit {
+      background-color: var(--green-50);
+      border: 1px solid var(--green-200);
+
+      .bid-count {
+        color: var(--green-600);
+      }
+    }
+  }
+}

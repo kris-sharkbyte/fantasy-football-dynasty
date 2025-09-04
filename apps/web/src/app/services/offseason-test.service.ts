@@ -933,11 +933,11 @@ export class OffseasonTestService {
           // Convert BidHistory to FABid format for evaluation
           const faBids = weekBids.map((bid) => ({
             id: `${bid.playerId}-${bid.teamId}-${bid.submittedAt.getTime()}`,
+            leagueId: bid.leagueId,
             teamId: bid.teamId,
             playerId: parseInt(bid.playerId.replace('player-', '')), // Convert string to number
-            leagueId: bid.leagueId,
+            position: bid.position as Position,
             weekNumber: this.currentWeek,
-            status: 'pending' as const,
             offer: {
               years: bid.contractYears as 1 | 2 | 3,
               baseSalary: { [new Date().getFullYear()]: bid.bidAmount },
@@ -947,6 +947,7 @@ export class OffseasonTestService {
               totalValue: bid.bidAmount * bid.contractYears,
               apy: bid.bidAmount,
             },
+            status: 'pending' as const,
             submittedAt: bid.submittedAt,
           }));
 

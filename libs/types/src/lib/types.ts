@@ -518,6 +518,7 @@ export interface FABid {
   leagueId: string;
   teamId: string;
   playerId: number;
+  position: Position; // Player position for easier access
   weekNumber: number;
   offer: ContractOffer;
   status: 'pending' | 'accepted' | 'shortlisted' | 'considering' | 'rejected';

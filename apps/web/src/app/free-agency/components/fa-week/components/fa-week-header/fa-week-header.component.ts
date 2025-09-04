@@ -4,6 +4,7 @@ import { ButtonModule } from 'primeng/button';
 import { FreeAgencyService } from '../../../../../services/free-agency.service';
 import { LeagueService } from '../../../../../services/league.service';
 import { computed } from '@angular/core';
+import { WeekAdvancementProgressComponent } from '../week-advancement-progress';
 
 interface MarketContextSummary {
   leagueHealth: string;
@@ -14,7 +15,7 @@ interface MarketContextSummary {
 @Component({
   selector: 'app-fa-week-header',
   standalone: true,
-  imports: [CommonModule, ButtonModule],
+  imports: [CommonModule, ButtonModule, WeekAdvancementProgressComponent],
   templateUrl: './fa-week-header.component.html',
 })
 export class FAWeekHeaderComponent implements OnInit {

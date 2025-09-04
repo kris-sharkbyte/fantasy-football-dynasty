@@ -24,6 +24,7 @@ import { FAWeekHeaderComponent } from './components/fa-week-header';
 import { TeamBidsComponent } from './components/team-bids';
 import { SalaryCapComponent } from './components/salary-cap';
 import { PlayerDecisionsComponent } from './components/player-decisions';
+import { WeekAdvancementProgressComponent } from './components/week-advancement-progress';
 import { ContractInputsComponent } from '../../../teams/negotiation/components/contract-inputs/contract-inputs.component';
 import { PlayersTableComponent } from '../../../shared/components/players-table/players-table.component';
 import {
@@ -54,6 +55,7 @@ import { SportsPlayer } from 'libs/types/src/lib/types';
     TeamBidsComponent,
     SalaryCapComponent,
     PlayerDecisionsComponent,
+    WeekAdvancementProgressComponent,
     ContractInputsComponent,
     PlayersTableComponent,
     PlayerCardComponent,

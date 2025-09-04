@@ -5,6 +5,7 @@ import {
   FABid,
   MarketContext,
   FAWeekSettings,
+  Position,
 } from './domain';
 
 describe('FA Comprehensive Scenarios', () => {
@@ -40,8 +41,11 @@ describe('FA Comprehensive Scenarios', () => {
     }> = []
   ): FABid => ({
     id,
+    leagueId: 'test-league',
     teamId,
-    playerId: '1',
+    playerId: 1,
+    position: 'QB' as Position,
+    weekNumber: 1,
     offer: {
       years,
       baseSalary,
@@ -56,6 +60,7 @@ describe('FA Comprehensive Scenarios', () => {
           signingBonus) /
         years,
     },
+    status: 'pending',
     submittedAt: new Date(),
   });
 

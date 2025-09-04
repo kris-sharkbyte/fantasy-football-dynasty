@@ -105,3 +105,9 @@ You will follow this structured workflow for every task:
 
 -- use npx nx build web to see if any errors
 -- use npx nx run domain:vite:test --run to run test
+
+## Extras
+
+-- when reviewing code you can usually look at the domain testing to find out how everything is supposed to be working in the system. This is very import to help with knowing the whole system.
+
+-- do not result into using a new db call or function. see if we already have a signal or a call that already has the data we are needing
