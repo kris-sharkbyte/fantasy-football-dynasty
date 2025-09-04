@@ -1,4 +1,5 @@
 import { Injectable, signal, computed, effect, inject } from '@angular/core';
+import { environment } from '../../environments/environment';
 import {
   collection,
   doc,
@@ -15,6 +16,7 @@ import {
   Firestore,
   getDoc,
   writeBatch,
+  arrayUnion,
 } from '@angular/fire/firestore';
 import { AuthService } from './auth.service';
 import {
@@ -63,6 +65,7 @@ export interface FirestoreLeague {
   joinCode: string;
   rules: LeagueRules;
   draftOrder?: string[]; // team IDs in draft order
+  members: string[]; // Array of user IDs who are members
   createdAt: Date;
   updatedAt: Date;
 }
@@ -258,6 +261,7 @@ export class LeagueService {
         isPrivate: leagueData.isPrivate,
         joinCode: this.generateJoinCode(),
         rules: leagueRules,
+        members: [currentUser.uid], // Initialize with the creator as the first member
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -328,8 +332,10 @@ export class LeagueService {
         })),
       };
 
-      // Log market summary for validation
-      this.logMarketSummary(result.players);
+      // Log market summary for validation (only in development)
+      if (!environment.production) {
+        this.logMarketSummary(result.players);
+      }
 
       const batch = writeBatch(this.db);
       const playersCollection = collection(
@@ -1117,6 +1123,7 @@ export class LeagueService {
 
   /**
    * Load all leagues for the current user
+   * Optimized to use array-contains query for efficient membership lookup
    */
   async loadUserLeagues(): Promise<void> {
     try {
@@ -1129,54 +1136,37 @@ export class LeagueService {
         return;
       }
 
-      // Query all leagues and check if user is a member in the members subcollection
+      // Query leagues where the user is in the members array
       const leaguesRef = collection(this.db, 'leagues');
-      const q = query(leaguesRef, orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
+      const q = query(
+        leaguesRef,
+        where('members', 'array-contains', currentUser.uid),
+        orderBy('createdAt', 'desc')
+      );
 
+      const querySnapshot = await getDocs(q);
       const leagues: League[] = [];
 
-      for (const leagueDoc of querySnapshot.docs) {
-        try {
-          // Check if user is a member by looking in the members subcollection
-          const membersRef = collection(leagueDoc.ref, 'members');
-          const memberQuery = query(
-            membersRef,
-            where('userId', '==', currentUser.uid)
-          );
-          const memberSnapshot = await getDocs(memberQuery);
-
-          if (!memberSnapshot.empty) {
-            // User is a member of this league
-            const data = leagueDoc.data() as FirestoreLeague;
-            leagues.push({
-              id: leagueDoc.id,
-              name: data.name,
-              description: data.description,
-              rules: data.rules,
-              currentYear: data.currentYear,
-              phase: data.phase,
-              status: data.status,
-              numberOfTeams: data.numberOfTeams || 0,
-              isPrivate: data.isPrivate,
-              joinCode: data.joinCode,
-              draftOrder: data.draftOrder,
-              createdAt: data.createdAt,
-              updatedAt: data.updatedAt,
-            });
-          }
-        } catch (error) {
-          console.error(
-            `Error checking membership for league ${leagueDoc.id}:`,
-            error
-          );
-        }
-      }
+      querySnapshot.forEach((doc) => {
+        const data = doc.data() as FirestoreLeague;
+        leagues.push({
+          id: doc.id,
+          name: data.name,
+          description: data.description,
+          rules: data.rules,
+          currentYear: data.currentYear,
+          phase: data.phase,
+          status: data.status,
+          numberOfTeams: data.numberOfTeams || 0,
+          isPrivate: data.isPrivate,
+          joinCode: data.joinCode,
+          draftOrder: data.draftOrder,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+        } as League);
+      });
 
       this._userLeagues.set(leagues);
-
-      // Also load user memberships to keep services in sync
-      await this.leagueMembershipService.loadUserMemberships();
     } catch (error) {
       console.error('Error loading user leagues:', error);
       this._error.set(
@@ -1455,20 +1445,13 @@ export class LeagueService {
 
       for (const leagueDoc of querySnapshot.docs) {
         try {
-          // Check if user is already a member by looking in the members subcollection
-          const membersRef = collection(leagueDoc.ref, 'members');
-          const memberQuery = query(
-            membersRef,
-            where('userId', '==', currentUser.uid)
-          );
-          const memberSnapshot = await getDocs(memberQuery);
+          const data = leagueDoc.data() as FirestoreLeague;
 
-          if (!memberSnapshot.empty) {
+          // Check if user is already a member using the members array
+          if (data.members && data.members.includes(currentUser.uid)) {
             // User is already a member, skip this league
             continue;
           }
-
-          const data = leagueDoc.data() as FirestoreLeague;
 
           // Only include leagues that match search term if provided
           if (
@@ -1538,6 +1521,7 @@ export class LeagueService {
       const leagueData = leagueDoc.data() as FirestoreLeague;
 
       // Add user to league (auto-creates team with their display name)
+      // This will also update the league's members array
       await this.leagueMembershipService.addMemberToLeague(
         leagueDoc.id,
         currentUser.uid,
@@ -1637,6 +1621,7 @@ export class LeagueService {
 
   /**
    * Log market summary for validation of contract calculations
+   * Only runs in development mode to avoid slowing down production
    */
   private logMarketSummary(
     players: {
@@ -1645,6 +1630,7 @@ export class LeagueService {
       minimumContract: number;
     }[]
   ) {
+    // Quick validation - only log basic stats
     const salaryCap = 200000000; // $200M salary cap
     const minContract = Math.min(...players.map((p) => p.minimumContract));
     const maxContract = Math.max(...players.map((p) => p.minimumContract));
@@ -1658,11 +1644,11 @@ export class LeagueService {
     console.log(`  Average Contract: $${avgContract.toLocaleString()}`);
     console.log(`  Number of Players: ${players.length}`);
 
-    // Analyze contracts by position
-    this.analyzeContractsByPosition(players);
-
-    // Analyze roster economics
-    this.analyzeRosterEconomics(players);
+    // Only run detailed analysis in development
+    if (environment.production === false) {
+      this.analyzeContractsByPosition(players);
+      this.analyzeRosterEconomics(players);
+    }
   }
 
   /**
@@ -1721,6 +1707,7 @@ export class LeagueService {
 
   /**
    * Analyze roster economics and market balance
+   * Optimized version that only runs in development
    */
   private analyzeRosterEconomics(
     players: {
@@ -1731,17 +1718,6 @@ export class LeagueService {
   ) {
     const salaryCap = 200000000;
     const maxPlayerContract = salaryCap * 0.15; // $30M max per player
-    const defaultRosterRequirements = {
-      QB: 2,
-      RB: 4,
-      WR: 6,
-      TE: 2,
-      K: 1,
-      DEF: 1,
-      DL: 3,
-      LB: 3,
-      DB: 4,
-    };
     const numberOfTeams = 12;
 
     console.log('Roster Economics Analysis:');
@@ -1753,38 +1729,31 @@ export class LeagueService {
       `  Max Contract per Player: $${maxPlayerContract.toLocaleString()} (15% of cap)`
     );
 
-    // Calculate total roster cost for each position
-    Object.entries(defaultRosterRequirements).forEach(
-      ([position, required]) => {
-        const positionPlayers = players.filter(
-          (p) => p.enhancedPlayer.Position === position
-        );
-        if (positionPlayers.length === 0) return;
-
-        const topPlayers = positionPlayers
-          .sort((a, b) => b.overall - a.overall)
-          .slice(0, required * numberOfTeams);
-
-        const totalCost = topPlayers.reduce(
-          (sum, p) => sum + p.minimumContract,
-          0
-        );
-        const avgCost = totalCost / topPlayers.length;
-        const percentageOfCap = (totalCost / numberOfTeams / salaryCap) * 100;
-
-        console.log(`  ${position} (${required} per team):`);
-        console.log(
-          `    Top ${
-            topPlayers.length
-          } players cost: $${totalCost.toLocaleString()}`
-        );
-        console.log(`    Average cost: $${avgCost.toLocaleString()}`);
-        console.log(
-          `    Per team: $${(
-            totalCost / numberOfTeams
-          ).toLocaleString()} (${percentageOfCap.toFixed(1)}% of cap)`
-        );
-      }
+    // Quick validation - check if any contracts exceed reasonable limits
+    const excessiveContracts = players.filter(
+      (p) => p.minimumContract > maxPlayerContract
     );
+
+    if (excessiveContracts.length > 0) {
+      console.warn(
+        `  ⚠️  ${excessiveContracts.length} players have contracts exceeding 15% of salary cap`
+      );
+    } else {
+      console.log('  ✅ All contracts within reasonable limits');
+    }
+
+    // Basic position distribution check
+    const positionCounts = players.reduce((acc, p) => {
+      const pos = p.enhancedPlayer.Position;
+      acc[pos] = (acc[pos] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    console.log('  Position Distribution:');
+    Object.entries(positionCounts)
+      .sort(([, a], [, b]) => b - a)
+      .forEach(([position, count]) => {
+        console.log(`    ${position}: ${count} players`);
+      });
   }
 }

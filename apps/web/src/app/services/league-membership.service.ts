@@ -12,6 +12,9 @@ import {
   Timestamp,
   getFirestore,
   Firestore,
+  collectionGroup,
+  arrayUnion,
+  arrayRemove,
 } from '@angular/fire/firestore';
 import { AuthService } from './auth.service';
 import { RosterSlot } from '@fantasy-football-dynasty/types';
@@ -203,6 +206,13 @@ export class LeagueMembershipService {
         joinedAt: Timestamp.now(),
       });
 
+      // Update the league's members array to include the new user
+      const leagueRef = doc(this.db, 'leagues', leagueId);
+      await updateDoc(leagueRef, {
+        members: arrayUnion(userId),
+        updatedAt: Timestamp.now(),
+      });
+
       // Refresh user memberships
       await this.loadUserMemberships();
     } catch (error) {
@@ -221,6 +231,13 @@ export class LeagueMembershipService {
     try {
       const memberRef = doc(this.db, 'leagues', leagueId, 'members', userId);
       await deleteDoc(memberRef);
+
+      // Remove the user from the league's members array
+      const leagueRef = doc(this.db, 'leagues', leagueId);
+      await updateDoc(leagueRef, {
+        members: arrayRemove(userId),
+        updatedAt: Timestamp.now(),
+      });
 
       // Refresh user memberships
       await this.loadUserMemberships();
@@ -367,8 +384,10 @@ export class LeagueMembershipService {
 
   /**
    * Load all league memberships for the current user
+   * Optimized to use collection group query for better performance
+   * Returns the memberships for use by other services
    */
-  async loadUserMemberships(): Promise<void> {
+  async loadUserMemberships(): Promise<LeagueMember[]> {
     try {
       this._isLoading.set(true);
       this._error.set(null);
@@ -376,64 +395,54 @@ export class LeagueMembershipService {
       const currentUser = this.authService.currentUser();
       if (!currentUser) {
         this._userMemberships.set([]);
-        return;
+        return [];
       }
 
       console.log('Loading user memberships for user:', currentUser.uid);
 
-      // Query all leagues where user is a member
-      const memberships: LeagueMember[] = [];
-
-      // Get all leagues and check if user has a membership document
-      const leaguesRef = collection(this.db, 'leagues');
-      const leaguesSnapshot = await getDocs(leaguesRef);
-
-      console.log(
-        'Found leagues:',
-        leaguesSnapshot.docs.map((doc) => ({ id: doc.id, data: doc.data() }))
+      // Use collection group query to find all membership documents for this user
+      // This is much more efficient than querying all leagues
+      const membersRef = collectionGroup(this.db, 'members');
+      const q = query(
+        membersRef,
+        where('userId', '==', currentUser.uid),
+        where('isActive', '==', true)
       );
 
-      for (const leagueDoc of leaguesSnapshot.docs) {
-        const leagueId = leagueDoc.id;
+      const membersSnapshot = await getDocs(q);
+      const memberships: LeagueMember[] = [];
 
-        // Check if user has a membership document in this league
-        const memberRef = doc(
-          this.db,
-          'leagues',
-          leagueId,
-          'members',
-          currentUser.uid
+      membersSnapshot.forEach((doc) => {
+        const memberData = doc.data() as FirestoreLeagueMember;
+        console.log(
+          'Found membership for league:',
+          memberData.leagueId,
+          memberData
         );
-        const memberSnap = await getDoc(memberRef);
 
-        if (memberSnap.exists()) {
-          const memberData = memberSnap.data() as FirestoreLeagueMember;
-          console.log('Found membership for league:', leagueId, memberData);
-
-          memberships.push({
-            userId: memberData.userId,
-            leagueId: memberData.leagueId,
-            role: memberData.role,
-            teamName: memberData.teamName,
-            teamId: memberData.teamId,
-            capSpace: memberData.capSpace,
-            roster: memberData.roster,
-            joinedAt: memberData.joinedAt.toDate(),
-            isActive: memberData.isActive,
-            permissions: memberData.permissions,
-          });
-        } else {
-          console.log('No membership found for user in league:', leagueId);
-        }
-      }
+        memberships.push({
+          userId: memberData.userId,
+          leagueId: memberData.leagueId,
+          role: memberData.role,
+          teamName: memberData.teamName,
+          teamId: memberData.teamId,
+          capSpace: memberData.capSpace,
+          roster: memberData.roster,
+          joinedAt: memberData.joinedAt.toDate(),
+          isActive: memberData.isActive,
+          permissions: memberData.permissions,
+        });
+      });
 
       console.log('Total memberships found:', memberships.length);
       this._userMemberships.set(memberships);
+      return memberships;
     } catch (error) {
       console.error('Error loading user memberships:', error);
       this._error.set(
         error instanceof Error ? error.message : 'Failed to load memberships'
       );
+      return [];
     } finally {
       this._isLoading.set(false);
     }
@@ -577,7 +586,7 @@ export class LeagueMembershipService {
   /**
    * Refresh memberships data
    */
-  async refresh(): Promise<void> {
-    await this.loadUserMemberships();
+  async refresh(): Promise<LeagueMember[]> {
+    return await this.loadUserMemberships();
   }
 }
