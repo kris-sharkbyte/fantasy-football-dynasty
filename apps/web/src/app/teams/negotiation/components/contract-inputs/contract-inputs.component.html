@@ -1,8 +1,8 @@
-<div class="contract-inputs">
-  <h3>Contract Details</h3>
+<div class="contract-inputs space-y-4">
+  <h3 class="text-lg font-semibold mb-4">Contract Details</h3>
 
   <div class="input-group">
-    <label for="years">Years:</label>
+    <label for="years" class="text-sm font-medium mb-1 block">Years:</label>
     <p-select
       class="w-full"
       [options]="yearsOptions()"
@@ -15,7 +15,9 @@
   </div>
 
   <div class="flex gap-2 flex-col w-full">
-    <label for="baseSalary">Base Salary:</label>
+    <label for="baseSalary" class="text-sm font-medium mb-1 block"
+      >Base Salary:</label
+    >
     <div class="flex gap-2">
       <button
         pButton
@@ -24,6 +26,7 @@
         (mouseup)="onMouseUp()"
         (mouseleave)="onMouseLeave()"
         title="Hold for rapid decrease"
+        class="p-button-outlined"
       ></button>
       <input
         pInputText
@@ -31,7 +34,7 @@
         id="baseSalary"
         [value]="formattedSalary()"
         readonly
-        class="salary-input flex-1"
+        class="salary-input flex-1 text-center font-semibold"
       />
       <button
         pButton
@@ -40,12 +43,15 @@
         (mouseup)="onMouseUp()"
         (mouseleave)="onMouseLeave()"
         title="Hold for rapid increase"
+        class="p-button-outlined"
       ></button>
     </div>
   </div>
 
   <div class="flex gap-2 flex-col w-full">
-    <label for="signingBonus">Signing Bonus:</label>
+    <label for="signingBonus" class="text-sm font-medium mb-1 block"
+      >Signing Bonus:</label
+    >
     <div class="flex gap-2">
       <button
         pButton
@@ -54,6 +60,7 @@
         (mouseup)="onMouseUp()"
         (mouseleave)="onMouseLeave()"
         title="Hold for rapid decrease"
+        class="p-button-outlined"
       ></button>
       <input
         pInputText
@@ -61,7 +68,7 @@
         id="signingBonus"
         [value]="formattedBonus()"
         readonly
-        class="bonus-input flex-1"
+        class="bonus-input flex-1 text-center font-semibold"
       />
       <button
         pButton
@@ -70,14 +77,15 @@
         (mouseup)="onMouseUp()"
         (mouseleave)="onMouseLeave()"
         title="Hold for rapid increase"
+        class="p-button-outlined"
       ></button>
     </div>
   </div>
 
   <!-- Guarantees Section -->
   <div class="guarantees-section">
-    <div class="flex justify-between items-center mb-2">
-      <label>Guarantees:</label>
+    <div class="flex justify-between items-center mb-3">
+      <label class="text-base font-medium">Guarantees:</label>
       <button
         pButton
         icon="pi pi-plus"
@@ -89,21 +97,24 @@
     </div>
 
     <!-- Total Guaranteed Amount -->
-    <div class="total-guarantees mb-3">
-      <span class="text-sm text-gray-600"
+    <div
+      class="total-guarantees mb-4 p-2 bg-blue-50 dark:bg-blue-900/20 rounded border-l-4 border-blue-400"
+    >
+      <span class="text-sm font-medium text-blue-700 dark:text-blue-300"
         >Total Guaranteed: {{ formattedTotalGuarantees() }}</span
       >
     </div>
 
     <!-- Guarantees List -->
-    <div class="guarantees-list space-y-2" *ngIf="currentGuarantees.length > 0">
+    <div class="guarantees-list space-y-4" *ngIf="currentGuarantees.length > 0">
       <div
         *ngFor="let guarantee of currentGuarantees; let i = index"
-        class="guarantee-item p-3 border rounded-lg"
+        class="guarantee-item p-4 border rounded-lg bg-gray-50 dark:bg-gray-800"
       >
-        <div class="flex gap-2 items-center mb-2">
+        <!-- Header with Year and Type -->
+        <div class="flex gap-3 items-end mb-4">
           <div class="flex-1">
-            <label class="text-sm font-medium">Year:</label>
+            <label class="text-sm font-medium mb-1 block">Year:</label>
             <p-select
               [options]="guaranteeYearOptions()"
               optionLabel="label"
@@ -115,7 +126,7 @@
           </div>
 
           <div class="flex-1">
-            <label class="text-sm font-medium">Type:</label>
+            <label class="text-sm font-medium mb-1 block">Type:</label>
             <p-select
               [options]="guaranteeTypeOptions"
               optionLabel="label"
@@ -133,13 +144,16 @@
             size="small"
             (click)="removeGuarantee(i)"
             title="Remove guarantee"
-            class="p-button-outlined"
+            class="p-button-outlined p-button-sm"
           ></button>
         </div>
 
-        <div class="flex gap-2 items-center">
-          <label class="text-sm font-medium">Amount:</label>
-          <div class="flex gap-1 flex-1">
+        <!-- Amount Section -->
+        <div class="flex gap-3 items-center">
+          <label class="text-sm font-medium min-w-0 flex-shrink-0"
+            >Amount:</label
+          >
+          <div class="flex gap-2 flex-1">
             <button
               pButton
               icon="pi pi-minus"
@@ -148,13 +162,14 @@
               (mouseup)="onMouseUp()"
               (mouseleave)="onMouseLeave()"
               title="Hold for rapid decrease"
+              class="p-button-outlined p-button-sm"
             ></button>
             <input
               pInputText
               type="text"
               [value]="formatGuaranteeAmount(guarantee.amount)"
               readonly
-              class="guarantee-amount-input flex-1"
+              class="guarantee-amount-input flex-1 text-center font-semibold"
             />
             <button
               pButton
@@ -164,6 +179,7 @@
               (mouseup)="onMouseUp()"
               (mouseleave)="onMouseLeave()"
               title="Hold for rapid increase"
+              class="p-button-outlined p-button-sm"
             ></button>
           </div>
         </div>
@@ -173,9 +189,10 @@
     <!-- No Guarantees Message -->
     <div
       *ngIf="currentGuarantees.length === 0"
-      class="text-center text-gray-500 py-4"
+      class="text-center text-gray-500 dark:text-gray-400 py-6 px-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg"
     >
-      <p class="text-sm">No guarantees added yet</p>
+      <i class="pi pi-info-circle text-2xl mb-2 block"></i>
+      <p class="text-sm font-medium mb-1">No guarantees added yet</p>
       <p class="text-xs">Click "Add Guarantee" to add contract guarantees</p>
     </div>
   </div>
