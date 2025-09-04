@@ -501,13 +501,48 @@
 
               <!-- Sign mode specific actions -->
               <p-button
-                *ngIf="isSignMode() && config?.onSignClick"
+                *ngIf="
+                  isSignMode() && config?.onSignClick && !isPlayerSigned(player)
+                "
                 icon="pi pi-check"
                 label="Sign"
                 size="small"
                 severity="success"
                 styleClass="sign-button"
                 (click)="onSignClick(player)"
+              >
+              </p-button>
+
+              <!-- Show team name for players signed by current user -->
+              <span
+                *ngIf="
+                  isSignMode() &&
+                  isPlayerSigned(player) &&
+                  isPlayerOwnedByCurrentUser(player)
+                "
+                class="signed-team owned"
+              >
+                <i
+                  class="pi pi-check-circle"
+                  style="color: var(--green-500)"
+                ></i>
+                {{ getSignedTeamName(player) }}
+              </span>
+
+              <!-- Show trade action for players signed by other teams -->
+              <p-button
+                *ngIf="
+                  isSignMode() &&
+                  isPlayerSigned(player) &&
+                  !isPlayerOwnedByCurrentUser(player) &&
+                  config?.onTradeClick
+                "
+                icon="pi pi-exchange"
+                label="Trade"
+                size="small"
+                severity="info"
+                styleClass="trade-button"
+                (click)="config?.onTradeClick?.(player)"
               >
               </p-button>
             </div>

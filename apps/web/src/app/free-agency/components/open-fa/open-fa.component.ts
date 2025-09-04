@@ -82,6 +82,7 @@ export class OpenFAComponent {
     showMarketTrends: false,
     onSignClick: (player: any) => this.selectPlayer(player),
     onPlayerClick: (player: any) => this.selectPlayer(player),
+    onTradeClick: (player: any) => this.handleTradeClick(player),
   }));
 
   /**
@@ -160,6 +161,10 @@ export class OpenFAComponent {
       if (signing) {
         console.log('Player signed successfully:', signing);
         this.closeSigningModal();
+
+        // Refresh available players to update the UI
+        await this.freeAgencyService.loadCurrentFAWeek();
+
         // TODO: Show success message
       } else {
         throw new Error('Failed to sign player');
@@ -182,8 +187,13 @@ export class OpenFAComponent {
    * Get current team ID
    */
   private getCurrentTeamId(): string {
-    // TODO: Get from team service or auth
-    return 'team1'; // Mock for now
+    const currentUserTeam = this.leagueService.currentUserTeam();
+    console.log('[Open FA] Current user team:', currentUserTeam);
+    if (!currentUserTeam) {
+      throw new Error('No team found for current user');
+    }
+    console.log('[Open FA] Using team ID:', currentUserTeam.teamId);
+    return currentUserTeam.teamId;
   }
 
   /**
@@ -287,5 +297,16 @@ export class OpenFAComponent {
     const marketPrice = this.getEstimatedMarketPrice(player);
     const discount = 0.2; // 20% discount
     return Math.round(marketPrice * (1 - discount));
+  }
+
+  /**
+   * Handle trade action for players owned by other teams
+   */
+  handleTradeClick(player: FAWeekPlayer): void {
+    console.log('[Open FA] Trade clicked for player:', player);
+    // TODO: Implement trade functionality
+    // This could open a trade dialog or navigate to trade page
+    // For now, just show a message
+    alert(`Trade functionality for ${player.name} will be implemented soon!`);
   }
 }

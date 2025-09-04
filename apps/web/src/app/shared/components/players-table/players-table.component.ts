@@ -68,6 +68,7 @@ export interface PlayersTableConfig {
   showMarketTrends?: boolean; // Show market trend indicators (bid mode)
   onBidClick?: (player: EnhancedSportsPlayer) => void; // Bid action callback
   onSignClick?: (player: EnhancedSportsPlayer) => void; // Sign action callback
+  onTradeClick?: (player: EnhancedSportsPlayer) => void; // Trade action callback
 }
 
 @Component({
@@ -127,7 +128,46 @@ export class PlayersTableComponent implements OnInit {
 
   // Computed values
   public filteredPlayers = computed(() => {
-    if (this.config?.leagueId && this._enhancedPlayers().length > 0) {
+    // Priority 1: Use getPlayers() function if provided (for custom filtered data like team roster)
+    if (this.config?.getPlayers) {
+      let filtered = [...this.config.getPlayers()];
+
+      // Position filter
+      if (this.selectedPosition() !== 'ALL') {
+        filtered = filtered.filter(
+          (player) => player.Position === this.selectedPosition()
+        );
+      }
+
+      // Team filter
+      if (this.selectedTeam() !== 'ALL') {
+        filtered = filtered.filter(
+          (player) => player.Team === this.selectedTeam()
+        );
+      }
+
+      // Search filter
+      if (this.searchQuery()) {
+        const query = this.searchQuery().toLowerCase();
+        filtered = filtered.filter((player) => {
+          const firstName = player.FirstName?.toLowerCase() || '';
+          const lastName = player.LastName?.toLowerCase() || '';
+          const team = player.Team?.toLowerCase() || '';
+          return (
+            firstName.includes(query) ||
+            lastName.includes(query) ||
+            team.includes(query)
+          );
+        });
+      }
+
+      // Sorting
+      filtered.sort((a, b) => this.sortPlayers(a, b));
+
+      return filtered;
+    }
+    // Priority 2: Use enhanced players with league data if available
+    else if (this.config?.leagueId && this._enhancedPlayers().length > 0) {
       // Use enhanced players with league data
       let filtered = [...this._enhancedPlayers()];
 
@@ -164,7 +204,9 @@ export class PlayersTableComponent implements OnInit {
       filtered.sort((a, b) => this.sortPlayers(a, b));
 
       return filtered;
-    } else {
+    }
+    // Priority 3: Use sports data service directly
+    else {
       // Use sports data service directly
       let players = this.sportsDataService.activePlayers();
       let filtered = [...players];
@@ -296,7 +338,23 @@ export class PlayersTableComponent implements OnInit {
 
   // Position options for filter
   public positionOptions = computed(() => {
-    if (this.config?.leagueId && this._enhancedPlayers().length > 0) {
+    // Priority 1: Use getPlayers() function if provided
+    if (this.config?.getPlayers) {
+      const positions = [
+        ...new Set(
+          this.config
+            .getPlayers()
+            .map((player) => player.Position)
+            .filter(Boolean)
+        ),
+      ];
+      return [
+        { label: 'All Positions', value: 'ALL' },
+        ...positions.map((pos) => ({ label: pos, value: pos })),
+      ];
+    }
+    // Priority 2: Use enhanced players with league data if available
+    else if (this.config?.leagueId && this._enhancedPlayers().length > 0) {
       // Get positions from enhanced players
       const positions = [
         ...new Set(
@@ -309,7 +367,9 @@ export class PlayersTableComponent implements OnInit {
         { label: 'All Positions', value: 'ALL' },
         ...positions.map((pos) => ({ label: pos, value: pos })),
       ];
-    } else {
+    }
+    // Priority 3: Get positions from sports data service
+    else {
       // Get positions from sports data service
       const positions = [
         ...new Set(
@@ -328,7 +388,23 @@ export class PlayersTableComponent implements OnInit {
 
   // Team options for filter
   public teamOptions = computed(() => {
-    if (this.config?.leagueId && this._enhancedPlayers().length > 0) {
+    // Priority 1: Use getPlayers() function if provided
+    if (this.config?.getPlayers) {
+      const teams = [
+        ...new Set(
+          this.config
+            .getPlayers()
+            .map((player) => player.Team)
+            .filter(Boolean)
+        ),
+      ];
+      return [
+        { label: 'All Teams', value: 'ALL' },
+        ...teams.map((team) => ({ label: team, value: team })),
+      ];
+    }
+    // Priority 2: Use enhanced players with league data if available
+    else if (this.config?.leagueId && this._enhancedPlayers().length > 0) {
       // Get teams from enhanced players
       const teams = [
         ...new Set(
@@ -341,7 +417,9 @@ export class PlayersTableComponent implements OnInit {
         { label: 'All Teams', value: 'ALL' },
         ...teams.map((team) => ({ label: team, value: team })),
       ];
-    } else {
+    }
+    // Priority 3: Get teams from sports data service
+    else {
       // Get teams from sports data service
       const teams = [
         ...new Set(
@@ -920,5 +998,35 @@ export class PlayersTableComponent implements OnInit {
     if (this.isBidMode()) {
       await this.loadFreeAgencyData();
     }
+  }
+
+  /**
+   * Check if a player is signed (for sign mode)
+   */
+  isPlayerSigned(player: any): boolean {
+    return player.status === 'signed' && player.signedTeamName;
+  }
+
+  /**
+   * Check if a player is owned by the current user
+   */
+  isPlayerOwnedByCurrentUser(player: any): boolean {
+    return player.isOwnedByCurrentUser === true;
+  }
+
+  /**
+   * Get the signed team name for a player
+   */
+  getSignedTeamName(player: any): string {
+    return player.signedTeamName || 'Unknown Team';
+  }
+
+  /**
+   * Handle trade action for players owned by other teams
+   */
+  onTradeClick(player: any): void {
+    console.log('[Players Table] Trade clicked for player:', player);
+    // TODO: Implement trade functionality
+    // This could open a trade dialog or navigate to trade page
   }
 }

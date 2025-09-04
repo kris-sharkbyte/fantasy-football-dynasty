@@ -56,6 +56,11 @@ export interface FAWeekPlayer {
   bidCount: number;
   highestBid?: number;
   status: 'available' | 'bidding' | 'evaluating' | 'signed' | 'shortlisted';
+  // Team information for signed players
+  signedTeamId?: string;
+  signedTeamName?: string;
+  // Additional context for UI
+  isOwnedByCurrentUser?: boolean;
 }
 
 @Injectable({
@@ -714,6 +719,21 @@ export class FreeAgencyService {
 
       // Get all active players from sports data service
       const allPlayers = this.sportsDataService.activePlayers();
+      console.log(
+        '[FA Service] Total active players from sports data:',
+        allPlayers.length
+      );
+
+      // Get all players currently on team rosters
+      const allRosteredPlayers = this.getAllRosteredPlayers();
+      console.log(
+        '[FA Service] Total rostered players:',
+        allRosteredPlayers.length
+      );
+      console.log(
+        '[FA Service] Rostered player IDs:',
+        allRosteredPlayers.map((p) => p.playerId)
+      );
 
       const availablePlayers: FAWeekPlayer[] = allPlayers
         .filter((player) => {
@@ -730,7 +750,18 @@ export class FreeAgencyService {
             player.FirstName.trim() !== '' &&
             player.LastName.trim() !== '';
 
-          return hasValidPosition && hasValidName;
+          // Filter out players already on team rosters
+          const isNotRostered = !allRosteredPlayers.some(
+            (rostered) => rostered.playerId === player.PlayerID.toString()
+          );
+
+          if (!isNotRostered) {
+            console.log(
+              `[FA Service] Filtering out rostered player: ${player.FirstName} ${player.LastName} (ID: ${player.PlayerID})`
+            );
+          }
+
+          return hasValidPosition && hasValidName && isNotRostered;
         })
         .slice(0, 200) // Increased from 50 to 200 for better initial load
         .map((player) => ({
@@ -745,6 +776,10 @@ export class FreeAgencyService {
           status: 'available',
         }));
 
+      console.log(
+        '[FA Service] Final available players count:',
+        availablePlayers.length
+      );
       this.availablePlayers.set(availablePlayers);
     } catch (error) {
       console.error('Failed to load available players:', error);
@@ -910,11 +945,28 @@ export class FreeAgencyService {
   /**
    * Update player bid status
    */
-  private updatePlayerBidStatus(playerId: number, status: string): void {
+  private updatePlayerBidStatus(
+    playerId: number,
+    status: string,
+    teamId?: string,
+    teamName?: string
+  ): void {
+    const currentUserTeam = this.leagueService.currentUserTeam();
+
     this.availablePlayers.update((players) =>
       players.map((player) =>
         player.playerId === playerId
-          ? { ...player, status: status as any }
+          ? {
+              ...player,
+              status: status as any,
+              ...(status === 'signed' && teamId && teamName
+                ? {
+                    signedTeamId: teamId,
+                    signedTeamName: teamName,
+                    isOwnedByCurrentUser: currentUserTeam?.teamId === teamId,
+                  }
+                : {}),
+            }
           : player
       )
     );
@@ -1892,14 +1944,66 @@ export class FreeAgencyService {
       const signingRef = doc(this.firestore, 'openFASignings', signing.id);
       await setDoc(signingRef, signing);
 
-      // Update player status
-      this.updatePlayerBidStatus(playerId, 'signed');
+      // Add player to team roster for Open FA signing
+      await this.addPlayerToTeamRosterFromOpenFA(
+        playerId.toString(),
+        teamId,
+        autoContract
+      );
+
+      // Get team name for display
+      const teamName = this.getTeamNameById(teamId);
+
+      // Update player status with team information
+      this.updatePlayerBidStatus(playerId, 'signed', teamId, teamName);
+
+      // Refresh league data to update UI
+      await this.leagueService.loadLeagueData(currentWeek.leagueId);
 
       return signing;
     } catch (error) {
       console.error('Failed to process open FA signing:', error);
       return null;
     }
+  }
+
+  /**
+   * Get team name by team ID
+   */
+  private getTeamNameById(teamId: string): string {
+    const leagueMembers = this.leagueService.leagueMembers();
+    const teamMember = leagueMembers.find((member) => member.teamId === teamId);
+    return teamMember?.teamName || 'Unknown Team';
+  }
+
+  /**
+   * Get all players currently on team rosters
+   */
+  private getAllRosteredPlayers(): {
+    playerId: string;
+    teamId: string;
+    teamName: string;
+  }[] {
+    const leagueMembers = this.leagueService.leagueMembers();
+    const rosteredPlayers: {
+      playerId: string;
+      teamId: string;
+      teamName: string;
+    }[] = [];
+
+    leagueMembers.forEach((member) => {
+      if (member.roster && member.roster.length > 0) {
+        member.roster.forEach((rosterSlot) => {
+          rosteredPlayers.push({
+            playerId: rosterSlot.playerId,
+            teamId: member.teamId,
+            teamName: member.teamName,
+          });
+        });
+      }
+    });
+
+    return rosteredPlayers;
   }
 
   /**
@@ -2096,6 +2200,80 @@ export class FreeAgencyService {
         error
       );
       // Don't throw - this shouldn't prevent the week advancement
+    }
+  }
+
+  /**
+   * Add a player to the team roster from Open FA signing
+   */
+  private async addPlayerToTeamRosterFromOpenFA(
+    playerId: string,
+    teamId: string,
+    contract: ContractOffer
+  ): Promise<void> {
+    try {
+      console.log(
+        `[FA Service] Adding player ${playerId} to team roster from Open FA (team: ${teamId})`
+      );
+      console.log('[FA Service] Received teamId:', teamId);
+      console.log('[FA Service] Contract:', contract);
+
+      // Find the team in the current league
+      const currentLeague = this.currentFAWeek();
+      if (!currentLeague) {
+        console.error('[FA Service] No current FA week found');
+        return;
+      }
+
+      // Get the team's member document from the league service
+      const leagueMembers = this.leagueService.leagueMembers();
+      console.log('[FA Service] Available league members:', leagueMembers);
+      console.log('[FA Service] Looking for teamId:', teamId);
+
+      const teamMember = leagueMembers.find(
+        (member) => member.teamId === teamId
+      );
+
+      if (!teamMember) {
+        console.error(
+          `[FA Service] Team ${teamId} not found in league ${currentLeague.leagueId}`
+        );
+        console.error(
+          '[FA Service] Available teamIds:',
+          leagueMembers.map((m) => m.teamId)
+        );
+        return;
+      }
+
+      // Add player to roster in the member document
+      const memberRef = doc(
+        this.firestore,
+        'leagues',
+        currentLeague.leagueId,
+        'members',
+        teamMember.userId
+      );
+
+      // Create the roster entry
+      const rosterEntry = {
+        playerId,
+        signedAt: new Date(),
+        contract: contract,
+        status: 'active',
+      };
+
+      // Update the member document with the new roster entry
+      await updateDoc(memberRef, {
+        roster: [...teamMember.roster, rosterEntry],
+        updatedAt: new Date(),
+      });
+
+      console.log(
+        `[FA Service] Successfully added player ${playerId} to team ${teamId} roster from Open FA`
+      );
+    } catch (error) {
+      console.error('Error adding player to team roster from Open FA:', error);
+      throw error;
     }
   }
 

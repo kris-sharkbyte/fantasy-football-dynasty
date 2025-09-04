@@ -8,10 +8,12 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { MessageModule } from 'primeng/message';
 
 import { LeagueService } from '../../services/league.service';
+import { SportsDataService } from '../../services/sports-data.service';
 import {
   PlayersTableComponent,
   PlayersTableConfig,
 } from '../../shared/components/players-table/players-table.component';
+import { LeagueHeaderComponent } from '../components/league-header.component';
 
 @Component({
   selector: 'app-team',
@@ -24,6 +26,7 @@ import {
     ProgressSpinnerModule,
     MessageModule,
     PlayersTableComponent,
+    LeagueHeaderComponent,
   ],
   templateUrl: './team.component.html',
   styleUrls: ['./team.component.scss'],
@@ -35,6 +38,7 @@ export class TeamComponent implements OnInit {
   players = signal<any[]>([]);
 
   private readonly leagueService = inject(LeagueService);
+  private readonly sportsDataService = inject(SportsDataService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -51,42 +55,23 @@ export class TeamComponent implements OnInit {
     const team = this.currentTeam();
     const allPlayers = this.players();
 
-    console.log('Team roster data:', {
-      team: team,
-      roster: team?.roster,
-      rosterLength: team?.roster?.length,
-      allPlayersLength: allPlayers.length,
-      samplePlayer: allPlayers[0],
-    });
-
-    if (!team?.roster || team.roster.length === 0) {
-      console.log('No roster data found for team');
-      return [];
-    }
-
-    if (!allPlayers.length) {
-      console.log('No league players loaded yet');
+    if (
+      !team ||
+      !team.roster ||
+      team.roster.length === 0 ||
+      !allPlayers.length
+    ) {
       return [];
     }
 
     // Filter to only show roster players and enhance with roster data
     const rosterPlayers = allPlayers
       .filter((player: any) => {
-        const isOnRoster = team.roster.some(
+        return team.roster.some(
           (rosterSlot) => rosterSlot.playerId === player.playerId
         );
-        if (isOnRoster) {
-          console.log(
-            'Found roster player:',
-            player.name,
-            'ID:',
-            player.playerId
-          );
-        }
-        return isOnRoster;
       })
       .map((player: any) => {
-        // Find the roster slot for this player to get additional info
         const rosterSlot = team.roster.find(
           (slot) => slot.playerId === player.playerId
         );
@@ -98,12 +83,8 @@ export class TeamComponent implements OnInit {
         };
       });
 
-    console.log(
-      'Filtered roster players:',
-      rosterPlayers.length,
-      rosterPlayers
-    );
-    return rosterPlayers;
+    // Enhance roster players with sports data
+    return this.enhanceRosterPlayersWithSportsData(rosterPlayers);
   });
 
   // Players table configuration
@@ -116,7 +97,7 @@ export class TeamComponent implements OnInit {
       showSearch: true,
       showPagination: true,
       pageSize: 25,
-      mode: 'default',
+      mode: 'default' as const,
       actions: [],
       leagueId: this.leagueId() || undefined,
       getPlayers: () => this.rosterPlayers(),
@@ -124,7 +105,12 @@ export class TeamComponent implements OnInit {
   );
 
   ngOnInit(): void {
-    this.loadTeamData();
+    // Get league ID from route parameters
+    this.route.params.subscribe((params) => {
+      const leagueId = params['leagueId'];
+      this.leagueId.set(leagueId);
+      this.loadTeamData();
+    });
   }
 
   private async loadTeamData(): Promise<void> {
@@ -143,7 +129,7 @@ export class TeamComponent implements OnInit {
 
       this.teamId.set(currentUserTeam.teamId);
 
-      // Load league players only if we need them for roster display
+      // Load league players for roster display
       const leagueId = this.leagueId();
       if (leagueId) {
         const players = await this.leagueService.getLeaguePlayers(leagueId);
@@ -153,6 +139,51 @@ export class TeamComponent implements OnInit {
       console.error('Error loading team data:', error);
     } finally {
       this.isLoading.set(false);
+    }
+  }
+
+  /**
+   * Enhance roster players with sports data
+   */
+  private enhanceRosterPlayersWithSportsData(rosterPlayers: any[]): any[] {
+    try {
+      // Get all active sports players
+      const sportsPlayers = this.sportsDataService.activePlayers();
+
+      // Create a map for quick lookup
+      const sportsPlayersMap = new Map<number, any>();
+      sportsPlayers.forEach((player) => {
+        sportsPlayersMap.set(player.PlayerID, player);
+      });
+
+      // Enhance each roster player with sports data
+      return rosterPlayers
+        .map((rosterPlayer) => {
+          // Find matching sports player by PlayerID
+          const sportsPlayer = sportsPlayersMap.get(
+            parseInt(rosterPlayer.playerId)
+          );
+
+          if (!sportsPlayer) {
+            console.warn(
+              `No sports data found for player ID: ${rosterPlayer.playerId}`
+            );
+            return rosterPlayer;
+          }
+
+          // Create enhanced player by merging both data sources
+          return {
+            ...sportsPlayer, // Start with sports data (name, position, team, etc.)
+            // Override with league-specific data where available
+            overall: rosterPlayer.overall || sportsPlayer.overall,
+            // Add league-specific properties
+            ...rosterPlayer,
+          };
+        })
+        .filter((player) => player !== null);
+    } catch (error) {
+      console.error('Error enhancing roster players with sports data:', error);
+      return rosterPlayers; // Return original players if enhancement fails
     }
   }
 
