@@ -31,12 +31,14 @@ export class TeamBidsComponent {
   // Check if sports data is ready
   public sportsDataReady = this.sportsDataService.dataReady;
 
-  // Team bids filtered for current user - now using cached signals
+  // Team bids filtered for current user - show ALL bids including accepted ones
   public teamBids = computed(() => {
     const currentUserTeamId = this.leagueService.currentUserTeamId();
     if (!currentUserTeamId) return [];
 
-    return this.activeBids().filter((bid) => bid.teamId === currentUserTeamId);
+    // Get all bids from the service (including accepted ones)
+    const allBids = this.freeAgencyService.getAllTeamBids(currentUserTeamId);
+    return allBids.filter((bid) => bid.teamId === currentUserTeamId);
   });
 
   /**
@@ -179,12 +181,32 @@ export class TeamBidsComponent {
       case 'accepted':
         return 'success';
       case 'shortlisted':
+      case 'considering':
         return 'warn';
       case 'rejected':
         return 'danger';
       case 'pending':
       default:
         return 'info';
+    }
+  }
+
+  /**
+   * Get display text for bid status
+   */
+  getStatusDisplayText(status: string): string {
+    switch (status) {
+      case 'accepted':
+        return 'Accepted';
+      case 'shortlisted':
+      case 'considering':
+        return 'Considering';
+      case 'rejected':
+        return 'Rejected';
+      case 'pending':
+        return 'Pending';
+      default:
+        return status;
     }
   }
 

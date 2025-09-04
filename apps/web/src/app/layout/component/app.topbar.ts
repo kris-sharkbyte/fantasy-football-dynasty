@@ -20,11 +20,7 @@ import { LayoutService } from '../service/layout.service';
       </button>
 
       <a class="layout-topbar-logo" routerLink="/">
-        <img
-          src="assets/images/logo.png"
-          alt="Local Blast"
-          style="height: 40px;"
-        />
+        <img src="/logo_horizontal.png" alt="Dynasty Forge" class="h-30" />
       </a>
     </div>
 

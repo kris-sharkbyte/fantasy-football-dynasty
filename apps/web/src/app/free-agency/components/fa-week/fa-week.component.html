@@ -16,7 +16,7 @@
     </div>
 
     <!-- Team Bids Section -->
-    <div class="bids-section">
+    <div class="bids-section max-h-[1000t to .px] overflow-y-auto">
       <app-team-bids></app-team-bids>
     </div>
   </div>
@@ -32,7 +32,7 @@
     [draggable]="false"
     [resizable]="false"
     [style]="{ width: '50rem' }"
-    header="Submit Bid"
+    [header]="isEditingBid() ? 'Update Bid' : 'Submit Bid'"
     (onHide)="closeBidModal()"
   >
     @if (selectedPlayer()) {
@@ -87,9 +87,22 @@
           (click)="closeBidModal()"
           class="p-button-secondary"
         ></button>
+
+        <!-- Remove Bid Button (only when editing) -->
+        <button
+          *ngIf="isEditingBid()"
+          pButton
+          label="Remove Bid"
+          (click)="removeBid()"
+          [disabled]="isSubmitting()"
+          [loading]="isSubmitting()"
+          class="p-button-danger"
+        ></button>
+
+        <!-- Submit/Update Button -->
         <button
           pButton
-          label="Submit Bid"
+          [label]="isEditingBid() ? 'Update Bid' : 'Submit Bid'"
           (click)="submitBid()"
           [disabled]="isSubmitting()"
           [loading]="isSubmitting()"

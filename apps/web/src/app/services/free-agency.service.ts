@@ -230,12 +230,17 @@ export class FreeAgencyService {
       }
     });
 
-    // Listen to active bids (current week + any carried over from previous weeks)
+    // Listen to ALL bids including accepted ones (for team display)
     const bidsRef = collection(this.firestore, 'faBids');
     const bidsQuery = query(
       bidsRef,
       where('leagueId', '==', leagueId),
-      where('status', 'in', ['pending', 'evaluating', 'shortlisted'])
+      where('status', 'in', [
+        'pending',
+        'evaluating',
+        'shortlisted',
+        'accepted',
+      ])
     );
 
     const unsubscribeBids = onSnapshot(bidsQuery, (snapshot) => {
@@ -243,6 +248,7 @@ export class FreeAgencyService {
       snapshot.forEach((doc) => {
         bids.push({ id: doc.id, ...doc.data() } as FABid);
       });
+
       this.activeBids.set(bids);
     });
 
@@ -309,19 +315,95 @@ export class FreeAgencyService {
       // Don't update local state immediately - let the Firestore listener handle it
       // This prevents duplicate entries when the listener fires
 
-      console.log(`[FA Service] Bid submitted successfully:`, {
-        bidId: bid.id,
-        playerId,
-        teamId,
-        offerValue: offer.apy,
-        dynamicMinimum,
-        leagueRules: currentLeague.rules,
-      });
-
       return bid;
     } catch (error) {
       console.error('Failed to submit bid:', error);
       return null;
+    }
+  }
+
+  /**
+   * Update an existing bid - direct Firestore operation
+   */
+  async updateBid(bidId: string, offer: ContractOffer): Promise<FABid | null> {
+    try {
+      // Get current week for validation
+      const currentWeek = this.currentFAWeek();
+      if (!currentWeek) {
+        throw new Error('No active FA week');
+      }
+
+      // Get current league for rules and validation
+      const currentLeague = this.leagueService.selectedLeague();
+      if (!currentLeague) {
+        throw new Error('No active league found');
+      }
+
+      // Find the existing bid to get player info
+      const existingBid = this.activeBids().find((bid) => bid.id === bidId);
+      if (!existingBid) {
+        throw new Error('Bid not found');
+      }
+
+      // Get player data for contract validation
+      const player = this.sportsDataService.getPlayerById(existingBid.playerId);
+      if (!player) {
+        throw new Error('Player not found');
+      }
+
+      // Calculate dynamic minimum for informational purposes
+      const dynamicMinimum = await this.calculateDynamicPlayerMinimum(
+        player,
+        currentLeague.rules
+      );
+
+      // Create updated bid object
+      const updatedBid: FABid = {
+        ...existingBid,
+        offer,
+        status: 'pending', // Reset to pending when updated
+        submittedAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // Update directly in Firestore
+      const bidRef = doc(this.firestore, 'faBids', bidId);
+      await updateDoc(bidRef, {
+        offer: updatedBid.offer,
+        status: updatedBid.status,
+        submittedAt: updatedBid.submittedAt,
+        updatedAt: updatedBid.updatedAt,
+      });
+
+      return updatedBid;
+    } catch (error) {
+      console.error('Failed to update bid:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Remove an existing bid - direct Firestore operation
+   */
+  async removeBid(bidId: string): Promise<boolean> {
+    try {
+      // Find the existing bid to verify it exists
+      const existingBid = this.activeBids().find((bid) => bid.id === bidId);
+      if (!existingBid) {
+        throw new Error('Bid not found');
+      }
+
+      // Delete the bid from Firestore
+      const bidRef = doc(this.firestore, 'faBids', bidId);
+      await updateDoc(bidRef, {
+        status: 'cancelled',
+        updatedAt: new Date(),
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Failed to remove bid:', error);
+      return false;
     }
   }
 
@@ -987,6 +1069,15 @@ export class FreeAgencyService {
   }
 
   /**
+   * Get ALL team bids including accepted ones (for display purposes)
+   */
+  getAllTeamBids(teamId: string): FABid[] {
+    // For now, return activeBids since we'll update the listener to include accepted bids
+    // TODO: This should query a separate "allBids" collection or include accepted bids
+    return this.activeBids().filter((bid) => bid.teamId === teamId);
+  }
+
+  /**
    * Cancel a pending bid
    */
   async cancelBid(bidId: string): Promise<boolean> {
@@ -1025,16 +1116,22 @@ export class FreeAgencyService {
         throw new Error('No active league found for player evaluation');
       }
 
-      // Get all pending bids for the current week
-      const pendingBids = this.activeBids().filter(
+      // Get all active bids for the current week (pending + shortlisted)
+      const activeBids = this.activeBids().filter(
         (bid) =>
-          bid.status === 'pending' && bid.weekNumber === currentWeek.weekNumber
+          (bid.status === 'pending' || bid.status === 'shortlisted') &&
+          bid.weekNumber === currentWeek.weekNumber
       );
 
-      console.log('[FA Service] Found pending bids:', pendingBids.length);
+      console.log('[FA Service] Found active bids:', activeBids.length);
+      console.log('[FA Service] Bid breakdown:', {
+        pending: activeBids.filter((b) => b.status === 'pending').length,
+        shortlisted: activeBids.filter((b) => b.status === 'shortlisted')
+          .length,
+      });
 
-      if (pendingBids.length === 0) {
-        console.log('[FA Service] No pending bids to evaluate');
+      if (activeBids.length === 0) {
+        console.log('[FA Service] No active bids to evaluate');
         return;
       }
 
@@ -1058,7 +1155,7 @@ export class FreeAgencyService {
 
       // Process evaluation using enhanced logic
       const evaluationResults = await this.evaluateAllPlayerBidsWithPersonality(
-        pendingBids,
+        activeBids,
         allPlayers,
         marketContext,
         currentLeague.rules
@@ -1563,23 +1660,283 @@ export class FreeAgencyService {
       }
     );
 
-    // Import FAWeekManager from domain
-    const { FAWeekManager } = await import('@fantasy-football-dynasty/domain');
-    console.log('[FA Service] FAWeekManager imported successfully');
-
-    // Use the existing FAWeekManager to process evaluation
-    const results = FAWeekManager.processFAWeekEvaluation(
-      bids,
-      players,
-      marketContext,
-      this.defaultSettings
+    // Group bids by player
+    const bidsByPlayer = this.groupBidsByPlayer(bids);
+    console.log(
+      '[FA Service] Bids grouped by player:',
+      Object.keys(bidsByPlayer).length,
+      'players'
     );
+
+    // Process each player's bids with enhanced logic
+    const results: FAEvaluationResult[] = [];
+
+    for (const [playerId, playerBids] of Object.entries(bidsByPlayer)) {
+      console.log(
+        `[FA Service] Processing player ${playerId} with ${playerBids.length} bids`
+      );
+
+      const player = players.find((p) => p.id === playerId);
+      if (!player) {
+        console.warn(
+          `[FA Service] Player ${playerId} not found in players list`
+        );
+        continue;
+      }
+
+      const playerResult = await this.evaluatePlayerBids(
+        player,
+        playerBids,
+        marketContext,
+        leagueRules
+      );
+      results.push(playerResult);
+    }
 
     console.log(
       '[FA Service] Enhanced evaluation completed, results:',
       results.length
     );
     return results;
+  }
+
+  /**
+   * Group bids by player ID
+   */
+  private groupBidsByPlayer(bids: FABid[]): Record<string, FABid[]> {
+    return bids.reduce((acc, bid) => {
+      const playerId = bid.playerId.toString();
+      if (!acc[playerId]) {
+        acc[playerId] = [];
+      }
+      acc[playerId].push(bid);
+      return acc;
+    }, {} as Record<string, FABid[]>);
+  }
+
+  /**
+   * Evaluate bids for a single player with enhanced logic
+   */
+  private async evaluatePlayerBids(
+    player: any,
+    bids: FABid[],
+    marketContext: any,
+    leagueRules: any
+  ): Promise<FAEvaluationResult> {
+    console.log(
+      `[FA Service] Evaluating ${bids.length} bids for player ${player.name}`
+    );
+
+    // Check if player is lower profile (non-primary position or low overall)
+    const isLowerProfile = this.isLowerProfilePlayer(player);
+    const isPrimaryPosition = this.isPrimaryPosition(player.position);
+
+    console.log(`[FA Service] Player profile:`, {
+      name: player.name,
+      position: player.position,
+      overall: player.overall,
+      isLowerProfile,
+      isPrimaryPosition,
+    });
+
+    // If player has only one bid and is lower profile, accept it
+    if (bids.length === 1 && (isLowerProfile || !isPrimaryPosition)) {
+      console.log(
+        `[FA Service] Single bid for lower profile player - accepting immediately`
+      );
+      return {
+        playerId: player.id,
+        marketImpact: {
+          position: player.position,
+          tier: 'depth',
+          benchmarkContract: bids[0].offer,
+          marketShift: 'stable',
+          shiftPercentage: 0.0,
+          affectedPlayers: [],
+        },
+        processedAt: new Date(),
+        decisions: [
+          {
+            playerId: player.id,
+            acceptedBidId: bids[0].id,
+            shortlistedBidIds: [],
+            rejectedBidIds: [],
+            feedback:
+              "I'm excited to accept this offer! Thank you for believing in me.",
+            trustImpact: {},
+            decisionReason: 'accepted',
+            startingPositionProspects: {
+              isStarter: true,
+              confidence: 0.5,
+              competingPlayers: 0,
+              teamDepth: 'shallow',
+              reasoning: 'Single bid received',
+            },
+            contractAnalysis: {
+              aavScore: 0.8,
+              signingBonusScore: 0.7,
+              guaranteeScore: 0.6,
+              lengthScore: 0.9,
+              teamScore: 0.8,
+              totalScore: 0.76,
+              threshold: 0.7,
+            },
+            marketFactors: {
+              competingOffers: 0,
+              positionalDemand: 0.5,
+              marketPressure: 0.3,
+              recentComparables: [],
+            },
+            playerNotes: 'Lower profile player accepting single bid',
+            agentNotes: 'Player is excited about the opportunity',
+          },
+        ],
+      };
+    }
+
+    // If player has only one bid (regardless of profile), give it a special status
+    if (bids.length === 1) {
+      console.log(`[FA Service] Single bid for player - considering`);
+      return {
+        playerId: player.id,
+        marketImpact: {
+          position: player.position,
+          tier: 'depth',
+          benchmarkContract: bids[0].offer,
+          marketShift: 'stable',
+          shiftPercentage: 0.0,
+          affectedPlayers: [],
+        },
+        processedAt: new Date(),
+        decisions: [
+          {
+            playerId: player.id,
+            acceptedBidId: undefined,
+            shortlistedBidIds: [bids[0].id],
+            rejectedBidIds: [],
+            feedback: "I'm considering this offer. I'll make my decision soon.",
+            trustImpact: {},
+            decisionReason: 'shortlisted',
+            startingPositionProspects: {
+              isStarter: true,
+              confidence: 0.5,
+              competingPlayers: 0,
+              teamDepth: 'shallow',
+              reasoning: 'Single bid received',
+            },
+            contractAnalysis: {
+              aavScore: 0.6,
+              signingBonusScore: 0.5,
+              guaranteeScore: 0.4,
+              lengthScore: 0.7,
+              teamScore: 0.6,
+              totalScore: 0.56,
+              threshold: 0.7,
+            },
+            marketFactors: {
+              competingOffers: 0,
+              positionalDemand: 0.5,
+              marketPressure: 0.3,
+              recentComparables: [],
+            },
+            playerNotes: 'Single bid received, considering offer',
+            agentNotes: 'Player is evaluating the opportunity',
+          },
+        ],
+      };
+    }
+
+    // Multiple bids - use domain logic for evaluation
+    console.log(`[FA Service] Multiple bids - using domain evaluation logic`);
+
+    // Import FAWeekManager from domain
+    const { FAWeekManager } = await import('@fantasy-football-dynasty/domain');
+
+    // Use the processFAWeekEvaluation method with just this player's bids
+    const results = FAWeekManager.processFAWeekEvaluation(
+      bids,
+      [player],
+      marketContext,
+      this.defaultSettings
+    );
+
+    // Return the first (and only) result
+    return (
+      results[0] || {
+        playerId: player.id,
+        marketImpact: {
+          position: player.position,
+          tier: 'depth',
+          benchmarkContract: bids[0]?.offer || {
+            years: 1,
+            baseSalary: {},
+            signingBonus: 0,
+            guarantees: [],
+            contractType: 'prove_it',
+            totalValue: 0,
+            apy: 0,
+          },
+          marketShift: 'stable',
+          shiftPercentage: 0.0,
+          affectedPlayers: [],
+        },
+        processedAt: new Date(),
+        decisions: [
+          {
+            playerId: player.id,
+            acceptedBidId: undefined,
+            shortlistedBidIds: bids.map((b) => b.id),
+            rejectedBidIds: [],
+            feedback: "I'm considering all offers. I'll make my decision soon.",
+            trustImpact: {},
+            decisionReason: 'shortlisted',
+            startingPositionProspects: {
+              isStarter: true,
+              confidence: 0.5,
+              competingPlayers: 0,
+              teamDepth: 'shallow',
+              reasoning: 'Multiple bids received',
+            },
+            contractAnalysis: {
+              aavScore: 0.6,
+              signingBonusScore: 0.5,
+              guaranteeScore: 0.4,
+              lengthScore: 0.7,
+              teamScore: 0.6,
+              totalScore: 0.56,
+              threshold: 0.7,
+            },
+            marketFactors: {
+              competingOffers: bids.length,
+              positionalDemand: 0.5,
+              marketPressure: 0.3,
+              recentComparables: [],
+            },
+            playerNotes: 'Multiple bids received, evaluating all offers',
+            agentNotes: 'Player is considering multiple opportunities',
+          },
+        ],
+      }
+    );
+  }
+
+  /**
+   * Check if player is lower profile (non-primary position or low overall)
+   */
+  private isLowerProfilePlayer(player: any): boolean {
+    const nonPrimaryPositions = ['K', 'DEF', 'DL', 'LB', 'DB'];
+    const isNonPrimary = nonPrimaryPositions.includes(player.position);
+    const isLowOverall = player.overall < 75;
+
+    return isNonPrimary || isLowOverall;
+  }
+
+  /**
+   * Check if position is primary (QB, RB, WR, TE)
+   */
+  private isPrimaryPosition(position: string): boolean {
+    const primaryPositions = ['QB', 'RB', 'WR', 'TE'];
+    return primaryPositions.includes(position);
   }
 
   /**
@@ -1641,6 +1998,7 @@ export class FreeAgencyService {
     );
 
     const batch = writeBatch(this.firestore);
+    const contractsToCreate: { bidId: string; playerId: string }[] = [];
 
     for (const result of results) {
       console.log(
@@ -1682,12 +2040,32 @@ export class FreeAgencyService {
           evaluatedAt: new Date(),
         });
 
-        // Add player to team roster
-        console.log('[FA Service] Adding player to team roster...');
-        await this.addPlayerToTeamRoster(
-          result.playerId,
-          decision.acceptedBidId
+        // Reject all other bids for this player
+        console.log(
+          '[FA Service] Rejecting all other bids for player:',
+          result.playerId
         );
+        const allPlayerBids = this.activeBids().filter(
+          (bid) =>
+            bid.playerId.toString() === result.playerId &&
+            bid.id !== decision.acceptedBidId
+        );
+
+        for (const otherBid of allPlayerBids) {
+          console.log('[FA Service] Rejecting bid:', otherBid.id);
+          const otherBidRef = doc(this.firestore, 'faBids', otherBid.id);
+          batch.update(otherBidRef, {
+            status: 'rejected',
+            feedback: 'Player accepted another offer',
+            evaluatedAt: new Date(),
+          });
+        }
+
+        // Queue contract creation for after batch commit
+        contractsToCreate.push({
+          bidId: decision.acceptedBidId,
+          playerId: result.playerId,
+        });
       }
 
       // Update shortlisted bids
@@ -1721,10 +2099,35 @@ export class FreeAgencyService {
       await this.updatePlayerStatus(result.playerId, decision);
     }
 
-    // Commit all updates
+    // Commit all bid updates first
     console.log('[FA Service] Committing batch updates...');
     await batch.commit();
     console.log('[FA Service] Batch updates committed successfully');
+
+    // Now create contracts for accepted bids
+    for (const contractInfo of contractsToCreate) {
+      console.log(
+        '[FA Service] Creating contract from accepted bid:',
+        contractInfo.bidId
+      );
+      try {
+        await this.createContractFromBid(
+          contractInfo.bidId,
+          contractInfo.playerId
+        );
+        console.log(
+          '[FA Service] Successfully created contract for player:',
+          contractInfo.playerId
+        );
+      } catch (error) {
+        console.error(
+          '[FA Service] Error creating contract:',
+          error,
+          'for player:',
+          contractInfo.playerId
+        );
+      }
+    }
   }
 
   /**
@@ -1944,11 +2347,12 @@ export class FreeAgencyService {
       const signingRef = doc(this.firestore, 'openFASignings', signing.id);
       await setDoc(signingRef, signing);
 
-      // Add player to team roster for Open FA signing
-      await this.addPlayerToTeamRosterFromOpenFA(
+      // Create contract and add player to team roster for Open FA signing
+      await this.createContractFromOpenFA(
         playerId.toString(),
         teamId,
-        autoContract
+        autoContract,
+        signing
       );
 
       // Get team name for display
@@ -2122,18 +2526,18 @@ export class FreeAgencyService {
   }
 
   /**
-   * Add a player to the team roster when their bid is accepted
+   * Create a contract from an accepted bid and add to team roster
    */
-  private async addPlayerToTeamRoster(
-    playerId: string,
-    bidId: string
+  private async createContractFromBid(
+    bidId: string,
+    playerId: string
   ): Promise<void> {
     try {
       console.log(
-        `[FA Service] Adding player ${playerId} to team roster (bid: ${bidId})`
+        `[FA Service] Creating contract from bid ${bidId} for player ${playerId}`
       );
 
-      // Get the accepted bid to find the team ID
+      // Get the accepted bid
       const bidRef = doc(this.firestore, 'faBids', bidId);
       const bidDoc = await getDoc(bidRef);
 
@@ -2145,7 +2549,57 @@ export class FreeAgencyService {
       const bidData = bidDoc.data() as FABid;
       const teamId = bidData.teamId;
 
-      console.log(`[FA Service] Adding player ${playerId} to team ${teamId}`);
+      // Get current league
+      const currentLeague = this.currentFAWeek();
+      if (!currentLeague) {
+        console.error('[FA Service] No current FA week found');
+        return;
+      }
+
+      // Create contract document
+      const contractId = `${
+        currentLeague.leagueId
+      }_contract_${playerId}_${Date.now()}`;
+      const contract = {
+        id: contractId,
+        leagueId: currentLeague.leagueId,
+        teamId: teamId,
+        playerId: playerId,
+        originalBidId: bidId,
+        contract: bidData.offer,
+        status: 'active',
+        signedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // Save contract to contracts collection
+      const contractRef = doc(this.firestore, 'contracts', contractId);
+      await setDoc(contractRef, contract);
+
+      console.log(`[FA Service] Contract created: ${contractId}`);
+
+      // Add player to team roster
+      await this.addPlayerToTeamRoster(playerId, teamId, contract);
+    } catch (error) {
+      console.error('Error creating contract from bid:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add a player to the team roster when their bid is accepted
+   */
+  private async addPlayerToTeamRoster(
+    playerId: string,
+    teamId: string,
+    contract: any
+  ): Promise<void> {
+    try {
+      console.log(
+        `[FA Service] Adding player ${playerId} to team roster (team: ${teamId})`
+      );
+      console.log('[FA Service] Contract details:', contract);
 
       // Find the team in the current league
       const currentLeague = this.currentFAWeek();
@@ -2154,17 +2608,37 @@ export class FreeAgencyService {
         return;
       }
 
+      console.log('[FA Service] Current league:', currentLeague.leagueId);
+
       // Get the team's member document from the league service
-      const teamMember = this.leagueService
-        .leagueMembers()
-        .find((member) => member.teamId === teamId);
+      const leagueMembers = this.leagueService.leagueMembers();
+      console.log(
+        '[FA Service] Available league members:',
+        leagueMembers.length
+      );
+      console.log('[FA Service] Looking for teamId:', teamId);
+
+      const teamMember = leagueMembers.find(
+        (member) => member.teamId === teamId
+      );
 
       if (!teamMember) {
         console.error(
           `[FA Service] Team ${teamId} not found in league ${currentLeague.leagueId}`
         );
+        console.error(
+          '[FA Service] Available teamIds:',
+          leagueMembers.map((m) => m.teamId)
+        );
         return;
       }
+
+      console.log('[FA Service] Found team member:', {
+        userId: teamMember.userId,
+        teamId: teamMember.teamId,
+        teamName: teamMember.teamName,
+        currentRosterSize: teamMember.roster?.length || 0,
+      });
 
       // Add player to roster in the member document
       const memberRef = doc(
@@ -2175,31 +2649,108 @@ export class FreeAgencyService {
         teamMember.userId
       );
 
+      console.log('[FA Service] Member document reference:', memberRef.path);
+
       // Create the roster entry
       const rosterEntry = {
         playerId,
-        bidId,
+        contractId: contract.id,
         signedAt: new Date(),
-        contract: bidData.offer,
+        contract: contract.contract,
         status: 'active',
       };
 
+      console.log('[FA Service] Creating roster entry:', rosterEntry);
+
       // Update the member document with the new roster entry
+      const currentRoster = teamMember.roster || [];
+      const newRoster = [...currentRoster, rosterEntry];
+
+      console.log(
+        '[FA Service] Updating roster from',
+        currentRoster.length,
+        'to',
+        newRoster.length,
+        'players'
+      );
+
       await updateDoc(memberRef, {
-        roster: [...teamMember.roster, rosterEntry],
+        roster: newRoster,
         updatedAt: new Date(),
       });
 
       console.log(
         `[FA Service] Successfully added player ${playerId} to team ${teamId} roster`
       );
-      console.log(`[FA Service] Roster entry:`, rosterEntry);
+      console.log(`[FA Service] Final roster entry:`, rosterEntry);
+
+      // Verify the update by refreshing league data
+      console.log(
+        '[FA Service] Refreshing league data to verify roster update...'
+      );
+      await this.leagueService.loadLeagueData(currentLeague.leagueId);
     } catch (error) {
       console.error(
         `[FA Service] Error adding player ${playerId} to roster:`,
         error
       );
+      console.error('[FA Service] Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       // Don't throw - this shouldn't prevent the week advancement
+    }
+  }
+
+  /**
+   * Create a contract from Open FA signing and add to team roster
+   */
+  private async createContractFromOpenFA(
+    playerId: string,
+    teamId: string,
+    contract: ContractOffer,
+    signing: OpenFASigning
+  ): Promise<void> {
+    try {
+      console.log(
+        `[FA Service] Creating contract from Open FA signing for player ${playerId}`
+      );
+
+      // Get current league
+      const currentLeague = this.currentFAWeek();
+      if (!currentLeague) {
+        console.error('[FA Service] No current FA week found');
+        return;
+      }
+
+      // Create contract document
+      const contractId = `${
+        currentLeague.leagueId
+      }_contract_${playerId}_${Date.now()}`;
+      const contractDoc = {
+        id: contractId,
+        leagueId: currentLeague.leagueId,
+        teamId: teamId,
+        playerId: playerId,
+        originalSigningId: signing.id,
+        contract: contract,
+        status: 'active',
+        signedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // Save contract to contracts collection
+      const contractRef = doc(this.firestore, 'contracts', contractId);
+      await setDoc(contractRef, contractDoc);
+
+      console.log(`[FA Service] Open FA contract created: ${contractId}`);
+
+      // Add player to team roster
+      await this.addPlayerToTeamRoster(playerId, teamId, contractDoc);
+    } catch (error) {
+      console.error('Error creating contract from Open FA signing:', error);
+      throw error;
     }
   }
 

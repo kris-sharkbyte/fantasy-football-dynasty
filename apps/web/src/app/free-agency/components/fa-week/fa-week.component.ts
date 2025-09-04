@@ -78,6 +78,8 @@ export class FAWeekComponent implements OnInit {
   public isSubmitting = signal<boolean>(false);
   public playerMinimum = signal<number | null>(null);
   public marketContextSummary = signal<any>(null);
+  public isEditingBid = signal<boolean>(false);
+  public existingBidId = signal<string | null>(null);
 
   // Computed values from services
   public availablePlayers = computed(() =>
@@ -149,7 +151,11 @@ export class FAWeekComponent implements OnInit {
    * Open bid modal for a player
    */
   openBidModal(player: SportsPlayer): void {
-    console.log('zzzplayer', player);
+    console.log('[FA Week] Opening bid modal for player:', {
+      playerId: player.PlayerID,
+      name: `${player.FirstName} ${player.LastName}`,
+      position: player.Position,
+    });
     this.selectedPlayer.set(player);
     this.initializeBidForm(player);
     this.showBidModal.set(true);
@@ -162,10 +168,12 @@ export class FAWeekComponent implements OnInit {
     this.showBidModal.set(false);
     this.selectedPlayer.set(null);
     this.bidForm.set({ years: 1, baseSalary: 0, signingBonus: 0 });
+    this.isEditingBid.set(false);
+    this.existingBidId.set(null);
   }
 
   /**
-   * Initialize bid form with player minimum
+   * Initialize bid form with player minimum and existing bid if available
    */
   private async initializeBidForm(player: SportsPlayer): Promise<void> {
     try {
@@ -174,11 +182,38 @@ export class FAWeekComponent implements OnInit {
       );
       this.playerMinimum.set(minimum);
 
-      this.bidForm.set({
-        years: 1,
-        baseSalary: minimum || 0,
-        signingBonus: 0,
-      });
+      // Check if current team has an existing bid on this player
+      const currentTeamId = this.leagueService.currentUserTeamId();
+      const existingBid = this.getExistingBidForPlayer(
+        player.PlayerID,
+        currentTeamId
+      );
+
+      if (existingBid) {
+        // Pre-populate with existing bid data
+        const baseSalary =
+          existingBid.offer.baseSalary[new Date().getFullYear()] || 0;
+        this.bidForm.set({
+          years: existingBid.offer.years,
+          baseSalary: baseSalary,
+          signingBonus: existingBid.offer.signingBonus || 0,
+        });
+
+        // Set editing state
+        this.isEditingBid.set(true);
+        this.existingBidId.set(existingBid.id);
+      } else {
+        // Initialize with minimum or default values
+        this.bidForm.set({
+          years: 1,
+          baseSalary: minimum || 0,
+          signingBonus: 0,
+        });
+
+        // Set new bid state
+        this.isEditingBid.set(false);
+        this.existingBidId.set(null);
+      }
     } catch (error) {
       console.error('Error getting player minimum:', error);
       this.bidForm.set({ years: 1, baseSalary: 0, signingBonus: 0 });
@@ -221,6 +256,12 @@ export class FAWeekComponent implements OnInit {
         throw new Error('Team not found for current user');
       }
 
+      // Check if we have an existing bid for this player
+      const existingBid = this.getExistingBidForPlayer(
+        player.PlayerID,
+        currentUserTeamId
+      );
+
       // Create contract offer
       const contractOffer = {
         years: this.bidForm().years as 1 | 2 | 3,
@@ -249,24 +290,32 @@ export class FAWeekComponent implements OnInit {
         });
       }
 
-      // Submit bid
-      const bid = await this.freeAgencyService.submitBid(
-        player.PlayerID,
-        currentUserTeamId,
-        contractOffer
-      );
+      // Submit or update bid
+      let bid;
+      if (existingBid) {
+        bid = await this.freeAgencyService.updateBid(
+          existingBid.id,
+          contractOffer
+        );
+      } else {
+        bid = await this.freeAgencyService.submitBid(
+          player.PlayerID,
+          currentUserTeamId,
+          contractOffer
+        );
+      }
 
       if (bid) {
+        const action = existingBid ? 'updated' : 'submitted';
         this.messageService.add({
           severity: 'success',
-          summary: 'Bid Submitted',
-          detail: `Bid submitted successfully for ${player.FirstName} ${player.LastName}`,
+          summary: `Bid ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+          detail: `Bid ${action} successfully for ${player.FirstName} ${player.LastName}`,
           life: 3000,
         });
-        console.log('Bid submitted successfully:', bid);
         this.closeBidModal();
       } else {
-        throw new Error('Failed to submit bid');
+        throw new Error(`Failed to ${existingBid ? 'update' : 'submit'} bid`);
       }
     } catch (error) {
       console.error('Error submitting bid:', error);
@@ -373,5 +422,61 @@ export class FAWeekComponent implements OnInit {
     // This would typically come from a team logo service
     // For now, return undefined to show team initials
     return undefined;
+  }
+
+  /**
+   * Get existing bid for a player from current team
+   */
+  private getExistingBidForPlayer(
+    playerId: number,
+    teamId: string | null
+  ): any | null {
+    if (!teamId) return null;
+
+    const activeBids = this.activeBids();
+    const existingBid = activeBids.find(
+      (bid) => bid.playerId === playerId && bid.teamId === teamId
+    );
+
+    return existingBid || null;
+  }
+
+  /**
+   * Remove an existing bid
+   */
+  async removeBid(): Promise<void> {
+    const bidId = this.existingBidId();
+    if (!bidId) return;
+
+    try {
+      this.isSubmitting.set(true);
+
+      const success = await this.freeAgencyService.removeBid(bidId);
+
+      if (success) {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Bid Removed',
+          detail: 'Your bid has been removed successfully',
+          life: 3000,
+        });
+        this.closeBidModal();
+      } else {
+        throw new Error('Failed to remove bid');
+      }
+    } catch (error) {
+      console.error('Error removing bid:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Bid Removal Failed',
+        detail:
+          error instanceof Error
+            ? error.message
+            : 'Failed to remove bid. Please try again.',
+        life: 5000,
+      });
+    } finally {
+      this.isSubmitting.set(false);
+    }
   }
 }

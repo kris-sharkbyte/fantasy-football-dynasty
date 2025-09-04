@@ -57,18 +57,6 @@
       <div class="text-green-600 font-semibold text-sm">Team Ready ✓</div>
       } }
 
-      <!-- Test button for triggering evaluation -->
-      @if (weekStatus() === 'active') {
-      <p-button
-        label="Evaluate Bids"
-        (onClick)="triggerWeeklyEvaluation()"
-        severity="info"
-        size="small"
-        [title]="'Manually trigger weekly player evaluation (for testing)'"
-      >
-      </p-button>
-      }
-
       <!-- Advance Week button (commissioner only) -->
       @if (isReadyToAdvance()) {
       <p-button

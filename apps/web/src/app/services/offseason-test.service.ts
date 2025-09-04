@@ -907,30 +907,236 @@ export class OffseasonTestService {
       let bidsProcessed = 0;
       let playersSigned = 0;
 
-      for (const bid of weekBids) {
-        // Simulate bid resolution
-        const statuses: ('accepted' | 'rejected' | 'shortlisted')[] = [
-          'accepted',
-          'rejected',
-          'shortlisted',
-        ];
-        bid.status = statuses[Math.floor(Math.random() * statuses.length)];
-        bid.resolvedAt = new Date();
+      // Use the enhanced FA evaluation system instead of random assignment
+      if (weekBids.length > 0) {
+        console.log(
+          '🔍 [FA Test] Starting enhanced evaluation for week',
+          this.currentWeek
+        );
+        console.log('📊 [FA Test] Bids to evaluate:', weekBids.length);
+        weekBids.forEach((bid, index) => {
+          console.log(
+            `  Bid ${index + 1}: ${bid.playerName} (${
+              bid.position
+            }) - $${bid.bidAmount.toLocaleString()}/${bid.contractYears}y by ${
+              bid.teamId
+            }`
+          );
+        });
 
-        if (bid.status === 'accepted') {
-          playersSigned++;
+        try {
+          // Import the enhanced FA evaluation system
+          const { FAWeekManager } = await import(
+            '@fantasy-football-dynasty/domain'
+          );
+
+          // Convert BidHistory to FABid format for evaluation
+          const faBids = weekBids.map((bid) => ({
+            id: `${bid.playerId}-${bid.teamId}-${bid.submittedAt.getTime()}`,
+            teamId: bid.teamId,
+            playerId: parseInt(bid.playerId.replace('player-', '')), // Convert string to number
+            leagueId: bid.leagueId,
+            weekNumber: this.currentWeek,
+            status: 'pending' as const,
+            offer: {
+              years: bid.contractYears as 1 | 2 | 3,
+              baseSalary: { [new Date().getFullYear()]: bid.bidAmount },
+              signingBonus: 0,
+              guarantees: [],
+              contractType: 'standard' as const,
+              totalValue: bid.bidAmount * bid.contractYears,
+              apy: bid.bidAmount,
+            },
+            submittedAt: bid.submittedAt,
+          }));
+
+          // Create mock players for evaluation
+          const players = weekBids.map((bid) => ({
+            id: bid.playerId,
+            name: bid.playerName,
+            position: bid.position as
+              | 'QB'
+              | 'RB'
+              | 'WR'
+              | 'TE'
+              | 'K'
+              | 'DEF'
+              | 'DL'
+              | 'LB'
+              | 'DB',
+            overall: 75, // Default overall for test
+            age: 28, // Default age for test
+            devGrade: 'B' as const,
+            yearsExp: 5, // Default years of experience
+            traits: {
+              speed: 80,
+              strength: 80,
+              agility: 80,
+              awareness: 80,
+              catching: 80,
+              throwing: 80,
+              injury: 0,
+              schemeFit: ['balanced'],
+            },
+            nflTeam: 'FA',
+            contract: null,
+            stats: [], // Empty stats array
+          }));
+
+          // Create market context
+          const marketContext = {
+            currentWeek: this.currentWeek,
+            positionalDemand: 0.6,
+            leagueCap: 200000000,
+            averageTeamCap: 180000000,
+            marketPressure: 0.5,
+            competingOffers: 0,
+            capSpaceAvailable: 0,
+            recentComps: [],
+            seasonStage: 'EarlyFA' as const,
+            teamReputation: 0.5,
+          };
+
+          // Use the same settings as the real FA system
+          const settings = {
+            maxConcurrentOffers: 6,
+            evaluationFrequency: 'weekly' as const,
+            shortlistSize: 3,
+            trustPenalty: 0.2,
+            marketRippleEnabled: true,
+            openFADiscount: 20,
+          };
+
+          // Process evaluation using enhanced logic
+          console.log('⚙️ [FA Test] Market context:', {
+            week: marketContext.currentWeek,
+            positionalDemand: marketContext.positionalDemand,
+            marketPressure: marketContext.marketPressure,
+            seasonStage: marketContext.seasonStage,
+          });
+
+          const results = FAWeekManager.processFAWeekEvaluation(
+            faBids,
+            players,
+            marketContext,
+            settings
+          );
+
+          console.log(
+            '🎯 [FA Test] Evaluation results:',
+            results.length,
+            'players evaluated'
+          );
+
+          // Update bid statuses based on evaluation results
+          for (const result of results) {
+            for (const decision of result.decisions) {
+              console.log(
+                `\n📋 [FA Test] Player ${result.playerId} decision:`,
+                {
+                  decisionReason: decision.decisionReason,
+                  acceptedBidId: decision.acceptedBidId,
+                  shortlistedBidIds: decision.shortlistedBidIds,
+                  rejectedBidIds: decision.rejectedBidIds,
+                  contractAnalysis: decision.contractAnalysis,
+                  feedback: decision.feedback,
+                }
+              );
+
+              const bid = weekBids.find(
+                (b) =>
+                  decision.acceptedBidId?.includes(b.playerId) ||
+                  decision.shortlistedBidIds?.some((id) =>
+                    id.includes(b.playerId)
+                  ) ||
+                  decision.rejectedBidIds?.some((id) => id.includes(b.playerId))
+              );
+
+              if (bid) {
+                const oldStatus = bid.status;
+                if (decision.acceptedBidId?.includes(bid.playerId)) {
+                  bid.status = 'accepted';
+                  playersSigned++;
+                  console.log(
+                    `✅ [FA Test] ACCEPTED: ${bid.playerName} by ${
+                      bid.teamId
+                    } - $${bid.bidAmount.toLocaleString()}/${
+                      bid.contractYears
+                    }y`
+                  );
+                } else if (
+                  decision.shortlistedBidIds?.some((id) =>
+                    id.includes(bid.playerId)
+                  )
+                ) {
+                  bid.status = 'shortlisted';
+                  console.log(
+                    `⏳ [FA Test] SHORTLISTED: ${bid.playerName} by ${
+                      bid.teamId
+                    } - $${bid.bidAmount.toLocaleString()}/${
+                      bid.contractYears
+                    }y`
+                  );
+                } else if (
+                  decision.rejectedBidIds?.some((id) =>
+                    id.includes(bid.playerId)
+                  )
+                ) {
+                  bid.status = 'rejected';
+                  console.log(
+                    `❌ [FA Test] REJECTED: ${bid.playerName} by ${
+                      bid.teamId
+                    } - $${bid.bidAmount.toLocaleString()}/${
+                      bid.contractYears
+                    }y (${decision.decisionReason})`
+                  );
+                }
+
+                bid.resolvedAt = new Date();
+                bid.feedback =
+                  decision.feedback || this.generateRejectionFeedback();
+                bidsProcessed++;
+              }
+            }
+          }
+        } catch (error) {
+          console.error(
+            '❌ [FA Test] Error using enhanced FA evaluation:',
+            error
+          );
+          console.log('🔄 [FA Test] Falling back to random assignment...');
+          // Fallback to random assignment if enhanced system fails
+          for (const bid of weekBids) {
+            const statuses: ('accepted' | 'rejected' | 'shortlisted')[] = [
+              'accepted',
+              'rejected',
+              'shortlisted',
+            ];
+            bid.status = statuses[Math.floor(Math.random() * statuses.length)];
+            bid.resolvedAt = new Date();
+
+            if (bid.status === 'accepted') {
+              playersSigned++;
+            }
+
+            if (bid.status === 'rejected') {
+              bid.feedback = this.generateRejectionFeedback();
+            } else if (bid.status === 'shortlisted') {
+              bid.feedback = this.generateShortlistFeedback();
+            }
+
+            bidsProcessed++;
+          }
         }
-
-        if (bid.status === 'rejected') {
-          bid.feedback = this.generateRejectionFeedback();
-        } else if (bid.status === 'shortlisted') {
-          bid.feedback = this.generateShortlistFeedback();
-        }
-
-        bidsProcessed++;
       }
 
       this.currentWeek++;
+
+      console.log(`\n🎉 [FA Test] Week ${this.currentWeek - 1} completed!`);
+      console.log(
+        `📊 [FA Test] Summary: ${bidsProcessed} bids processed, ${playersSigned} players signed`
+      );
+      console.log('='.repeat(60));
 
       return {
         success: true,

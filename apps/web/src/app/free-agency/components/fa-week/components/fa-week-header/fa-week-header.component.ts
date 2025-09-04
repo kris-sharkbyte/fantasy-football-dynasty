@@ -119,16 +119,4 @@ export class FAWeekHeaderComponent implements OnInit {
       console.error('Error advancing week:', error);
     }
   }
-
-  /**
-   * Trigger weekly evaluation manually (for testing)
-   */
-  async triggerWeeklyEvaluation(): Promise<void> {
-    try {
-      await this.freeAgencyService.triggerWeeklyEvaluation();
-      console.log('Weekly evaluation triggered successfully');
-    } catch (error) {
-      console.error('Error triggering weekly evaluation:', error);
-    }
-  }
 }

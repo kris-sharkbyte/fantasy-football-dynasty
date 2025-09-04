@@ -458,6 +458,14 @@ export class PlayersTableComponent implements OnInit {
       }
     });
 
+    // Effect: Listen to active bids changes from free agency service
+    effect(() => {
+      if (this.isBidMode()) {
+        const activeBids = this.freeAgencyService.activeBids();
+        this._activeBids.set(activeBids);
+      }
+    });
+
     // Effect: Monitor player minimums changes for debugging // Removed
     // effect(() => { // Removed
     //   const minimums = this._playerMinimums(); // Removed
@@ -814,17 +822,29 @@ export class PlayersTableComponent implements OnInit {
    * Get bid count for a specific player
    */
   getPlayerBidCount(playerId: string | number): number {
-    const id = playerId?.toString();
-    if (!id) return 0;
-    return this._activeBids().filter((bid) => bid.playerId === id).length;
+    const id =
+      typeof playerId === 'number'
+        ? playerId
+        : parseInt(playerId?.toString() || '0');
+    if (!id || isNaN(id)) {
+      return 0;
+    }
+
+    const activeBids = this._activeBids();
+    const playerBids = activeBids.filter((bid) => bid.playerId === id);
+
+    return playerBids.length;
   }
 
   /**
    * Check if current team has bid on a player
    */
   hasTeamBid(playerId: string | number): boolean {
-    const id = playerId?.toString();
-    if (!id) return false;
+    const id =
+      typeof playerId === 'number'
+        ? playerId
+        : parseInt(playerId?.toString() || '0');
+    if (!id || isNaN(id)) return false;
 
     const currentTeamId = this.leagueService.currentUserTeamId();
     if (!currentTeamId) return false;

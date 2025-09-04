@@ -520,10 +520,11 @@ export interface FABid {
   playerId: number;
   weekNumber: number;
   offer: ContractOffer;
-  status: 'pending' | 'accepted' | 'shortlisted' | 'rejected';
+  status: 'pending' | 'accepted' | 'shortlisted' | 'considering' | 'rejected';
   submittedAt: Date;
   evaluatedAt?: Date;
   feedback?: string; // Player's response message
+  updatedAt?: Date; // When the bid was last updated
 }
 
 // FA Week Evaluation Results
@@ -543,7 +544,12 @@ export interface PlayerDecision {
   feedback: string; // Player's reasoning
   trustImpact: Record<string, number>; // Impact on team trust scores
   // Enhanced decision details
-  decisionReason: 'accepted' | 'shortlisted' | 'rejected' | 'waiting';
+  decisionReason:
+    | 'accepted'
+    | 'shortlisted'
+    | 'rejected'
+    | 'rejected_lowball'
+    | 'waiting';
   startingPositionProspects: {
     isStarter: boolean;
     confidence: number; // 0-1 scale
