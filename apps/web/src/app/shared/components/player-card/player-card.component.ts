@@ -1,7 +1,8 @@
-import { Component, Input, signal, computed, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BadgeModule } from 'primeng/badge';
 import { TagModule } from 'primeng/tag';
+import { ButtonModule } from 'primeng/button';
 import { SportsDataService } from '../../../services/sports-data.service';
 
 export interface PlayerCardData {
@@ -26,6 +27,7 @@ export interface PlayerCardConfig {
   showStatus?: boolean;
   showTeamLogo?: boolean;
   showPlayerPhoto?: boolean;
+  showSocialMediaLink?: boolean; // Show link to view player's social media
   size?: 'small' | 'medium' | 'large';
   layout?: 'horizontal' | 'vertical';
   theme?: 'dark' | 'light';
@@ -34,7 +36,7 @@ export interface PlayerCardConfig {
 @Component({
   selector: 'app-player-card',
   standalone: true,
-  imports: [CommonModule, BadgeModule, TagModule],
+  imports: [CommonModule, BadgeModule, TagModule, ButtonModule],
   template: `
     <div
       class="flex items-center gap-4 p-4 rounded-xl transition-all duration-200 ease-in-out hover:transform hover:-translate-y-1 hover:shadow-lg"
@@ -145,12 +147,24 @@ export class PlayerCardComponent {
     showStatus: false,
     showTeamLogo: true,
     showPlayerPhoto: true,
+    showSocialMediaLink: false,
     size: 'medium',
     layout: 'horizontal',
     theme: 'dark',
   };
+  @Input() leagueId?: string; // Optional league ID for social media link
+  @Output() socialMediaClick = new EventEmitter<{ playerId: number; leagueId: string }>();
 
   private sportsDataService = inject(SportsDataService);
+
+  onSocialMediaClick(): void {
+    if (this.leagueId) {
+      this.socialMediaClick.emit({
+        playerId: this.playerData.playerId,
+        leagueId: this.leagueId,
+      });
+    }
+  }
 
   // Computed classes for dynamic styling
   cardClasses = computed(() => {

@@ -7,12 +7,16 @@
       <p>League details and management will go here...</p>
       
       <!-- Team Navigation -->
-      <div class="team-navigation mt-4">
+      <div class="team-navigation mt-4 flex gap-2 flex-wrap">
         <button 
-          class="btn-primary" 
-          (click)="navigateToTeam()"
-          class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+          class="btn-primary bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+          (click)="navigateToTeam()">
           👥 Manage My Team
+        </button>
+        <button 
+          class="btn-secondary bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+          (click)="openSocialMediaFeed()">
+          📱 Social Media Feed
         </button>
       </div>
     </div>
@@ -71,3 +75,22 @@
 @if (showSettingsView) { @if (league()) {
 <app-league-settings [league]="league()!"></app-league-settings>
 } }
+
+<!-- Social Media Feed Modal -->
+@if (leagueId()) {
+<app-social-media-feed-modal
+  [visible]="socialMediaModalVisible()"
+  [leagueId]="leagueId()!"
+  (visibleChange)="socialMediaModalVisible.set($event)"
+></app-social-media-feed-modal>
+}
+
+<!-- Player Profile Modal -->
+<app-player-profile-modal
+  [visible]="playerProfileModalVisible()"
+  [player]="selectedPlayer()"
+  [overall]="selectedPlayer()?.overall"
+  [expectedValue]="selectedPlayer()?.minimumContract || selectedPlayer()?.marketValue"
+  [personality]="selectedPlayer()?.personality"
+  (visibleChange)="playerProfileModalVisible.set($event)"
+></app-player-profile-modal>

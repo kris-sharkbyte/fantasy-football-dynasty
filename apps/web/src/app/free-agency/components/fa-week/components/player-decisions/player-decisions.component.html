@@ -313,14 +313,13 @@
 
   <!-- Decision Detail Modal -->
   <p-dialog
-    [visible]="showDecisionModal()"
+    [(visible)]="showDecisionModal"
     [modal]="true"
     [closable]="true"
     [draggable]="false"
     [resizable]="false"
     [style]="{ width: '60rem' }"
     header="Player Decision Details"
-    (onHide)="closeDecisionModal()"
   >
     @if (selectedDecision()) {
     <div class="decision-detail-content">

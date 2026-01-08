@@ -29,6 +29,21 @@ export class AppMenu implements OnInit {
         },
       ],
     } as MenuItem,
+    {
+      label: 'Admin Tools',
+      items: [
+        {
+          label: 'FA Simulator',
+          icon: 'pi pi-fw pi-cog',
+          routerLink: ['/simulator/fa'],
+        },
+        {
+          label: 'Offseason Test',
+          icon: 'pi pi-fw pi-calendar',
+          routerLink: ['/testing/offseason'],
+        },
+      ],
+    } as MenuItem,
   ];
 
   menuModel = computed(() => this.adminMenu);

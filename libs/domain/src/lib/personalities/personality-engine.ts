@@ -504,43 +504,89 @@ export class PersonalityEngine {
   }
 
   /**
-   * Generate dynamic feedback with template variables
+   * Generate dynamic feedback with template variables and round awareness
    */
   private static generateDynamicFeedback(
     player: EnhancedPlayer,
     decision: any,
-    context: ContractEvaluationContext
+    context: ContractEvaluationContext,
+    negotiationRound: number = 1,
+    patienceRemaining: number = 5
   ): string {
     const templates = player.personality.feedbackTemplates;
     const finalScore = decision.finalScore || 0.5;
 
+    let message: string;
+
     switch (decision.decision) {
       case 'accept':
-        return this.generateAcceptanceFeedback(player, context);
+        message = this.generateAcceptanceFeedback(player, context);
+        // No prefix for acceptances - they're final and positive
+        return this.replaceTemplateVariables(
+          message,
+          player,
+          context,
+          finalScore,
+          negotiationRound,
+          patienceRemaining
+        );
+
       case 'reject':
         const rejectTemplate = this.selectRandomTemplate(
           templates.rejectLowOffer
         );
-        return this.replaceTemplateVariables(
+        message = this.replaceTemplateVariables(
           rejectTemplate,
           player,
           context,
-          finalScore
+          finalScore,
+          negotiationRound,
+          patienceRemaining
         );
+        // Apply round prefix to rejections
+        return this.applyRoundPrefix(message, negotiationRound, patienceRemaining);
+
       case 'counter':
         const counterTemplate = this.selectRandomTemplate(
           templates.counterOffer
         );
-        return this.replaceTemplateVariables(
+        message = this.replaceTemplateVariables(
           counterTemplate,
           player,
           context,
-          finalScore
+          finalScore,
+          negotiationRound,
+          patienceRemaining
         );
+        // Apply round prefix to counters
+        return this.applyRoundPrefix(message, negotiationRound, patienceRemaining);
+
       case 'holdout':
-        return this.selectRandomTemplate(templates.holdoutWarning);
+        const holdoutTemplate = this.selectRandomTemplate(
+          templates.holdoutWarning
+        );
+        message = this.replaceTemplateVariables(
+          holdoutTemplate,
+          player,
+          context,
+          finalScore,
+          negotiationRound,
+          patienceRemaining
+        );
+        // Apply round prefix to holdout warnings
+        return this.applyRoundPrefix(message, negotiationRound, patienceRemaining);
+
       case 'shortlist':
-        return this.generateShortlistFeedback(player, context);
+        message = this.generateShortlistFeedback(player, context);
+        return this.replaceTemplateVariables(
+          message,
+          player,
+          context,
+          finalScore,
+          negotiationRound,
+          patienceRemaining
+        );
+
       default:
         return "I'm considering my options.";
     }
@@ -553,19 +599,35 @@ export class PersonalityEngine {
     template: string,
     player: EnhancedPlayer,
     context: ContractEvaluationContext,
-    score: number
+    score: number,
+    negotiationRound: number = 1,
+    patienceRemaining: number = 5
   ): string {
     let result = template;
 
-    // Replace common variables
+    // === MARKET & GAP VARIABLES ===
     result = result.replace(
       '{gap_to_market}',
       this.calculateGapToMarket(context)
     );
     result = result.replace(
+      '{gap_percentage}',
+      this.calculateGapPercentage(context)
+    );
+    result = result.replace(
       '{team_competitiveness}',
       this.getTeamCompetitiveness(context.team)
     );
+    result = result.replace(
+      '{market_trend}',
+      player.personality.marketContext?.marketTrend || 'stable'
+    );
+    result = result.replace(
+      '{competing_offers}',
+      context.competingOffers.length.toString()
+    );
+
+    // === PERSONALITY WEIGHT VARIABLES ===
     result = result.replace(
       '{money_priority}',
       player.personality.weights.moneyPriority.toFixed(2)
@@ -575,9 +637,23 @@ export class PersonalityEngine {
       player.personality.weights.guaranteePriority.toFixed(2)
     );
     result = result.replace(
+      '{winning_priority}',
+      player.personality.weights.winningPriority.toFixed(2)
+    );
+    result = result.replace(
+      '{location_priority}',
+      player.personality.weights.locationPriority.toFixed(2)
+    );
+    result = result.replace(
+      '{length_priority}',
+      player.personality.weights.lengthPriority.toFixed(2)
+    );
+    result = result.replace(
       '{location_match}',
       context.offer.locationMatch.toFixed(2)
     );
+
+    // === HIDDEN SLIDER VARIABLES ===
     result = result.replace(
       '{ego_level}',
       this.getEgoLevel(player.personality.hiddenSliders.ego)
@@ -595,7 +671,133 @@ export class PersonalityEngine {
       this.getInjuryAnxietyLevel(player.personality.hiddenSliders.injuryAnxiety)
     );
 
+    // === OFFER VARIABLES ===
+    result = result.replace('{offer_apy}', this.formatCurrency(context.offer.apy));
+    result = result.replace('{offer_years}', context.offer.years.toString());
+    result = result.replace(
+      '{offer_guaranteed}',
+      this.formatCurrency(context.offer.guaranteedAmount)
+    );
+    result = result.replace(
+      '{offer_bonus}',
+      this.formatCurrency(context.offer.signingBonus)
+    );
+    result = result.replace(
+      '{offer_total}',
+      this.formatCurrency(context.offer.totalValue)
+    );
+
+    // === EXPECTED VALUE VARIABLES ===
+    const expectedAAV = this.calculateExpectedAAV(player, context.marketConditions);
+    result = result.replace('{expected_apy}', this.formatCurrency(expectedAAV));
+
+    // === PLAYER VARIABLES ===
+    result = result.replace('{position}', player.position);
+    result = result.replace('{age}', player.age.toString());
+    result = result.replace(
+      '{contract_length_pref}',
+      this.calculateDesiredYears(player).toString()
+    );
+
+    // === NEGOTIATION ROUND VARIABLES ===
+    result = result.replace('{negotiation_round}', negotiationRound.toString());
+    result = result.replace('{rounds_remaining}', patienceRemaining.toString());
+    result = result.replace(
+      '{is_final_round}',
+      patienceRemaining <= 1 ? 'yes' : 'no'
+    );
+
     return result;
+  }
+
+  /**
+   * Apply round-aware prefix to a template message
+   */
+  private static applyRoundPrefix(
+    message: string,
+    negotiationRound: number,
+    patienceRemaining: number
+  ): string {
+    // Determine round phase
+    let phase: 'early' | 'mid' | 'late' | 'final';
+    if (patienceRemaining <= 1) {
+      phase = 'final';
+    } else if (negotiationRound >= 4 || patienceRemaining <= 2) {
+      phase = 'late';
+    } else if (negotiationRound >= 2) {
+      phase = 'mid';
+    } else {
+      phase = 'early';
+    }
+
+    // Select prefix based on phase (with randomization)
+    const prefixes = this.getRoundPrefixes(phase);
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+
+    return prefix + message;
+  }
+
+  /**
+   * Get round-appropriate prefixes
+   */
+  private static getRoundPrefixes(
+    phase: 'early' | 'mid' | 'late' | 'final'
+  ): string[] {
+    switch (phase) {
+      case 'early':
+        return ['', 'Look, ', "Let me be clear: ", "Here's where we stand: "];
+      case 'mid':
+        return [
+          "We've been at this a while now. ",
+          'After considering your offers, ',
+          "I've talked it over with my agent. ",
+          "Let's cut to the chase: ",
+        ];
+      case 'late':
+        return [
+          'This is getting frustrating. ',
+          'Time is running out. ',
+          'I need to make a decision soon. ',
+          "We're running out of patience here. ",
+        ];
+      case 'final':
+        return [
+          'This is my final answer: ',
+          "I'm done negotiating. ",
+          'Take it or leave it: ',
+          'Last chance: ',
+        ];
+      default:
+        return [''];
+    }
+  }
+
+  /**
+   * Calculate gap percentage between offer and market
+   */
+  private static calculateGapPercentage(
+    context: ContractEvaluationContext
+  ): string {
+    if (context.competingOffers.length === 0) return '0';
+
+    const avgCompetingAAV =
+      context.competingOffers.reduce((sum, o) => sum + o.apy, 0) /
+      context.competingOffers.length;
+    const gap = ((context.offer.apy - avgCompetingAAV) / avgCompetingAAV) * 100;
+
+    return Math.abs(Math.round(gap)).toString();
+  }
+
+  /**
+   * Format currency for display in templates
+   */
+  private static formatCurrency(amount: number): string {
+    if (amount >= 1000000) {
+      return `$${(amount / 1000000).toFixed(1)}M`;
+    } else if (amount >= 1000) {
+      return `$${(amount / 1000).toFixed(0)}K`;
+    }
+    return `$${amount}`;
   }
 
   // Helper methods for template variable replacement
@@ -761,6 +963,14 @@ export class PersonalityEngine {
     player: EnhancedPlayer,
     context: ContractEvaluationContext
   ): string {
+    const templates = player.personality.feedbackTemplates;
+
+    // Use templates from personality if available
+    if (templates.accept && templates.accept.length > 0) {
+      return this.selectRandomTemplate(templates.accept);
+    }
+
+    // Fallback to trait-based messages
     const traits = player.personality.traits;
 
     if (
@@ -784,6 +994,14 @@ export class PersonalityEngine {
     player: EnhancedPlayer,
     context: ContractEvaluationContext
   ): string {
+    const templates = player.personality.feedbackTemplates;
+
+    // Use shortlist templates from personality if available
+    if (templates.shortlist && templates.shortlist.length > 0) {
+      return this.selectRandomTemplate(templates.shortlist);
+    }
+
+    // Fallback to trait-based messages
     const traits = player.personality.traits;
 
     if (traits.negotiationStyle === 'patient') {

@@ -1,0 +1,391 @@
+<div class="fa-simulator">
+  <div class="header mb-4">
+    <h1 class="text-3xl font-bold text-primary">🏈 FA System LLM Simulator</h1>
+    <p class="text-secondary">
+      Test the OpenAI-powered Free Agency evaluation system
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+    <!-- Configuration Card -->
+    <p-card header="⚙️ Week & Scenario" styleClass="h-full">
+      <div class="flex flex-col gap-4">
+        <div class="field">
+          <label for="weekNumber" class="block text-sm font-medium mb-2"
+            >FA Week</label
+          >
+          <p-select
+            [options]="weekOptions"
+            [(ngModel)]="currentWeek"
+            optionLabel="label"
+            optionValue="value"
+            styleClass="w-full"
+          >
+          </p-select>
+        </div>
+
+        <div class="field">
+          <label for="bidScenario" class="block text-sm font-medium mb-2"
+            >Bid Scenario</label
+          >
+          <p-select
+            [options]="bidScenarioOptions"
+            [(ngModel)]="bidScenario"
+            optionLabel="label"
+            optionValue="value"
+            styleClass="w-full"
+          >
+          </p-select>
+          <small class="text-secondary">{{
+            getBidScenarioDescription()
+          }}</small>
+        </div>
+      </div>
+    </p-card>
+
+    <!-- Player Config Card -->
+    <p-card header="🏈 Player Settings" styleClass="h-full">
+      <div class="flex flex-col gap-4">
+        <div class="field">
+          <label for="personality" class="block text-sm font-medium mb-2"
+            >Personality Type</label
+          >
+          <p-select
+            [options]="personalityOptions"
+            [(ngModel)]="personalityType"
+            optionLabel="label"
+            optionValue="value"
+            styleClass="w-full"
+          >
+          </p-select>
+          <small class="text-secondary">{{
+            getPersonalityDescription()
+          }}</small>
+        </div>
+
+        <div class="field">
+          <label for="overall" class="block text-sm font-medium mb-2"
+            >Player Overall: {{ playerOverall() }}</label
+          >
+          <p-slider
+            [(ngModel)]="playerOverall"
+            [min]="60"
+            [max]="99"
+            styleClass="w-full"
+          ></p-slider>
+          <div class="flex justify-between text-xs text-secondary mt-1">
+            <span>60 (Backup)</span>
+            <span>Expected APY: {{ formatCurrency(getExpectedAPY()) }}</span>
+            <span>99 (Elite)</span>
+          </div>
+        </div>
+      </div>
+    </p-card>
+
+    <!-- Actions & Status Card -->
+    <p-card header="🚀 Run Simulation" styleClass="h-full">
+      <div class="flex flex-col gap-4">
+        <!-- Action Buttons -->
+        <div class="flex gap-2 flex-wrap">
+          <p-button
+            label="Run Simulation"
+            icon="pi pi-play"
+            [loading]="isLoading()"
+            (onClick)="runSimulation()"
+            styleClass="w-full"
+          >
+          </p-button>
+          <p-button
+            label="Clear"
+            icon="pi pi-trash"
+            severity="secondary"
+            (onClick)="clearResults()"
+            styleClass="w-full"
+          >
+          </p-button>
+        </div>
+
+        <p-divider></p-divider>
+
+        <!-- Status Badge -->
+        <div class="flex items-center gap-2">
+          <strong>Status:</strong>
+          @if (isLoading()) {
+          <p-tag value="Processing..." severity="info"></p-tag>
+          } @else if (error()) {
+          <p-tag value="Failed" severity="danger"></p-tag>
+          } @else if (result()) {
+          <p-tag value="Complete" severity="success"></p-tag>
+          } @else {
+          <p-tag value="Ready" severity="secondary"></p-tag>
+          }
+        </div>
+
+        <!-- Loading Spinner -->
+        @if (isLoading()) {
+        <div class="flex items-center gap-2">
+          <p-progressSpinner
+            strokeWidth="4"
+            styleClass="w-6 h-6"
+          ></p-progressSpinner>
+          <span>Calling OpenAI...</span>
+        </div>
+        }
+
+        <!-- Quick Stats -->
+        @if (result()?.output) {
+        <div class="text-sm">
+          <div class="flex justify-between mb-1">
+            <span>Decision:</span>
+            <p-tag
+              [value]="result()?.output?.decision?.type || ''"
+              [severity]="
+                getDecisionSeverity(result()?.output?.decision?.type || '')
+              "
+              styleClass="text-xs"
+            ></p-tag>
+          </div>
+          <div class="flex justify-between mb-1">
+            <span>Tokens:</span>
+            <span class="font-mono">{{
+              result()?.tokensUsed?.total_tokens || 0
+            }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Est. Cost:</span>
+            <span class="font-mono"
+              >${{
+                (
+                  (result()?.tokensUsed?.total_tokens || 0) * 0.00000015
+                ).toFixed(4)
+              }}</span
+            >
+          </div>
+        </div>
+        }
+      </div>
+    </p-card>
+  </div>
+
+  <!-- Logs Card - Full Width -->
+  <p-card header="📝 Execution Log" styleClass="mb-4">
+    <div class="log-container" style="max-height: 150px; overflow-y: auto">
+      @for (log of logs(); track $index) {
+      <div class="log-entry" [ngClass]="'log-' + log.type">
+        <span class="log-time">[{{ log.time }}]</span>
+        <span>{{ log.message }}</span>
+      </div>
+      }
+    </div>
+  </p-card>
+
+  <!-- Results Card -->
+  @if (result() || error()) {
+  <p-card header="🎯 LLM Decision Results">
+    @if (error()) {
+    <div class="error-container">
+      <strong>Error:</strong> {{ error() }}
+      <p class="text-sm text-secondary mt-2">
+        Make sure the Firebase Emulator is running and the OPENAI_API_KEY is set
+        in .secret.local
+      </p>
+    </div>
+    } @else if (result()?.output) {
+    <p-tabs value="formatted">
+      <p-tablist>
+        <p-tab value="formatted">Formatted View</p-tab>
+        <p-tab value="raw">Raw JSON</p-tab>
+        <p-tab value="input">Input JSON</p-tab>
+      </p-tablist>
+      <p-tabpanels>
+        <p-tabpanel value="formatted">
+          <!-- Decision Summary -->
+          <div class="decision-card mb-4">
+            <div class="flex justify-between items-center mb-2">
+              <span class="player-name">{{
+                result()?.output?.playerName || 'Unknown Player'
+              }}</span>
+              <p-tag
+                [value]="result()?.output?.decision?.type || 'unknown'"
+                [severity]="
+                  getDecisionSeverity(result()?.output?.decision?.type || '')
+                "
+              >
+              </p-tag>
+            </div>
+            <div class="feedback-text">
+              "{{
+                result()?.output?.feedback?.publicStatement ||
+                  'No public statement'
+              }}"
+            </div>
+            @if (result()?.output?.feedback?.socialMediaPost) {
+            <div
+              class="social-media-post mt-3 p-3 bg-blue-900/30 rounded-lg border border-blue-500/30"
+            >
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-blue-400">📱</span>
+                <span class="text-xs text-blue-400 font-semibold"
+                  >SOCIAL MEDIA</span
+                >
+              </div>
+              <p class="text-sm italic">
+                "{{ result()?.output?.feedback?.socialMediaPost }}"
+              </p>
+            </div>
+            }
+            <p class="text-sm text-secondary mt-2">
+              <strong>Reasoning:</strong>
+              {{
+                result()?.output?.decision?.reasoning || 'No reasoning provided'
+              }}
+            </p>
+          </div>
+
+          <!-- Bid Analysis -->
+          <h3 class="text-lg font-semibold mb-2">Bid Analysis</h3>
+          @for (bid of result()?.output?.bidAnalysis || []; track bid.bidId) {
+          <div class="bid-card mb-2">
+            <div class="flex justify-between items-center mb-2">
+              <span class="font-semibold">{{ bid.teamName }}</span>
+              <p-tag
+                [value]="bid.decision"
+                [severity]="getDecisionSeverity(bid.decision)"
+              ></p-tag>
+            </div>
+            <div class="text-sm text-secondary mb-2">
+              {{ bid.decisionReason || 'No specific reason' }}
+              @if (bid.isLowball) {
+              <span class="text-red-500"> ⚠️ LOWBALL</span>
+              }
+            </div>
+            <div class="scores-grid">
+              <div class="score-item">
+                <span class="score-label">AAV</span>
+                <span
+                  class="score-value"
+                  [ngClass]="getScoreColor(bid.scores?.aavScore || 0)"
+                >
+                  {{ formatScore(bid.scores?.aavScore || 0) }}
+                </span>
+              </div>
+              <div class="score-item">
+                <span class="score-label">Bonus</span>
+                <span
+                  class="score-value"
+                  [ngClass]="getScoreColor(bid.scores?.signingBonusScore || 0)"
+                >
+                  {{ formatScore(bid.scores?.signingBonusScore || 0) }}
+                </span>
+              </div>
+              <div class="score-item">
+                <span class="score-label">Guarantees</span>
+                <span
+                  class="score-value"
+                  [ngClass]="getScoreColor(bid.scores?.guaranteeScore || 0)"
+                >
+                  {{ formatScore(bid.scores?.guaranteeScore || 0) }}
+                </span>
+              </div>
+              <div class="score-item">
+                <span class="score-label">Length</span>
+                <span
+                  class="score-value"
+                  [ngClass]="getScoreColor(bid.scores?.lengthScore || 0)"
+                >
+                  {{ formatScore(bid.scores?.lengthScore || 0) }}
+                </span>
+              </div>
+              <div class="score-item">
+                <span class="score-label">Team</span>
+                <span
+                  class="score-value"
+                  [ngClass]="getScoreColor(bid.scores?.teamScore || 0)"
+                >
+                  {{ formatScore(bid.scores?.teamScore || 0) }}
+                </span>
+              </div>
+              <div class="score-item">
+                <span class="score-label">Role</span>
+                <span
+                  class="score-value"
+                  [ngClass]="getScoreColor(bid.scores?.roleScore || 0)"
+                >
+                  {{ formatScore(bid.scores?.roleScore || 0) }}
+                </span>
+              </div>
+              <div class="score-item total">
+                <span class="score-label">TOTAL</span>
+                <span class="score-value">{{
+                  formatScore(bid.scores?.totalScore || 0)
+                }}</span>
+              </div>
+            </div>
+          </div>
+          }
+
+          <!-- Trust Impacts -->
+          @if (result()?.output?.trustImpacts && (result()?.output?.trustImpacts
+          | keyvalue)?.length) {
+          <h3 class="text-lg font-semibold mb-2 mt-4">Trust Impacts</h3>
+          @for (item of result()?.output?.trustImpacts | keyvalue; track
+          item.key) {
+          <div class="trust-item">
+            <strong>{{ item.key }}:</strong>
+            <span
+              [ngClass]="
+                item.value.change < 0 ? 'text-red-400' : 'text-green-400'
+              "
+            >
+              {{ item.value.change > 0 ? '+' : ''
+              }}{{ item.value.change.toFixed(2) }}
+            </span>
+            (Total: {{ item.value.newTotal.toFixed(2) }}) -
+            {{ item.value.reason }}
+            @if (item.value.isCompounded) {
+            <span class="text-yellow-400"> ⚠️ Compounded</span>
+            }
+          </div>
+          } }
+
+          <!-- Agent Analysis -->
+          @if (result()?.output?.feedback) {
+          <h3 class="text-lg font-semibold mb-2 mt-4">Agent Analysis</h3>
+          <div class="agent-notes mb-2">
+            <strong>Agent Notes:</strong>
+            <p class="text-secondary text-sm mt-1">
+              {{ result()?.output?.feedback?.agentNotes || 'No agent notes' }}
+            </p>
+          </div>
+
+          @if (result()?.output?.feedback?.desires) {
+          <div class="desires-section">
+            <strong>What the Player Wants:</strong>
+            <div class="desires-list">
+              @for (desire of getDesiresList(result()!.output.feedback.desires);
+              track desire) {
+              <span class="desire-tag">{{ desire }}</span>
+              }
+            </div>
+            @if (result()?.output?.feedback?.desires?.specificHint) {
+            <p class="text-primary italic mt-2">
+              "{{ result()?.output?.feedback?.desires?.specificHint }}"
+            </p>
+            }
+          </div>
+          } }
+        </p-tabpanel>
+
+        <p-tabpanel value="raw">
+          <pre class="json-output">{{ result()?.output | json }}</pre>
+        </p-tabpanel>
+
+        <p-tabpanel value="input">
+          <pre class="json-output">{{ result()?.input | json }}</pre>
+        </p-tabpanel>
+      </p-tabpanels>
+    </p-tabs>
+    }
+  </p-card>
+  }
+</div>

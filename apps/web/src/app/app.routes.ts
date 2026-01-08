@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { AuthGuard } from './guards/auth.guard';
 import { GuestGuard } from './guards/guest.guard';
+import { AdminGuard } from './guards/admin.guard';
 import { selectedLeagueGuard } from './guards/selected-league.guard';
 import { AppLayout } from './layout/component/app.layout';
 import { WebLayout } from './layout/component/web.layout';
@@ -147,6 +148,26 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./testing/offseason-test/offseason-test.component').then(
             (m) => m.OffseasonTestComponent
+          ),
+      },
+    ],
+  },
+
+  {
+    path: 'simulator',
+    component: AppLayout,
+    canActivate: [AuthGuard, AdminGuard],
+    children: [
+      {
+        path: '',
+        redirectTo: 'fa',
+        pathMatch: 'full',
+      },
+      {
+        path: 'fa',
+        loadComponent: () =>
+          import('./simulator/fa-simulator/fa-simulator.component').then(
+            (m) => m.FaSimulatorComponent
           ),
       },
     ],

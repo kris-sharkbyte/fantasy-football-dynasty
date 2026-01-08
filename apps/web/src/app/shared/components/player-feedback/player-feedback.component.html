@@ -1,0 +1,62 @@
+@if (feedbackData && hasFeedback()) {
+<div class="player-feedback-container" [ngClass]="{ 'compact': variant === 'compact' }">
+  <!-- Public Statement (if different from team message) -->
+  @if (shouldShowPublicStatement()) {
+  <div class="feedback-section public-statement">
+    <div class="p-3 bg-gray-700 rounded-lg">
+      <div class="flex items-start space-x-2">
+        <i class="pi pi-bullhorn text-sm mt-0.5 text-gray-400"></i>
+        <div class="flex-1">
+          <p class="text-sm text-gray-300 font-medium mb-1">
+            Player Public Statement:
+          </p>
+          <p class="text-sm text-gray-400">{{ feedbackData.feedback }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Status Label (optional) -->
+  @if (showLabel && feedbackData.status !== 'pending') {
+  <div class="feedback-section status-label">
+    <div class="p-3 bg-blue-900/30 border border-blue-700/50 rounded-lg">
+      <div class="flex items-start space-x-2">
+        <i class="pi text-sm mt-0.5" [ngClass]="statusIcon()"></i>
+        <div class="flex-1">
+          <p class="text-sm text-blue-300 font-medium">
+            {{ statusLabel() }}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Private Team Message or Feedback -->
+  @if (feedbackData.teamMessage || feedbackData.feedback) {
+  <div class="feedback-section team-message">
+    <div class="p-3 bg-blue-900/30 border border-blue-700/50 rounded-lg">
+      <div class="flex items-start space-x-2">
+        <i
+          class="pi text-sm mt-0.5"
+          [ngClass]="{
+            'pi-envelope text-blue-400': feedbackData.teamMessage,
+            'pi-info-circle text-orange-400': !feedbackData.teamMessage && feedbackData.feedback
+          }"
+        ></i>
+        <div class="flex-1">
+          <p class="text-sm text-blue-300 font-medium mb-1">
+            {{ messageLabel() }}
+          </p>
+          <p class="text-sm text-blue-200">
+            {{ feedbackData.teamMessage || feedbackData.feedback }}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+</div>
+}
+

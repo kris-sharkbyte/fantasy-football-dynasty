@@ -1,12 +1,14 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { LeagueHeaderComponent } from '../components/league-header.component';
 import { EditTeamModalComponent } from './edit-team-modal';
 import { LeagueSettingsComponent } from '../league-settings';
 import { LeagueMembershipService } from '../../services/league-membership.service';
 import { LeagueService } from '../../services/league.service';
 import { FreeAgencyService } from '../../services/free-agency.service';
+import { SocialMediaFeedModalComponent } from '../../shared/components/social-media-feed-modal/social-media-feed-modal.component';
+import { PlayerProfileModalComponent } from '../../shared/components/player-profile-modal/player-profile-modal.component';
 
 @Component({
   selector: 'app-league-detail',
@@ -16,6 +18,8 @@ import { FreeAgencyService } from '../../services/free-agency.service';
     LeagueHeaderComponent,
     EditTeamModalComponent,
     LeagueSettingsComponent,
+    SocialMediaFeedModalComponent,
+    PlayerProfileModalComponent,
   ],
   templateUrl: './league-detail.component.html',
   styleUrls: ['./league-detail.component.scss'],
@@ -25,9 +29,13 @@ export class LeagueDetailComponent implements OnInit {
   private readonly leagueService = inject(LeagueService);
   private readonly freeAgencyService = inject(FreeAgencyService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   editTeamModalVisible = false;
   showSettingsView = false;
+  socialMediaModalVisible = signal(false);
+  playerProfileModalVisible = signal(false);
+  selectedPlayer = signal<any>(null);
 
   league = this.leagueService.selectedLeague;
   leagueId = this.leagueService.selectedLeagueId;
@@ -54,6 +62,19 @@ export class LeagueDetailComponent implements OnInit {
   readonly isReadyToAdvance = this.freeAgencyService.isReadyToAdvance;
 
   ngOnInit(): void {
+    // Sync selectedLeagueId with route params (handles refresh scenarios)
+    const routeLeagueId = this.route.snapshot.paramMap.get('id') || this.route.snapshot.paramMap.get('leagueId');
+    const currentSelectedLeagueId = this.leagueService.selectedLeagueId();
+    
+    if (routeLeagueId && routeLeagueId !== currentSelectedLeagueId) {
+      console.log(
+        '[LeagueDetailComponent] Route leagueId does not match selectedLeagueId, updating...',
+        { routeLeagueId, currentSelectedLeagueId }
+      );
+      // Update selectedLeagueId to match route (will persist to localStorage via effect)
+      this.leagueService.setSelectedLeagueId(routeLeagueId);
+    }
+    
     // No need to manually load memberships - it's handled automatically by the league service
     // when a league is selected via the effect in the constructor
     console.log('League detail component initialized');
@@ -95,5 +116,35 @@ export class LeagueDetailComponent implements OnInit {
     if (leagueId) {
       this.router.navigate(['/leagues', leagueId, 'team']);
     }
+  }
+
+  /**
+   * Open social media feed modal
+   */
+  openSocialMediaFeed(): void {
+    this.socialMediaModalVisible.set(true);
+  }
+
+  /**
+   * Close social media feed modal
+   */
+  closeSocialMediaFeed(): void {
+    this.socialMediaModalVisible.set(false);
+  }
+
+  /**
+   * Open player profile modal
+   */
+  openPlayerProfile(player: any): void {
+    this.selectedPlayer.set(player);
+    this.playerProfileModalVisible.set(true);
+  }
+
+  /**
+   * Close player profile modal
+   */
+  closePlayerProfile(): void {
+    this.playerProfileModalVisible.set(false);
+    this.selectedPlayer.set(null);
   }
 }

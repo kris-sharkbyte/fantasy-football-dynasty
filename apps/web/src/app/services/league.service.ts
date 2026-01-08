@@ -109,10 +109,13 @@ export class LeagueService {
   private readonly leagueSetupService = inject(LeagueSetupService);
   private readonly sportsDataService = inject(SportsDataService);
 
+  // LocalStorage key for persisting selected league ID
+  private readonly SELECTED_LEAGUE_ID_KEY = 'fantasy-football-dynasty:selectedLeagueId';
+
   private _userLeagues = signal<League[]>([]);
   private _isLoading = signal(false);
   private _error = signal<string | null>(null);
-  private _selectedLeagueId = signal<string | null>(null);
+  private _selectedLeagueId = signal<string | null>(this.loadSelectedLeagueIdFromStorage());
 
   // New: Cached league data signals
   private _leagueTeams = signal<LeagueTeam[]>([]);
@@ -144,16 +147,40 @@ export class LeagueService {
   // New: Computed values for easy access
   public currentUserTeam = computed(() => {
     const currentUser = this.authService.currentUser();
-    if (!currentUser) return null;
+    if (!currentUser) {
+      console.log('[League Service] No current user for currentUserTeam');
+      return null;
+    }
 
-    return this._leagueMembers().find(
+    const allMembers = this._leagueMembers();
+    console.log('[League Service] All league members:', allMembers.map(m => ({
+      userId: m.userId,
+      teamId: m.teamId,
+      teamName: m.teamName,
+      isActive: m.isActive,
+    })));
+    console.log('[League Service] Looking for user:', currentUser.uid);
+
+    const userTeam = allMembers.find(
       (member) => member.userId === currentUser.uid && member.isActive
     );
+    
+    console.log('[League Service] Found currentUserTeam:', userTeam ? {
+      userId: userTeam.userId,
+      teamId: userTeam.teamId,
+      teamName: userTeam.teamName,
+      role: userTeam.role,
+    } : null);
+
+    return userTeam;
   });
 
-  public currentUserTeamId = computed(
-    () => this.currentUserTeam()?.teamId || null
-  );
+  public currentUserTeamId = computed(() => {
+    const team = this.currentUserTeam();
+    const teamId = team?.teamId || null;
+    console.log('[League Service] currentUserTeamId computed:', teamId);
+    return teamId;
+  });
   public currentUserRole = computed(() => this.currentUserTeam()?.role || null);
   public teamsCount = computed(() => this._leagueTeams().length);
 
@@ -166,17 +193,20 @@ export class LeagueService {
         selectedLeagueId
       );
 
+      // Persist to localStorage whenever it changes
+      this.saveSelectedLeagueIdToStorage(selectedLeagueId);
+
       if (selectedLeagueId) {
         // Load permissions for the new selected league
         this.leagueMembershipService.loadCurrentLeaguePermissions(
           selectedLeagueId
         );
 
-        // Load all league data when league is selected
-        this.loadLeagueData(selectedLeagueId);
-
-        // Set up real-time listeners for the selected league
-        this.setupRealtimeListeners(selectedLeagueId);
+        // Load all league data when league is selected, then set up listeners
+        this.loadLeagueData(selectedLeagueId).then(() => {
+          // Set up real-time listeners AFTER initial data is loaded
+          this.setupRealtimeListeners(selectedLeagueId);
+        });
       } else {
         // Clear cached data when no league is selected
         this._leagueTeams.set([]);
@@ -189,10 +219,44 @@ export class LeagueService {
   }
 
   /**
+   * Load selected league ID from localStorage
+   */
+  private loadSelectedLeagueIdFromStorage(): string | null {
+    try {
+      const stored = localStorage.getItem(this.SELECTED_LEAGUE_ID_KEY);
+      if (stored) {
+        console.log('[LeagueService] Restored selected league ID from localStorage:', stored);
+        return stored;
+      }
+    } catch (error) {
+      console.warn('[LeagueService] Failed to load selected league ID from localStorage:', error);
+    }
+    return null;
+  }
+
+  /**
+   * Save selected league ID to localStorage
+   */
+  private saveSelectedLeagueIdToStorage(leagueId: string | null): void {
+    try {
+      if (leagueId) {
+        localStorage.setItem(this.SELECTED_LEAGUE_ID_KEY, leagueId);
+        console.log('[LeagueService] Saved selected league ID to localStorage:', leagueId);
+      } else {
+        localStorage.removeItem(this.SELECTED_LEAGUE_ID_KEY);
+        console.log('[LeagueService] Removed selected league ID from localStorage');
+      }
+    } catch (error) {
+      console.warn('[LeagueService] Failed to save selected league ID to localStorage:', error);
+    }
+  }
+
+  /**
    * Set the selected league ID
    */
   setSelectedLeagueId(leagueId: string | null) {
     this._selectedLeagueId.set(leagueId);
+    // Note: localStorage persistence is handled by the effect above
   }
 
   /**
@@ -1242,6 +1306,12 @@ export class LeagueService {
       }));
 
       // Update signals
+      console.log('[League Service] loadLeagueData - Setting league members:', leagueMembers.map(m => ({
+        userId: m.userId,
+        teamId: m.teamId,
+        teamName: m.teamName,
+        isActive: m.isActive,
+      })));
       this._leagueMembers.set(leagueMembers);
       this._leagueTeams.set(leagueTeams);
     } catch (error) {
@@ -1266,15 +1336,21 @@ export class LeagueService {
     this.cleanupListeners();
 
     // Listen to league members (which contain team data)
-    const membersRef = collection(this.db, 'leagueMembers');
+    // Use the same collection path as getLeagueMembers: leagues/{leagueId}/members
+    const membersRef = collection(this.db, 'leagues', leagueId, 'members');
     const membersQuery = query(
       membersRef,
-      where('leagueId', '==', leagueId),
       where('isActive', '==', true),
       orderBy('joinedAt', 'asc')
     );
 
     const unsubscribeMembers = onSnapshot(membersQuery, (snapshot) => {
+      // Don't overwrite with empty data if we're still loading initial data
+      if (this._isLoadingLeagueData() && snapshot.empty) {
+        console.log('[League Service] Listener fired with empty snapshot during initial load, skipping update');
+        return;
+      }
+
       const members: LeagueMember[] = [];
       const teams: LeagueTeam[] = [];
 
@@ -1308,9 +1384,11 @@ export class LeagueService {
         teams.push(team);
       });
 
+      console.log('[League Service] Listener updated members:', members.length, 'teams:', teams.length);
       // Update signals
       this._leagueMembers.set(members);
       this._leagueTeams.set(teams);
+      this._isLoadingLeagueData.set(false);
     });
 
     // Store unsubscribe function

@@ -1,0 +1,200 @@
+<p-dialog
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [style]="{ width: '90vw', maxWidth: '700px' }"
+  [contentStyle]="{ padding: '1.5rem', maxHeight: '80vh', overflowY: 'auto' }"
+  [closable]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [header]="playerName()"
+>
+  @if (player()) {
+  <div class="player-profile">
+    <!-- Header Section -->
+    <div class="profile-header mb-6">
+      <div class="flex items-center gap-4">
+        @if (photoUrl()) {
+        <img
+          [src]="photoUrl()"
+          [alt]="playerName()"
+          class="player-photo w-24 h-24 rounded-full object-cover border-4 border-primary"
+          (error)="$event.target.style.display = 'none'"
+        />
+        } @else {
+        <div
+          class="player-photo-placeholder w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold"
+        >
+          {{ playerName().charAt(0) }}
+        </div>
+        }
+        <div class="flex-1">
+          <h2 class="text-2xl font-bold mb-2">{{ playerName() }}</h2>
+          <div class="flex items-center gap-4 text-sm text-gray-500">
+            <span class="font-semibold text-primary">{{ position() }}</span>
+            @if (playerNumber()) {
+            <span>#{{ playerNumber() }}</span>
+            }
+            @if (team() && team() !== 'FA') {
+            <span>{{ team() }}</span>
+            }
+          </div>
+          @if (overall()) {
+          <div class="mt-2">
+            <p-tag
+              [value]="overall() + ' OVR'"
+              severity="info"
+              styleClass="text-lg font-bold"
+            ></p-tag>
+          </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <p-tabs>
+      <p-tablist>
+        <p-tab value="overview">Overview</p-tab>
+        @if (personalityType()) {
+        <p-tab value="personality">Personality</p-tab>
+        }
+      </p-tablist>
+      <p-tabpanels>
+        <p-tabpanel value="overview">
+        <div class="space-y-4">
+          <!-- Basic Info -->
+          <p-card>
+            <h3 class="text-lg font-semibold mb-3">Basic Information</h3>
+            <div class="grid grid-cols-2 gap-4">
+              @if (age()) {
+              <div>
+                <span class="text-sm text-gray-500">Age</span>
+                <p class="font-semibold">{{ age() }}</p>
+              </div>
+              }
+              @if (experience() > 0) {
+              <div>
+                <span class="text-sm text-gray-500">Experience</span>
+                <p class="font-semibold">{{ experience() }} years</p>
+              </div>
+              }
+              @if (college() && college() !== 'Unknown') {
+              <div>
+                <span class="text-sm text-gray-500">College</span>
+                <p class="font-semibold">{{ college() }}</p>
+              </div>
+              }
+              @if (height()) {
+              <div>
+                <span class="text-sm text-gray-500">Height</span>
+                <p class="font-semibold">{{ height() }}</p>
+              </div>
+              }
+              @if (weight()) {
+              <div>
+                <span class="text-sm text-gray-500">Weight</span>
+                <p class="font-semibold">{{ weight() }} lbs</p>
+              </div>
+              }
+            </div>
+          </p-card>
+
+          <!-- Contract Info -->
+          @if (expectedValue()) {
+          <p-card>
+            <h3 class="text-lg font-semibold mb-3">Market Value</h3>
+            <div class="space-y-2">
+              <div>
+                <span class="text-sm text-gray-500">Expected APY</span>
+                <p class="text-xl font-bold text-primary">
+                  {{ formattedAPY() }}
+                </p>
+              </div>
+            </div>
+          </p-card>
+          }
+        </div>
+        </p-tabpanel>
+
+        <!-- Personality Tab -->
+        @if (personalityType()) {
+        <p-tabpanel value="personality">
+        <p-card>
+          <h3 class="text-lg font-semibold mb-3">Player Personality</h3>
+          <div class="space-y-4">
+            <div>
+              <p-tag
+                [value]="personalityDescription()"
+                severity="info"
+                styleClass="text-base"
+              ></p-tag>
+            </div>
+            @if (personality()?.weights) {
+            <div>
+              <h4 class="font-semibold mb-2">Priority Weights</h4>
+              <div class="space-y-2">
+                @if (personality().weights.moneyPriority) {
+                <div>
+                  <div class="flex justify-between mb-1">
+                    <span class="text-sm">💰 Money Priority</span>
+                    <span class="text-sm font-semibold"
+                      >{{ (personality().weights.moneyPriority * 100).toFixed(0) }}%</span
+                    >
+                  </div>
+                  <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      class="bg-blue-600 h-2 rounded-full"
+                      [style.width.%]="personality().weights.moneyPriority * 100"
+                    ></div>
+                  </div>
+                </div>
+                }
+                @if (personality().weights.winningPriority) {
+                <div>
+                  <div class="flex justify-between mb-1">
+                    <span class="text-sm">🏆 Winning Priority</span>
+                    <span class="text-sm font-semibold"
+                      >{{ (personality().weights.winningPriority * 100).toFixed(0) }}%</span
+                    >
+                  </div>
+                  <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      class="bg-green-600 h-2 rounded-full"
+                      [style.width.%]="personality().weights.winningPriority * 100"
+                    ></div>
+                  </div>
+                </div>
+                }
+                @if (personality().weights.guaranteePriority) {
+                <div>
+                  <div class="flex justify-between mb-1">
+                    <span class="text-sm">🔒 Guarantee Priority</span>
+                    <span class="text-sm font-semibold"
+                      >{{ (personality().weights.guaranteePriority * 100).toFixed(0) }}%</span
+                    >
+                  </div>
+                  <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      class="bg-purple-600 h-2 rounded-full"
+                      [style.width.%]="personality().weights.guaranteePriority * 100"
+                    ></div>
+                  </div>
+                </div>
+                }
+              </div>
+            </div>
+            }
+          </div>
+        </p-card>
+        </p-tabpanel>
+        }
+      </p-tabpanels>
+    </p-tabs>
+  </div>
+  } @else {
+  <div class="text-center py-8">
+    <p class="text-gray-500">No player data available</p>
+  </div>
+  }
+</p-dialog>
+

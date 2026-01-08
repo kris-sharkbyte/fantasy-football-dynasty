@@ -524,7 +524,9 @@ export interface FABid {
   status: 'pending' | 'accepted' | 'shortlisted' | 'considering' | 'rejected';
   submittedAt: Date;
   evaluatedAt?: Date;
-  feedback?: string; // Player's response message
+  feedback?: string; // Player's public response message
+  teamMessage?: string; // Private message to the team (from LLM evaluation)
+  isLowball?: boolean; // Whether this was considered a lowball offer
   updatedAt?: Date; // When the bid was last updated
 }
 

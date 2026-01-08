@@ -61,6 +61,7 @@ firebase-debug.*.log
 .runtimeconfig.json
 service-account-key.json
 *-service-account.json
+.secret.local
 
 # Environment files
 .env

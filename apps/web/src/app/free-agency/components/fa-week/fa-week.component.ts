@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
+// Note: PrimeNG doesn't have SidebarModule, using custom implementation
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -32,6 +33,8 @@ import {
   PlayerCardData,
   PlayerCardConfig,
 } from '../../../shared/components/player-card';
+import { PlayerFeedbackComponent } from '../../../shared/components/player-feedback';
+import { SocialMediaFeedModalComponent } from '../../../shared/components/social-media-feed-modal/social-media-feed-modal.component';
 import { SportsPlayer } from 'libs/types/src/lib/types';
 
 @Component({
@@ -51,14 +54,14 @@ import { SportsPlayer } from 'libs/types/src/lib/types';
     InputIconModule,
     MessageModule,
     ToastModule,
-    FAWeekHeaderComponent,
     TeamBidsComponent,
     SalaryCapComponent,
     PlayerDecisionsComponent,
-    WeekAdvancementProgressComponent,
     ContractInputsComponent,
     PlayersTableComponent,
     PlayerCardComponent,
+    PlayerFeedbackComponent,
+    SocialMediaFeedModalComponent,
   ],
   providers: [MessageService],
   templateUrl: './fa-week.component.html',
@@ -66,7 +69,7 @@ import { SportsPlayer } from 'libs/types/src/lib/types';
 })
 export class FAWeekComponent implements OnInit {
   private readonly freeAgencyService = inject(FreeAgencyService);
-  private readonly leagueService = inject(LeagueService);
+  public readonly leagueService = inject(LeagueService);
   private readonly enhancedPlayerMinimumService = inject(
     EnhancedPlayerMinimumService
   );
@@ -75,7 +78,6 @@ export class FAWeekComponent implements OnInit {
 
   // State signals
   public selectedPlayer = signal<SportsPlayer | null>(null);
-  public showBidModal = signal<boolean>(false);
   public bidForm = signal({ years: 1, baseSalary: 0, signingBonus: 0 });
   public isSubmitting = signal<boolean>(false);
   public playerMinimum = signal<number | null>(null);
@@ -83,12 +85,47 @@ export class FAWeekComponent implements OnInit {
   public isEditingBid = signal<boolean>(false);
   public existingBidId = signal<string | null>(null);
 
+  // Regular property for p-dialog (doesn't support signals yet)
+  public showBidModal = false;
+  // Regular property for p-sidebar (doesn't support signals yet)
+  public showBidsSidebar = false;
+
+  // Social media modal
+  public showSocialMediaModal = false;
+  public selectedPlayerForSocialMedia: number | null = null;
+
+  // Existing bid feedback (if editing or viewing feedback)
+  public existingBidFeedback = signal<{
+    feedback: string | null;
+    teamMessage: string | null;
+    status: 'pending' | 'accepted' | 'shortlisted' | 'considering' | 'rejected';
+  } | null>(null);
+
   // Computed values from services
   public availablePlayers = computed(() =>
     this.freeAgencyService.availablePlayers()
   );
   public activeBids = computed(() => this.freeAgencyService.activeBids());
   public currentFAWeek = computed(() => this.freeAgencyService.currentFAWeek());
+
+  // Computed team bids count (reactive to activeBids changes)
+  public teamBidsCount = computed(() => {
+    const currentUserTeamId = this.leagueService.currentUserTeamId();
+    console.log(
+      '[FA Week] teamBidsCount computed - currentUserTeamId:',
+      currentUserTeamId
+    );
+    if (!currentUserTeamId) {
+      console.log('[FA Week] No teamId, returning 0');
+      return 0;
+    }
+    const allBids = this.freeAgencyService.getAllTeamBids(currentUserTeamId);
+    const count = allBids.filter(
+      (bid) => bid.teamId === currentUserTeamId
+    ).length;
+    console.log('[FA Week] teamBidsCount result:', count);
+    return count;
+  });
 
   // Years options for contract inputs
   public yearsOptions = computed(() => {
@@ -114,7 +151,7 @@ export class FAWeekComponent implements OnInit {
 
   // Players table configuration for FA Week
   public playersTableConfig = computed(() => ({
-    title: 'Available Players',
+    title: '', // Empty title - shown in header section instead
     subtitle: 'Submit bids for free agents',
     emptyMessage: 'No players available for bidding',
     showFilters: true,
@@ -153,25 +190,45 @@ export class FAWeekComponent implements OnInit {
    * Open bid modal for a player
    */
   openBidModal(player: SportsPlayer): void {
-    console.log('[FA Week] Opening bid modal for player:', {
-      playerId: player.PlayerID,
-      name: `${player.FirstName} ${player.LastName}`,
-      position: player.Position,
-    });
     this.selectedPlayer.set(player);
     this.initializeBidForm(player);
-    this.showBidModal.set(true);
+    this.loadExistingBidFeedback(player);
+    this.showBidModal = true;
+  }
+
+  /**
+   * Load existing bid feedback for the selected player
+   */
+  private loadExistingBidFeedback(player: SportsPlayer): void {
+    const currentUserTeamId = this.leagueService.currentUserTeamId();
+    if (!currentUserTeamId) return;
+
+    const existingBid = this.getExistingBidForPlayer(
+      player.PlayerID,
+      currentUserTeamId
+    );
+
+    if (existingBid && (existingBid.feedback || existingBid.teamMessage)) {
+      this.existingBidFeedback.set({
+        feedback: existingBid.feedback || null,
+        teamMessage: existingBid.teamMessage || null,
+        status: existingBid.status,
+      });
+    } else {
+      this.existingBidFeedback.set(null);
+    }
   }
 
   /**
    * Close bid modal
    */
   closeBidModal(): void {
-    this.showBidModal.set(false);
+    this.showBidModal = false;
     this.selectedPlayer.set(null);
     this.bidForm.set({ years: 1, baseSalary: 0, signingBonus: 0 });
     this.isEditingBid.set(false);
     this.existingBidId.set(null);
+    this.existingBidFeedback.set(null);
   }
 
   /**
@@ -252,11 +309,42 @@ export class FAWeekComponent implements OnInit {
         throw new Error('No league selected');
       }
 
-      // Get current user's team ID from cached signals
-      const currentUserTeamId = this.leagueService.currentUserTeamId();
-      if (!currentUserTeamId) {
-        throw new Error('Team not found for current user');
+      // Ensure league data is loaded before getting team ID
+      if (!this.leagueService.hasLeagueData()) {
+        await this.leagueService.loadLeagueData(currentLeague.id);
       }
+
+      // Get current user's team ID from cached signals
+      let currentUserTeamId = this.leagueService.currentUserTeamId();
+      console.log(
+        '[FA Week] Initial currentUserTeamId from signal:',
+        currentUserTeamId
+      );
+
+      // If still not found, try getting it from currentUserTeam
+      if (!currentUserTeamId) {
+        const currentUserTeam = this.leagueService.currentUserTeam();
+        console.log('[FA Week] currentUserTeam object:', currentUserTeam);
+        if (currentUserTeam) {
+          currentUserTeamId = currentUserTeam.teamId;
+          console.log(
+            '[FA Week] Got teamId from currentUserTeam:',
+            currentUserTeamId
+          );
+        }
+      }
+
+      if (!currentUserTeamId) {
+        console.error('[FA Week] Team not found for current user');
+        throw new Error(
+          'Team not found for current user. Please ensure you are a member of this league.'
+        );
+      }
+
+      console.log(
+        '[FA Week] Using teamId for bid submission:',
+        currentUserTeamId
+      );
 
       // Check if we have an existing bid for this player
       const existingBid = this.getExistingBidForPlayer(
@@ -352,7 +440,6 @@ export class FAWeekComponent implements OnInit {
    */
   getPlayerCardData(): PlayerCardData {
     const player = this.selectedPlayer();
-    console.log('player', player);
     if (!player) {
       return {
         playerId: 0,
@@ -371,11 +458,10 @@ export class FAWeekComponent implements OnInit {
     const enhancedPlayer = this.sportsDataService.getPlayerById(
       player.PlayerID
     );
-    console.log(enhancedPlayer);
+
     const team = this.sportsDataService.getTeamById(
       enhancedPlayer?.TeamID || 0
     );
-    console.log(team);
     return {
       playerId: player.PlayerID,
       firstName: player.FirstName,

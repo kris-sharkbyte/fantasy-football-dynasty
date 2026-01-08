@@ -1,0 +1,64 @@
+<p-dialog
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [style]="{ width: '90vw', maxWidth: '800px' }"
+  [contentStyle]="{ padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto' }"
+  [closable]="true"
+  [draggable]="false"
+  [resizable]="false"
+  header="📱 League Social Media Feed"
+>
+  <div class="social-media-feed">
+    @if (isLoading()) {
+    <div class="flex items-center justify-center py-8">
+      <i class="pi pi-spinner pi-spin text-2xl text-primary"></i>
+      <span class="ml-2">Loading posts...</span>
+    </div>
+    } @else if (posts().length === 0) {
+    <div class="empty-state text-center py-8">
+      <i class="pi pi-comments text-4xl text-gray-400 mb-4"></i>
+      <p class="text-gray-500">No posts yet. Check back after free agency decisions!</p>
+    </div>
+    } @else {
+    <div class="posts-container space-y-4">
+      @for (post of posts(); track post.id) {
+      <p-card [styleClass]="'post-card'">
+        <div class="post-header flex items-center justify-between mb-3">
+          <div class="flex items-center gap-3">
+            <div class="player-avatar">
+              <i class="pi pi-user text-xl"></i>
+            </div>
+            <div>
+              <div class="font-semibold text-lg">
+                {{ post.playerName }}
+                <span class="text-sm text-gray-500 font-normal"
+                  >• {{ post.position }}</span
+                >
+              </div>
+              <div class="text-xs text-gray-400">
+                {{ formatTime(post.postedAt) }}
+                @if (post.weekNumber) {
+                <span class="ml-2">• Week {{ post.weekNumber }}</span>
+                }
+              </div>
+            </div>
+          </div>
+          @if (post.context) {
+          <p-tag
+            [value]="getContextLabel(post.context)"
+            [icon]="getContextIcon(post.context)"
+            severity="info"
+            styleClass="text-xs"
+          ></p-tag>
+          }
+        </div>
+        <div class="post-content text-base leading-relaxed">
+          {{ post.post }}
+        </div>
+      </p-card>
+      }
+    </div>
+    }
+  </div>
+</p-dialog>
+

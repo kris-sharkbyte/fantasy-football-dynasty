@@ -12,6 +12,7 @@ import {
   PlayersTableConfig,
   PlayerAction,
 } from '../../shared/components/players-table/players-table.component';
+import { PlayerProfileModalComponent } from '../../shared/components/player-profile-modal/player-profile-modal.component';
 
 @Component({
   selector: 'app-players',
@@ -23,6 +24,7 @@ import {
     ProgressSpinnerModule,
     MessageModule,
     PlayersTableComponent,
+    PlayerProfileModalComponent,
   ],
   templateUrl: './players.component.html',
   styleUrls: ['./players.component.scss'],
@@ -31,6 +33,8 @@ export class PlayersComponent implements OnInit {
   isLoading = signal(true);
   leagueId = signal<string | null>(null);
   players = signal<any[]>([]);
+  playerProfileModalVisible = signal(false);
+  selectedPlayer = signal<any>(null);
 
   private readonly leagueService = inject(LeagueService);
   private readonly router = inject(Router);
@@ -99,6 +103,7 @@ export class PlayersComponent implements OnInit {
       actions,
       leagueId: this.leagueId() || undefined,
       getPlayers: () => this.players(),
+      onPlayerClick: (player: any) => this.openPlayerProfile(player),
     };
   });
 
@@ -164,5 +169,15 @@ export class PlayersComponent implements OnInit {
     console.log('Trading player:', player);
     // Navigate to trade negotiation
     this.router.navigate(['/leagues', this.leagueId(), 'negotiate', player.id]);
+  }
+
+  openPlayerProfile(player: any): void {
+    this.selectedPlayer.set(player);
+    this.playerProfileModalVisible.set(true);
+  }
+
+  closePlayerProfile(): void {
+    this.playerProfileModalVisible.set(false);
+    this.selectedPlayer.set(null);
   }
 }

@@ -14,6 +14,7 @@ import {
   writeBatch,
   getDoc,
 } from '@angular/fire/firestore';
+import { Functions, httpsCallable } from '@angular/fire/functions';
 import {
   FAWeek,
   FABid,
@@ -68,6 +69,7 @@ export interface FAWeekPlayer {
 })
 export class FreeAgencyService {
   private readonly firestore = inject(Firestore);
+  private readonly functions = inject(Functions);
   private readonly sportsDataService = inject(SportsDataService);
   private readonly teamService = inject(TeamService);
   private readonly leagueService = inject(LeagueService);
@@ -246,9 +248,60 @@ export class FreeAgencyService {
     const unsubscribeBids = onSnapshot(bidsQuery, (snapshot) => {
       const bids: FABid[] = [];
       snapshot.forEach((doc) => {
-        bids.push({ id: doc.id, ...doc.data() } as FABid);
+        const data = doc.data();
+
+        // Helper to convert Firestore Timestamp to Date
+        const toDate = (value: any): Date => {
+          if (!value) return new Date();
+          if (value?.toDate && typeof value.toDate === 'function') {
+            return value.toDate();
+          }
+          if (value instanceof Date) {
+            return value;
+          }
+          if (typeof value === 'string' || typeof value === 'number') {
+            return new Date(value);
+          }
+          return new Date();
+        };
+
+        // Convert Firestore Timestamps to Date objects
+        const bidData: FABid = {
+          id: doc.id,
+          leagueId: data['leagueId'],
+          teamId: data['teamId'],
+          playerId: data['playerId'],
+          position: data['position'],
+          weekNumber: data['weekNumber'],
+          offer: data['offer'],
+          status: data['status'],
+          submittedAt: toDate(data['submittedAt']),
+          evaluatedAt: data['evaluatedAt']
+            ? toDate(data['evaluatedAt'])
+            : undefined,
+          feedback: data['feedback'],
+          teamMessage: data['teamMessage'],
+          isLowball: data['isLowball'],
+          updatedAt: data['updatedAt'] ? toDate(data['updatedAt']) : undefined,
+        } as FABid;
+
+        bids.push(bidData);
+        console.log('[FA Service] Loaded bid:', {
+          id: bidData.id,
+          playerId: bidData.playerId,
+          teamId: bidData.teamId,
+          leagueId: bidData.leagueId,
+          status: bidData.status,
+          submittedAt: bidData.submittedAt,
+          submittedAtType: typeof bidData.submittedAt,
+        });
       });
 
+      console.log('[FA Service] Total bids loaded:', bids.length);
+      console.log(
+        '[FA Service] All bid teamIds:',
+        bids.map((b) => b.teamId)
+      );
       this.activeBids.set(bids);
     });
 
@@ -296,9 +349,8 @@ export class FreeAgencyService {
       // Note: We no longer block bids below minimum - users can submit lower offers
       // The player may not accept, but we allow the attempt
 
-      // Create bid with cleaner ID format (no week number in ID)
-      const bid: FABid = {
-        id: `${currentWeek.leagueId}_bid_${Date.now()}`,
+      // Create bid - let Firestore generate a unique document ID
+      const bidData: Omit<FABid, 'id'> = {
         leagueId: currentWeek.leagueId,
         teamId,
         playerId,
@@ -309,9 +361,27 @@ export class FreeAgencyService {
         submittedAt: new Date(),
       };
 
-      // Save directly to Firestore
-      const bidRef = doc(this.firestore, 'faBids', bid.id);
-      await setDoc(bidRef, bid);
+      console.log('[FA Service] Submitting bid:', {
+        leagueId: bidData.leagueId,
+        teamId: bidData.teamId,
+        playerId: bidData.playerId,
+        position: bidData.position,
+        weekNumber: bidData.weekNumber,
+        status: bidData.status,
+        offer: bidData.offer,
+      });
+
+      // Save directly to Firestore with auto-generated ID
+      const bidRef = doc(collection(this.firestore, 'faBids'));
+      await setDoc(bidRef, bidData);
+
+      // Create the bid object with the generated ID for return value
+      const bid: FABid = {
+        id: bidRef.id,
+        ...bidData,
+      };
+
+      console.log('[FA Service] Bid saved to Firestore with ID:', bid.id);
 
       // Don't update local state immediately - let the Firestore listener handle it
       // This prevents duplicate entries when the listener fires
@@ -1073,9 +1143,39 @@ export class FreeAgencyService {
    * Get ALL team bids including accepted ones (for display purposes)
    */
   getAllTeamBids(teamId: string): FABid[] {
-    // For now, return activeBids since we'll update the listener to include accepted bids
-    // TODO: This should query a separate "allBids" collection or include accepted bids
-    return this.activeBids().filter((bid) => bid.teamId === teamId);
+    console.log('[FA Service] getAllTeamBids called with teamId:', teamId);
+    console.log(
+      '[FA Service] Current activeBids count:',
+      this.activeBids().length
+    );
+    console.log(
+      '[FA Service] All activeBids teamIds:',
+      this.activeBids().map((b) => ({
+        bidId: b.id,
+        teamId: b.teamId,
+        playerId: b.playerId,
+        status: b.status,
+      }))
+    );
+
+    const filtered = this.activeBids().filter((bid) => bid.teamId === teamId);
+    console.log(
+      '[FA Service] Filtered bids for teamId:',
+      teamId,
+      'count:',
+      filtered.length
+    );
+    console.log(
+      '[FA Service] Filtered bid details:',
+      filtered.map((b) => ({
+        bidId: b.id,
+        teamId: b.teamId,
+        playerId: b.playerId,
+        status: b.status,
+      }))
+    );
+
+    return filtered;
   }
 
   /**
@@ -1100,84 +1200,214 @@ export class FreeAgencyService {
   // ============================================================================
 
   /**
-   * Process weekly player evaluation for all pending bids
+   * Process weekly player evaluation for all pending bids using LLM
    */
   async processWeeklyPlayerEvaluation(): Promise<void> {
     try {
-      console.log('[FA Service] Starting weekly player evaluation...');
+      console.log('[FA Service] Starting weekly player evaluation with LLM...');
 
       const currentWeek = this.currentFAWeek();
       if (!currentWeek || currentWeek.status !== 'active') {
         throw new Error('No active FA week found');
       }
 
-      // Get current league for rules and validation
+      // Get current league for validation
       const currentLeague = this.leagueService.selectedLeague();
       if (!currentLeague) {
         throw new Error('No active league found for player evaluation');
       }
 
-      // Get all active bids for the current week (pending + shortlisted)
-      const activeBids = this.activeBids().filter(
+      // Check if there are any pending bids
+      const pendingBids = this.activeBids().filter(
         (bid) =>
-          (bid.status === 'pending' || bid.status === 'shortlisted') &&
-          bid.weekNumber === currentWeek.weekNumber
+          bid.status === 'pending' && bid.weekNumber === currentWeek.weekNumber
       );
 
-      console.log('[FA Service] Found active bids:', activeBids.length);
-      console.log('[FA Service] Bid breakdown:', {
-        pending: activeBids.filter((b) => b.status === 'pending').length,
-        shortlisted: activeBids.filter((b) => b.status === 'shortlisted')
-          .length,
-      });
+      console.log('[FA Service] Found pending bids:', pendingBids.length);
 
-      if (activeBids.length === 0) {
-        console.log('[FA Service] No active bids to evaluate');
+      if (pendingBids.length === 0) {
+        console.log('[FA Service] No pending bids to evaluate');
         return;
       }
 
-      // Create enhanced market context with new personality system
-      const marketContext = await this.createEnhancedMarketContext(
-        currentLeague
-      );
-      console.log(
-        '[FA Service] Enhanced market context created:',
-        marketContext
+      // Call the LLM evaluation function
+      const evaluateFAWeek = httpsCallable<
+        { leagueId: string; weekNumber: number },
+        {
+          success: boolean;
+          leagueId: string;
+          weekNumber: number;
+          playersProcessed: number;
+          decisions: any[];
+          processingLog: Array<{
+            playerId: string;
+            playerName: string;
+            status: string;
+            error?: string;
+          }>;
+          message?: string;
+        }
+      >(this.functions, 'evaluateFAWeekBidsLLM');
+
+      console.log('[FA Service] Calling LLM evaluation function...', {
+        leagueId: currentLeague.id,
+        weekNumber: currentWeek.weekNumber,
+      });
+
+      this.weekAdvancementProgress.set(
+        `Evaluating ${pendingBids.length} bids with AI...`
       );
 
-      // Get all players for evaluation with enhanced data
-      const allPlayers = await this.getAllEnhancedPlayersForEvaluation(
-        currentLeague
-      );
+      const result = await evaluateFAWeek({
+        leagueId: currentLeague.id,
+        weekNumber: currentWeek.weekNumber,
+      });
+
+      console.log('[FA Service] LLM evaluation completed:', result.data);
       console.log(
-        '[FA Service] Enhanced players for evaluation:',
-        allPlayers.length
+        '[FA Service] Full result object:',
+        JSON.stringify(result.data, null, 2)
       );
 
-      // Process evaluation using enhanced logic
-      const evaluationResults = await this.evaluateAllPlayerBidsWithPersonality(
-        activeBids,
-        allPlayers,
-        marketContext,
-        currentLeague.rules
-      );
+      if (!result.data.success) {
+        const errorMsg = result.data.message || 'LLM evaluation failed';
+        console.error('[FA Service] LLM evaluation failed:', errorMsg);
+        throw new Error(errorMsg);
+      }
+
       console.log(
-        '[FA Service] Enhanced evaluation results:',
-        evaluationResults.length
+        `[FA Service] Successfully processed ${result.data.playersProcessed} players`
       );
 
-      // Apply evaluation results
-      await this.applyEvaluationResults(evaluationResults);
+      // Log any processing errors
+      if (result.data.processingLog) {
+        const errors = result.data.processingLog.filter(
+          (log) => log.status === 'error'
+        );
+        if (errors.length > 0) {
+          console.warn(
+            '[FA Service] Some players had errors during evaluation:',
+            errors
+          );
+        }
+      }
+
+      // Log decisions for debugging
+      if (result.data.decisions && result.data.decisions.length > 0) {
+        console.log(
+          '[FA Service] Decisions received:',
+          result.data.decisions.length
+        );
+        result.data.decisions.forEach((decision: any, index: number) => {
+          console.log(`[FA Service] Decision ${index + 1}:`, {
+            playerId: decision.playerId,
+            playerName: decision.playerName,
+            decisionType: decision.decision?.type,
+            acceptedBidId: decision.decision?.acceptedBidId,
+            shortlistedCount: decision.decision?.shortlistedBidIds?.length || 0,
+            rejectedCount: decision.decision?.rejectedBidIds?.length || 0,
+          });
+        });
+      } else {
+        console.warn('[FA Service] No decisions received from LLM function');
+      }
 
       // Update FA week status to evaluating
       await this.updateFAWeekStatus('evaluating');
 
+      // Create contracts for accepted bids (LLM function doesn't handle this)
+      this.weekAdvancementProgress.set(
+        'Creating contracts for accepted bids...'
+      );
+      await this.createContractsForAcceptedBids(result.data.decisions || []);
+
+      // Refresh active bids to get updated statuses
+      // The Firestore listener will automatically update the activeBids signal
+
       console.log(
-        '[FA Service] Enhanced weekly player evaluation completed successfully'
+        '[FA Service] LLM weekly player evaluation completed successfully'
       );
     } catch (error) {
-      console.error('Error processing weekly player evaluation:', error);
+      console.error(
+        '[FA Service] Error processing weekly player evaluation with LLM:',
+        error
+      );
+      if (error instanceof Error) {
+        console.error('[FA Service] Error message:', error.message);
+        console.error('[FA Service] Error stack:', error.stack);
+      }
+      // Re-throw to let the caller handle it
       throw error;
+    }
+  }
+
+  /**
+   * Create contracts for bids that were accepted by the LLM
+   * The LLM function returns decisions in the format: { playerId, decision: { acceptedBidId, ... }, ... }
+   */
+  private async createContractsForAcceptedBids(
+    decisions: any[]
+  ): Promise<void> {
+    try {
+      const currentWeek = this.currentFAWeek();
+      if (!currentWeek) {
+        console.warn('[FA Service] No current FA week for contract creation');
+        return;
+      }
+
+      if (!decisions || decisions.length === 0) {
+        console.log(
+          '[FA Service] No decisions to process for contract creation'
+        );
+        return;
+      }
+
+      const contractsToCreate: { bidId: string; playerId: string }[] = [];
+
+      // Extract accepted bid IDs from LLM decisions
+      // LLM returns: { playerId, playerName, decision: { acceptedBidId, ... }, ... }
+      for (const decision of decisions) {
+        if (decision.decision?.acceptedBidId) {
+          contractsToCreate.push({
+            bidId: decision.decision.acceptedBidId,
+            playerId: decision.playerId,
+          });
+        }
+      }
+
+      console.log(
+        `[FA Service] Creating ${contractsToCreate.length} contracts for accepted bids`
+      );
+
+      if (contractsToCreate.length === 0) {
+        console.log('[FA Service] No accepted bids to create contracts for');
+        return;
+      }
+
+      // Create contracts for each accepted bid
+      for (const contractInfo of contractsToCreate) {
+        try {
+          await this.createContractFromBid(
+            contractInfo.bidId,
+            contractInfo.playerId
+          );
+          console.log(
+            `[FA Service] Successfully created contract for player: ${contractInfo.playerId}`
+          );
+        } catch (error) {
+          console.error(
+            `[FA Service] Error creating contract for player ${contractInfo.playerId}:`,
+            error
+          );
+          // Continue with other contracts even if one fails
+        }
+      }
+    } catch (error) {
+      console.error(
+        '[FA Service] Error creating contracts for accepted bids:',
+        error
+      );
+      // Don't throw - contract creation failures shouldn't block week advancement
     }
   }
 
@@ -2470,35 +2700,47 @@ export class FreeAgencyService {
   }
 
   /**
-   * Carry over non-rejected bids to the next week
+   * Update all active bids to the next week number
+   * This includes pending, shortlisted, and accepted bids (but not rejected)
    */
   private async carryOverActiveBids(nextWeekNumber: number): Promise<void> {
     try {
+      const currentWeek = this.currentFAWeek();
+      if (!currentWeek) {
+        console.log('[FA Service] No current week, skipping bid carryover');
+        return;
+      }
+
       console.log(
-        '[FA Service] Carrying over active bids to week',
+        '[FA Service] Updating active bids from week',
+        currentWeek.weekNumber,
+        'to week',
         nextWeekNumber
       );
 
       // Get all bids that are not rejected (accepted, shortlisted, pending)
+      // These are the bids that should continue to the next week
       const activeBids = this.activeBids().filter(
-        (bid) => bid.status !== 'rejected'
+        (bid) =>
+          bid.status !== 'rejected' && bid.weekNumber === currentWeek.weekNumber
       );
 
       console.log(
         '[FA Service] Found',
         activeBids.length,
-        'bids to carry over'
+        'active bids to update to week',
+        nextWeekNumber
       );
 
       if (activeBids.length === 0) {
-        console.log('[FA Service] No bids to carry over');
+        console.log('[FA Service] No active bids to update');
         return;
       }
 
       const batch = writeBatch(this.firestore);
 
       for (const bid of activeBids) {
-        // Update bid to next week
+        // Update bid's week number to next week
         const bidRef = doc(this.firestore, 'faBids', bid.id);
         batch.update(bidRef, {
           weekNumber: nextWeekNumber,
@@ -2506,8 +2748,10 @@ export class FreeAgencyService {
         });
 
         console.log(
-          '[FA Service] Carrying over bid:',
+          '[FA Service] Updating bid:',
           bid.id,
+          'from week',
+          bid.weekNumber,
           'to week',
           nextWeekNumber
         );
@@ -2516,12 +2760,13 @@ export class FreeAgencyService {
       // Commit all updates
       await batch.commit();
       console.log(
-        '[FA Service] Successfully carried over',
+        '[FA Service] Successfully updated',
         activeBids.length,
-        'bids'
+        'bids to week',
+        nextWeekNumber
       );
     } catch (error) {
-      console.error('[FA Service] Error carrying over bids:', error);
+      console.error('[FA Service] Error updating bids to next week:', error);
       throw error;
     }
   }

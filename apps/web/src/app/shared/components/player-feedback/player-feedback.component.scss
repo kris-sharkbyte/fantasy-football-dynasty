@@ -1,0 +1,34 @@
+.player-feedback-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  &.compact {
+    gap: 0.25rem;
+
+    .feedback-section {
+      .p-3 {
+        padding: 0.5rem;
+      }
+
+      p {
+        font-size: 0.75rem;
+      }
+    }
+  }
+}
+
+.feedback-section {
+  &.public-statement {
+    margin-bottom: 0.5rem;
+  }
+
+  &.status-label {
+    margin-bottom: 0.5rem;
+  }
+
+  &.team-message {
+    // Last section, no margin needed
+  }
+}
+

@@ -139,7 +139,6 @@ export class JoinLeagueModalComponent {
         // Set the selected league to prevent navigation kickouts
         if (result.leagueId) {
           this.leagueService.setSelectedLeagueId(result.leagueId);
-          console.log('Selected league ID set to:', result.leagueId);
         }
 
         this.hide();
@@ -186,7 +185,6 @@ export class JoinLeagueModalComponent {
         // Set the selected league to prevent navigation kickouts
         if (result.leagueId) {
           this.leagueService.setSelectedLeagueId(result.leagueId);
-          console.log('Selected league ID set to:', result.leagueId);
         }
 
         this.hide();

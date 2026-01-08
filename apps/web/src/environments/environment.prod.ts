@@ -9,7 +9,7 @@ export const environment = {
     appId: '1:692555960291:web:78700db2bfa217afbbdad6',
     measurementId: 'G-TS5VHTHG6D',
   },
-  // Local Firebase emulator configuration
+  // Production never uses emulators
   useEmulators: false,
   emulators: {
     functions: '',

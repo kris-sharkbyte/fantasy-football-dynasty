@@ -41,9 +41,20 @@ export class PlayerDecisionsComponent implements OnInit {
   private readonly leagueService = inject(LeagueService);
 
   // State signals
-  public showDecisionModal = signal<boolean>(false);
   public selectedDecision = signal<FAEvaluationResult | null>(null);
   public isAdvancingWeek = signal<boolean>(false);
+
+  // Regular property for p-dialog (doesn't support signals yet)
+  public showDecisionModal = false;
+
+  constructor() {
+    // When dialog closes via two-way binding, clear selected decision
+    effect(() => {
+      if (!this.showDecisionModal && this.selectedDecision()) {
+        this.selectedDecision.set(null);
+      }
+    });
+  }
 
   // Computed values - derive from active bids instead of separate signal
   public playerDecisions = computed(() => {
@@ -273,14 +284,14 @@ export class PlayerDecisionsComponent implements OnInit {
    */
   openDecisionModal(decision: FAEvaluationResult): void {
     this.selectedDecision.set(decision);
-    this.showDecisionModal.set(true);
+    this.showDecisionModal = true;
   }
 
   /**
    * Close decision modal
    */
   closeDecisionModal(): void {
-    this.showDecisionModal.set(false);
+    this.showDecisionModal = false;
     this.selectedDecision.set(null);
   }
 

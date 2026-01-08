@@ -135,14 +135,18 @@ export class PlayersTableComponent implements OnInit {
       // Position filter
       if (this.selectedPosition() !== 'ALL') {
         filtered = filtered.filter(
-          (player) => player.Position === this.selectedPosition()
+          (player) =>
+            (player.Position || (player as any).position) ===
+            this.selectedPosition()
         );
       }
 
       // Team filter
       if (this.selectedTeam() !== 'ALL') {
         filtered = filtered.filter(
-          (player) => player.Team === this.selectedTeam()
+          (player) =>
+            (player.Team || (player as any).nflTeam || (player as any).team) ===
+            this.selectedTeam()
         );
       }
 
@@ -150,14 +154,18 @@ export class PlayersTableComponent implements OnInit {
       if (this.searchQuery()) {
         const query = this.searchQuery().toLowerCase();
         filtered = filtered.filter((player) => {
+          // Handle both name formats
+          const name = (player as any).name?.toLowerCase() || '';
           const firstName = player.FirstName?.toLowerCase() || '';
           const lastName = player.LastName?.toLowerCase() || '';
-          const team = player.Team?.toLowerCase() || '';
-          return (
-            firstName.includes(query) ||
-            lastName.includes(query) ||
-            team.includes(query)
-          );
+          const fullName = name || `${firstName} ${lastName}`.trim();
+          const team =
+            (
+              player.Team ||
+              (player as any).nflTeam ||
+              (player as any).team
+            )?.toLowerCase() || '';
+          return fullName.includes(query) || team.includes(query);
         });
       }
 
@@ -174,14 +182,18 @@ export class PlayersTableComponent implements OnInit {
       // Position filter
       if (this.selectedPosition() !== 'ALL') {
         filtered = filtered.filter(
-          (player) => player.Position === this.selectedPosition()
+          (player) =>
+            (player.Position || (player as any).position) ===
+            this.selectedPosition()
         );
       }
 
       // Team filter
       if (this.selectedTeam() !== 'ALL') {
         filtered = filtered.filter(
-          (player) => player.Team === this.selectedTeam()
+          (player) =>
+            (player.Team || (player as any).nflTeam || (player as any).team) ===
+            this.selectedTeam()
         );
       }
 
@@ -189,14 +201,18 @@ export class PlayersTableComponent implements OnInit {
       if (this.searchQuery()) {
         const query = this.searchQuery().toLowerCase();
         filtered = filtered.filter((player) => {
+          // Handle both name formats
+          const name = (player as any).name?.toLowerCase() || '';
           const firstName = player.FirstName?.toLowerCase() || '';
           const lastName = player.LastName?.toLowerCase() || '';
-          const team = player.Team?.toLowerCase() || '';
-          return (
-            firstName.includes(query) ||
-            lastName.includes(query) ||
-            team.includes(query)
-          );
+          const fullName = name || `${firstName} ${lastName}`.trim();
+          const team =
+            (
+              player.Team ||
+              (player as any).nflTeam ||
+              (player as any).team
+            )?.toLowerCase() || '';
+          return fullName.includes(query) || team.includes(query);
         });
       }
 
@@ -214,14 +230,18 @@ export class PlayersTableComponent implements OnInit {
       // Position filter
       if (this.selectedPosition() !== 'ALL') {
         filtered = filtered.filter(
-          (player) => player.Position === this.selectedPosition()
+          (player) =>
+            (player.Position || (player as any).position) ===
+            this.selectedPosition()
         );
       }
 
       // Team filter
       if (this.selectedTeam() !== 'ALL') {
         filtered = filtered.filter(
-          (player) => player.Team === this.selectedTeam()
+          (player) =>
+            (player.Team || (player as any).nflTeam || (player as any).team) ===
+            this.selectedTeam()
         );
       }
 
@@ -229,14 +249,18 @@ export class PlayersTableComponent implements OnInit {
       if (this.searchQuery()) {
         const query = this.searchQuery().toLowerCase();
         filtered = filtered.filter((player) => {
+          // Handle both name formats
+          const name = (player as any).name?.toLowerCase() || '';
           const firstName = player.FirstName?.toLowerCase() || '';
           const lastName = player.LastName?.toLowerCase() || '';
-          const team = player.Team?.toLowerCase() || '';
-          return (
-            firstName.includes(query) ||
-            lastName.includes(query) ||
-            team.includes(query)
-          );
+          const fullName = name || `${firstName} ${lastName}`.trim();
+          const team =
+            (
+              player.Team ||
+              (player as any).nflTeam ||
+              (player as any).team
+            )?.toLowerCase() || '';
+          return fullName.includes(query) || team.includes(query);
         });
       }
 
@@ -262,24 +286,35 @@ export class PlayersTableComponent implements OnInit {
         bValue = b.overall || 0;
         break;
       case 'name':
-        aValue = `${a.FirstName || ''} ${a.LastName || ''}`.toLowerCase();
-        bValue = `${b.FirstName || ''} ${b.LastName || ''}`.toLowerCase();
+        // Handle both name formats
+        aValue = (
+          (a as any).name || `${a.FirstName || ''} ${a.LastName || ''}`.trim()
+        ).toLowerCase();
+        bValue = (
+          (b as any).name || `${b.FirstName || ''} ${b.LastName || ''}`.trim()
+        ).toLowerCase();
         break;
       case 'position':
-        aValue = a.Position || '';
-        bValue = b.Position || '';
+        aValue = a.Position || (a as any).position || '';
+        bValue = b.Position || (b as any).position || '';
         break;
       case 'team':
-        aValue = a.Team || '';
-        bValue = b.Team || '';
+        aValue = a.Team || (a as any).nflTeam || (a as any).team || '';
+        bValue = b.Team || (b as any).nflTeam || (b as any).team || '';
         break;
       case 'age':
-        aValue = a.Age || 0;
-        bValue = b.Age || 0;
+        aValue = (a as any).age !== undefined ? (a as any).age : a.Age || 0;
+        bValue = (b as any).age !== undefined ? (b as any).age : b.Age || 0;
         break;
       case 'experience':
-        aValue = a.Experience || 0;
-        bValue = b.Experience || 0;
+        aValue =
+          (a as any).yearsExp !== undefined
+            ? (a as any).yearsExp
+            : a.Experience || 0;
+        bValue =
+          (b as any).yearsExp !== undefined
+            ? (b as any).yearsExp
+            : b.Experience || 0;
         break;
       case 'fantasyPoints':
         aValue = a.fantasyPoints || 0;
@@ -344,7 +379,7 @@ export class PlayersTableComponent implements OnInit {
         ...new Set(
           this.config
             .getPlayers()
-            .map((player) => player.Position)
+            .map((player) => player.Position || (player as any).position)
             .filter(Boolean)
         ),
       ];
@@ -359,7 +394,7 @@ export class PlayersTableComponent implements OnInit {
       const positions = [
         ...new Set(
           this._enhancedPlayers()
-            .map((player) => player.Position)
+            .map((player) => player.Position || (player as any).position)
             .filter(Boolean)
         ),
       ];
@@ -394,7 +429,10 @@ export class PlayersTableComponent implements OnInit {
         ...new Set(
           this.config
             .getPlayers()
-            .map((player) => player.Team)
+            .map(
+              (player) =>
+                player.Team || (player as any).nflTeam || (player as any).team
+            )
             .filter(Boolean)
         ),
       ];
@@ -409,7 +447,10 @@ export class PlayersTableComponent implements OnInit {
       const teams = [
         ...new Set(
           this._enhancedPlayers()
-            .map((player) => player.Team)
+            .map(
+              (player) =>
+                player.Team || (player as any).nflTeam || (player as any).team
+            )
             .filter(Boolean)
         ),
       ];
@@ -425,7 +466,10 @@ export class PlayersTableComponent implements OnInit {
         ...new Set(
           this.sportsDataService
             .activePlayers()
-            .map((player) => player.Team)
+            .map(
+              (player) =>
+                player.Team || (player as any).nflTeam || (player as any).team
+            )
             .filter(Boolean)
         ),
       ];
@@ -438,10 +482,13 @@ export class PlayersTableComponent implements OnInit {
 
   // Effect: Load league data when config changes
   constructor() {
-    console.log('PlayersTableComponent constructor');
-    console.log('config', this.config);
     effect(() => {
-      const leagueId = this.config?.leagueId;
+      // Wait for config to be set (it's an @Input, so it may not be available immediately)
+      if (!this.config) {
+        return;
+      }
+
+      const leagueId = this.config.leagueId;
       if (leagueId) {
         this.loadLeaguePlayers(leagueId);
       } else {
@@ -539,9 +586,6 @@ export class PlayersTableComponent implements OnInit {
       // Load active bids
       const activeBids = this.freeAgencyService.activeBids();
       this._activeBids.set(activeBids);
-
-      // No need to load player minimums - they're already in the league data
-      console.log('Free agency data loaded - minimums come from league data');
     } catch (error) {
       console.error('Error loading free agency data:', error);
     }
@@ -589,9 +633,6 @@ export class PlayersTableComponent implements OnInit {
         .filter((player): player is EnhancedSportsPlayer => player !== null);
 
       this._enhancedPlayers.set(enhancedPlayers);
-      console.log(
-        `Enhanced ${enhancedPlayers.length} players with sports data`
-      );
     } catch (error) {
       console.error('Error enhancing players with sports data:', error);
       this.error.set('Failed to enhance players with sports data');
@@ -724,36 +765,68 @@ export class PlayersTableComponent implements OnInit {
 
   /**
    * Get player display name
+   * Handles both formats: SportsPlayer (FirstName/LastName) and Firestore league players (name)
    */
-  getPlayerName(player: EnhancedSportsPlayer): string {
+  getPlayerName(player: EnhancedSportsPlayer | any): string {
+    // Check for Firestore league player format (name field)
+    if ((player as any).name) {
+      return (player as any).name;
+    }
+
+    // Check for SportsPlayer format (FirstName/LastName)
     const firstName = player.FirstName || '';
     const lastName = player.LastName || '';
-    return `${firstName} ${lastName}`.trim() || 'Unknown Player';
+    const fullName = `${firstName} ${lastName}`.trim();
+
+    if (fullName) {
+      return fullName;
+    }
+
+    // Fallback to Name field if available
+    if (player.Name) {
+      return player.Name;
+    }
+
+    return 'Unknown Player';
   }
 
   /**
-   * Get player age from birth date
+   * Get player age from birth date or direct age field
+   * Handles both formats: SportsPlayer (BirthDate/Age) and Firestore league players (age)
    */
-  getPlayerAge(player: EnhancedSportsPlayer): number {
-    if (!player.BirthDate) return 0;
-
-    try {
-      const birth = new Date(player.BirthDate);
-      const today = new Date();
-      let age = today.getFullYear() - birth.getFullYear();
-      const monthDiff = today.getMonth() - birth.getMonth();
-
-      if (
-        monthDiff < 0 ||
-        (monthDiff === 0 && today.getDate() < birth.getDate())
-      ) {
-        age--;
-      }
-
-      return age;
-    } catch (error) {
-      return 0;
+  getPlayerAge(player: EnhancedSportsPlayer | any): number {
+    // Check for direct age field (Firestore league players)
+    if ((player as any).age !== undefined && (player as any).age !== null) {
+      return (player as any).age;
     }
+
+    // Check for Age field (SportsPlayer)
+    if (player.Age !== undefined && player.Age !== null) {
+      return player.Age;
+    }
+
+    // Calculate from BirthDate if available
+    if (player.BirthDate) {
+      try {
+        const birth = new Date(player.BirthDate);
+        const today = new Date();
+        let age = today.getFullYear() - birth.getFullYear();
+        const monthDiff = today.getMonth() - birth.getMonth();
+
+        if (
+          monthDiff < 0 ||
+          (monthDiff === 0 && today.getDate() < birth.getDate())
+        ) {
+          age--;
+        }
+
+        return age;
+      } catch (error) {
+        return 0;
+      }
+    }
+
+    return 0;
   }
 
   /**
@@ -765,15 +838,16 @@ export class PlayersTableComponent implements OnInit {
 
   /**
    * Get position display name
+   * Handles both formats: SportsPlayer (Position) and Firestore league players (position)
    */
-  getPositionDisplay(position: string): string {
+  getPositionDisplay(position: string | undefined): string {
     return position || 'Unknown';
   }
 
   /**
    * Get team display name
    */
-  getTeamDisplay(team: string): string {
+  getTeamDisplay(team: string | undefined): string {
     return team || 'FA';
   }
 
@@ -794,9 +868,14 @@ export class PlayersTableComponent implements OnInit {
 
   /**
    * Get experience display
+   * Handles both formats: SportsPlayer (Experience) and Firestore league players (yearsExp)
    */
-  getExperienceDisplay(player: EnhancedSportsPlayer): string {
-    const exp = player.Experience || 0;
+  getExperienceDisplay(player: EnhancedSportsPlayer | any): string {
+    // Check for yearsExp (Firestore league players)
+    const exp =
+      (player as any).yearsExp !== undefined
+        ? (player as any).yearsExp
+        : player.Experience || 0;
     if (exp === 0) return 'Rookie';
     if (exp === 1) return '1';
     return `${exp}`;

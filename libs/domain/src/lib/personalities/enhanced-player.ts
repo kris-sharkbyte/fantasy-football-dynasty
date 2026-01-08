@@ -133,6 +133,7 @@ export interface FeedbackTemplates {
   counterOffer: string[]; // Response when making counter-offers
   holdoutWarning: string[]; // Warning about potential holdout
   accept: string[]; // Response when accepting offers
+  shortlist: string[]; // Response when shortlisting/considering an offer
   gmNote: string[]; // Private notes for GM UI about decision factors
 }
 

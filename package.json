@@ -2,7 +2,12 @@
   "name": "@fantasy-football-dynasty/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "seed": "node scripts/seed-emulator.js",
+    "emu": "firebase emulators:start",
+    "build:dev": "npx nx build web --configuration=development && npx nx build functions && cd dist/apps/functions && npm install && cd ../../.. && copy apps\\functions\\.secret.local dist\\apps\\functions\\.secret.local 2>nul || echo.",
+    "dev": "npm run build:dev && firebase emulators:start"
+  },
   "private": true,
   "devDependencies": {
     "@analogjs/vite-plugin-angular": "~1.19.1",

@@ -1,12 +1,22 @@
-<div class="bg-gray-900 rounded-lg p-6 mb-8 max-h-[1000px] overflow-y-auto">
-  <!-- Header Section -->
-  <div class="flex justify-between items-center mb-6">
-    <h3 class="text-xl font-semibold text-white">Your Bids</h3>
-    <span
-      class="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium"
+<div class="bids-container">
+  <!-- Status Filter -->
+  <div class="filter-section mb-4">
+    <label
+      for="status-filter"
+      class="block text-sm font-medium text-gray-300 mb-2"
     >
-      {{ teamBids().length }} active
-    </span>
+      Filter by Status:
+    </label>
+    <p-select
+      id="status-filter"
+      [options]="statusOptions"
+      [(ngModel)]="selectedStatus"
+      optionLabel="label"
+      optionValue="value"
+      placeholder="All Bids"
+      class="w-full"
+      [style]="{ width: '100%' }"
+    ></p-select>
   </div>
 
   <!-- Bids List -->
@@ -43,6 +53,8 @@
           <app-player-card
             [playerData]="getPlayerCardData(bid)"
             [config]="getPlayerCardConfig()"
+            [leagueId]="leagueService.selectedLeague()?.id"
+            (socialMediaClick)="onPlayerSocialMediaClick($event)"
           ></app-player-card>
         </div>
 
@@ -76,7 +88,7 @@
               [severity]="getStatusSeverity(bid.status)"
             ></p-badge>
             <span class="text-gray-400 text-xs">
-              {{ bid.submittedAt | date : 'short' }}
+              {{ getSubmittedAtDate(bid) | date : 'short' }}
             </span>
           </div>
 
@@ -92,32 +104,16 @@
         </div>
 
         <!-- Feedback Section (for accepted, shortlisted, or rejected bids) -->
-        @if (bid.feedback && bid.status !== 'pending') {
-        <div class="mt-3 p-3 bg-gray-700 rounded-lg">
-          <div class="flex items-start space-x-2">
-            <i
-              class="pi text-sm mt-0.5"
-              [ngClass]="{
-                'pi-check-circle text-green-400': bid.status === 'accepted',
-                'pi-clock text-orange-400':
-                  bid.status === 'shortlisted' || bid.status === 'considering',
-                'pi-times-circle text-red-400': bid.status === 'rejected'
-              }"
-            ></i>
-            <div class="flex-1">
-              <p class="text-sm text-gray-300 font-medium mb-1">
-                {{
-                  bid.status === 'accepted'
-                    ? 'Player Response:'
-                    : bid.status === 'shortlisted' ||
-                      bid.status === 'considering'
-                    ? 'Player Feedback:'
-                    : 'Rejection Reason:'
-                }}
-              </p>
-              <p class="text-sm text-gray-400">{{ bid.feedback }}</p>
-            </div>
-          </div>
+        @if ((bid.feedback || bid.teamMessage) && bid.status !== 'pending') {
+        <div class="mt-3">
+          <app-player-feedback
+            [feedbackData]="{
+              status: bid.status,
+              feedback: bid.feedback,
+              teamMessage: bid.teamMessage
+            }"
+            [showLabel]="false"
+          ></app-player-feedback>
         </div>
         }
       </div>

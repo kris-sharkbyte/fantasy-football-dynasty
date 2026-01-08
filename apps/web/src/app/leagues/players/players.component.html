@@ -69,3 +69,13 @@
     </app-players-table>
   </div>
 </div>
+
+<!-- Player Profile Modal -->
+<app-player-profile-modal
+  [visible]="playerProfileModalVisible()"
+  [player]="selectedPlayer()"
+  [overall]="selectedPlayer()?.overall"
+  [expectedValue]="selectedPlayer()?.minimumContract || selectedPlayer()?.marketValue"
+  [personality]="selectedPlayer()?.personality"
+  (visibleChange)="playerProfileModalVisible.set($event)"
+></app-player-profile-modal>

@@ -612,6 +612,12 @@ export class EnhancedPlayerFactory {
       accept: Array.isArray(baseTemplates.accept)
         ? baseTemplates.accept
         : [baseTemplates.accept || 'This offer meets my expectations.'],
+      shortlist: Array.isArray(baseTemplates.shortlist)
+        ? baseTemplates.shortlist
+        : [
+            baseTemplates.shortlist ||
+              "I'm considering this offer along with others.",
+          ],
       gmNote: Array.isArray(baseTemplates.gm_note)
         ? baseTemplates.gm_note
         : [

@@ -280,7 +280,6 @@ export class CreateLeagueComponent {
 
       // Set the selected league to prevent navigation kickouts
       this.leagueService.setSelectedLeagueId(leagueId);
-      console.log('Selected league ID set to:', leagueId);
 
       // Navigate to the team page to set up team settings
       console.log('Navigating to team page:', ['/leagues', leagueId, 'team']);

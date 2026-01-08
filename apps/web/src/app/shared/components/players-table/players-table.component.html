@@ -1,7 +1,7 @@
 <div class="available-players-container">
-  <!-- Header -->
-  <div class="header-section">
-    <h2>{{ config?.title || 'Available Players' }}</h2>
+  <!-- Header (only show if title is provided or subtitle exists) -->
+  <div class="header-section" *ngIf="config?.title || config?.subtitle">
+    <h2 *ngIf="config?.title">{{ config.title }}</h2>
     <p *ngIf="config?.subtitle" class="subtitle">{{ config.subtitle }}</p>
   </div>
 
@@ -371,15 +371,15 @@
           <!-- Position -->
           <td class="position-cell">
             <p-tag
-              [value]="getPositionDisplay(player.Position)"
-              [styleClass]="getPositionColorClass(player.Position)"
+              [value]="getPositionDisplay(player.Position || player.position)"
+              [styleClass]="getPositionColorClass(player.Position || player.position)"
             >
             </p-tag>
           </td>
 
           <!-- Team -->
           <td class="team-cell">
-            <span class="team-name">{{ getTeamDisplay(player.Team) }}</span>
+            <span class="team-name">{{ getTeamDisplay(player.Team || player.nflTeam || player.team) }}</span>
           </td>
 
           <!-- Age -->

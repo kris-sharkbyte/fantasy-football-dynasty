@@ -12,9 +12,9 @@ export const environment = {
   // Local Firebase emulator configuration
   useEmulators: true,
   emulators: {
-    functions: 'localhost:5001',
-    firestore: 'localhost:8080',
-    auth: 'localhost:9099',
-    storage: 'localhost:9199',
+    functions: '127.0.0.1:5001',
+    firestore: '127.0.0.1:8080',
+    auth: '127.0.0.1:9099',
+    storage: '127.0.0.1:9199',
   },
 };

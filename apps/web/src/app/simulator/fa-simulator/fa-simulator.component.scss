@@ -1,0 +1,277 @@
+.fa-simulator {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+
+  .header {
+    h1 {
+      background: linear-gradient(135deg, var(--primary-color), #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+  }
+
+  .text-primary {
+    color: var(--primary-color);
+  }
+
+  .text-secondary {
+    color: var(--text-color-secondary);
+  }
+
+  .week-dot {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    background: var(--surface-hover);
+    color: var(--text-color-secondary);
+    transition: all 0.2s;
+
+    &.active {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    &.completed {
+      background: var(--green-500);
+      color: white;
+    }
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+
+    .stat-item {
+      background: var(--surface-ground);
+      padding: 0.75rem;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+
+      .stat-label {
+        font-size: 0.75rem;
+        color: var(--text-color-secondary);
+      }
+
+      .stat-value {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--primary-color);
+      }
+    }
+  }
+
+  .log-container {
+    background: var(--surface-ground);
+    border-radius: 8px;
+    padding: 1rem;
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.875rem;
+
+    .log-entry {
+      padding: 0.25rem 0;
+      border-bottom: 1px solid var(--surface-border);
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      .log-time {
+        color: var(--text-color-secondary);
+        margin-right: 0.5rem;
+      }
+
+      &.log-info {
+        color: var(--primary-color);
+      }
+
+      &.log-success {
+        color: var(--green-500);
+      }
+
+      &.log-warning {
+        color: var(--yellow-500);
+      }
+
+      &.log-error {
+        color: var(--red-500);
+      }
+    }
+  }
+
+  .test-player-card {
+    background: var(--surface-hover);
+    padding: 1rem;
+    border-radius: 8px;
+
+    .player-name {
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+  }
+
+  .error-container {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--red-500);
+    border-radius: 8px;
+    padding: 1rem;
+    color: var(--red-500);
+  }
+
+  .decision-card,
+  .bid-card {
+    background: var(--surface-hover);
+    border-radius: 8px;
+    padding: 1rem;
+  }
+
+  .feedback-text {
+    font-style: italic;
+    color: var(--text-color-secondary);
+    padding: 0.5rem;
+    background: var(--surface-ground);
+    border-radius: 4px;
+    border-left: 3px solid var(--primary-color);
+  }
+
+  .player-name {
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+
+  .scores-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+
+    .score-item {
+      background: var(--surface-ground);
+      padding: 0.5rem;
+      border-radius: 4px;
+      text-align: center;
+
+      .score-label {
+        font-size: 0.7rem;
+        color: var(--text-color-secondary);
+        display: block;
+      }
+
+      .score-value {
+        font-size: 1rem;
+        font-weight: 600;
+      }
+
+      &.total {
+        background: var(--primary-color);
+
+        .score-label,
+        .score-value {
+          color: white !important;
+        }
+      }
+    }
+  }
+
+  .trust-item {
+    background: var(--surface-hover);
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .agent-notes {
+    background: var(--surface-hover);
+    padding: 0.75rem;
+    border-radius: 4px;
+  }
+
+  .desires-section {
+    background: var(--surface-hover);
+    padding: 0.75rem;
+    border-radius: 4px;
+
+    .desires-list {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.5rem;
+
+      .desire-tag {
+        background: var(--surface-ground);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.85rem;
+      }
+    }
+  }
+
+  .json-output {
+    background: var(--surface-ground);
+    border-radius: 8px;
+    padding: 1rem;
+    overflow-x: auto;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 500px;
+    overflow-y: auto;
+  }
+
+  // PrimeNG overrides
+  :host ::ng-deep {
+    .p-card {
+      height: 100%;
+    }
+
+    .p-card-body {
+      height: 100%;
+    }
+
+    .p-tabpanels {
+      padding: 1rem 0;
+    }
+
+    .p-tabpanel {
+      padding: 1rem 0;
+    }
+  }
+}
+
+// Color utility classes
+.text-green-400 {
+  color: var(--green-400) !important;
+}
+
+.text-green-500 {
+  color: var(--green-500) !important;
+}
+
+.text-yellow-400 {
+  color: var(--yellow-400) !important;
+}
+
+.text-yellow-500 {
+  color: var(--yellow-500) !important;
+}
+
+.text-red-400 {
+  color: var(--red-400) !important;
+}
+
+.text-red-500 {
+  color: var(--red-500) !important;
+}
+

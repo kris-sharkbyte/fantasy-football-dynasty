@@ -1,5 +1,76 @@
 {
-  "personality_schema_version": "1.0.0",
+  "personality_schema_version": "2.0.0",
+  "template_variables": {
+    "description": "Available variables for template substitution",
+    "variables": [
+      "{gap_to_market} - How offer compares to market (e.g., 'below market', 'above market')",
+      "{gap_percentage} - Numeric percentage difference from market value",
+      "{team_competitiveness} - Team's contender status (high/medium/low)",
+      "{money_priority} - Player's money priority weight (0-1)",
+      "{guarantee_priority} - Player's guarantee priority weight (0-1)",
+      "{winning_priority} - Player's winning priority weight (0-1)",
+      "{location_match} - How well location matches preferences (0-1)",
+      "{ego_level} - Player's ego level (very low to very high)",
+      "{agent_quality} - Agent quality level (poor to excellent)",
+      "{role_promise} - Expected role (starter/rotation/depth/unclear)",
+      "{injury_anxiety} - Injury concern level (very low to very high)",
+      "{offer_apy} - Offered annual salary formatted",
+      "{offer_years} - Number of years offered",
+      "{offer_guaranteed} - Total guaranteed money formatted",
+      "{offer_bonus} - Signing bonus formatted",
+      "{expected_apy} - Expected market value formatted",
+      "{negotiation_round} - Current round number (1, 2, 3...)",
+      "{rounds_remaining} - Patience/rounds left",
+      "{position} - Player's position",
+      "{age} - Player's age",
+      "{market_trend} - Position market trend (rising/falling/stable)",
+      "{competing_offers} - Number of other teams interested",
+      "{contract_length_pref} - Preferred contract length"
+    ]
+  },
+  "compound_templates": {
+    "description": "Prefixes and suffixes that can be combined with main templates",
+    "round_prefixes": {
+      "early": [
+        "",
+        "Look, ",
+        "Let me be clear: ",
+        "Here's where we stand: "
+      ],
+      "mid": [
+        "We've been at this a while now. ",
+        "After considering your offers, ",
+        "I've talked it over with my agent. ",
+        "Let's cut to the chase: "
+      ],
+      "late": [
+        "This is getting frustrating. ",
+        "Time is running out. ",
+        "I need to make a decision soon. ",
+        "We're running out of patience here. "
+      ],
+      "final": [
+        "This is my final answer: ",
+        "I'm done negotiating. ",
+        "Take it or leave it: ",
+        "Last chance: "
+      ]
+    },
+    "market_context_suffixes": [
+      "",
+      " The market is watching.",
+      " Other teams are calling.",
+      " I know my worth.",
+      " Check the comparables."
+    ],
+    "emotion_interjections": [
+      "",
+      "Honestly, ",
+      "To be frank, ",
+      "Between us, ",
+      "Real talk: "
+    ]
+  },
   "personality_types": {
     "aggressive_negotiator": {
       "name": "Aggressive Negotiator",
@@ -28,22 +99,90 @@
       "feedback_templates": {
         "reject_low_offer": [
           "I'm worth more than this. Close the gap or I'm testing the market.",
-          "Numbers don't lie—we're {gap_to_market}% short of market."
+          "Numbers don't lie—this offer is {gap_to_market}.",
+          "You're going to have to do a lot better than {offer_apy}.",
+          "My agent laughed when he saw this. We're not even close.",
+          "I've got {competing_offers} other teams calling. Step up or step aside.",
+          "At {age}, I'm in my prime. This offer doesn't reflect that.",
+          "Check the market for {position}s. This is insulting.",
+          "I know what I bring to the table. This ain't it.",
+          "{offer_apy}? You can't be serious. We're {gap_percentage}% apart.",
+          "Other teams are offering real money. What's your excuse?",
+          "I didn't become a top {position} to sign for pennies.",
+          "The market says I'm worth {expected_apy}. Your offer says otherwise.",
+          "Talk to my agent when you're ready to be serious.",
+          "This offer is a non-starter. Come back with real numbers.",
+          "I've earned respect in this league. Show me some."
         ],
         "counter_offer": [
-          "Guarantee ${counter_delta_guaranteed} and we'll sign today.",
-          "Add {counter_years} years and {counter_apy_increase} APY."
+          "Here's what gets this done: {offer_apy} isn't cutting it. Get to {expected_apy}.",
+          "Guarantee more money and we'll talk. {offer_guaranteed} won't cut it.",
+          "Add another year and bump the AAV. That's the path forward.",
+          "I need {offer_years} years minimum with real guarantees.",
+          "Close the gap to market value and I'll sign today.",
+          "My price is firm. Meet it or I walk.",
+          "Show me you're serious: more guaranteed money, longer term.",
+          "We're in round {negotiation_round}. Time to get real.",
+          "Add {gap_percentage}% to the AAV and we have a deal.",
+          "The guarantees need work. I'm not taking injury risk for this.",
+          "Other teams are offering better. Match them.",
+          "Bump the signing bonus significantly and we can talk.",
+          "I want {contract_length_pref} years. This offer is too short.",
+          "The base is too low. Fix that and we're close.",
+          "Make me the highest-paid {position} on your team. That's the ask."
         ],
         "holdout_warning": [
           "I won't report without market value.",
-          "Show me the money or I'm holding out."
+          "Show me the money or I'm holding out.",
+          "My bags aren't packed until I see real numbers.",
+          "Training camp can wait. Fair compensation can't.",
+          "I'll sit out as long as it takes.",
+          "Don't test me. I've held out before and I'll do it again.",
+          "The team needs me more than I need this offer.",
+          "I'm prepared to miss games over this.",
+          "You want me on the field? Pay me like it.",
+          "Holding out is bad for everyone. Pay me fairly.",
+          "I've got enough saved. I can wait.",
+          "The longer this drags, the higher my price goes.",
+          "Missing time hurts you more than me.",
+          "Week 1 is looking unlikely at this rate.",
+          "I'm not bluffing. I will hold out."
         ],
         "accept": [
           "Finally, an offer that respects my value.",
-          "This is what I've been waiting for."
+          "This is what I've been waiting for.",
+          "Now we're talking. Let's get this done.",
+          "You stepped up. I respect that. Deal.",
+          "That's market value. I'm in.",
+          "This is fair compensation. Where do I sign?",
+          "You met my price. That's all I asked.",
+          "The money is right. Let's win some games.",
+          "I pushed hard because I'm worth it. This proves it.",
+          "Glad we could come to terms. Now let's dominate.",
+          "This is what top {position}s get paid. I'm ready.",
+          "The guarantees sealed it. Let's go.",
+          "You paid what I'm worth. I'll deliver.",
+          "Finally got the respect I deserve. Let's build something.",
+          "This deal reflects my value. I'm all in."
+        ],
+        "shortlist": [
+          "This is interesting, but I'm still exploring options.",
+          "You're in the conversation, but not leading it.",
+          "I'll keep this offer in mind while I talk to other teams.",
+          "Not bad, but I've seen better. Stay tuned.",
+          "You're on my list, but not at the top yet.",
+          "I'm considering this alongside {competing_offers} other offers.",
+          "Decent start. Let's see if you can close.",
+          "I haven't said no, but I haven't said yes either.",
+          "The market is still developing. I'll be in touch.",
+          "Keep your phone on. You might hear from my agent."
         ],
         "gm_note": [
-          "Player weighed money ({money_priority}) and location ({location_match}) heavily. Ego factor: {ego_level}."
+          "Player weighed money ({money_priority}) and location ({location_match}) heavily. Ego factor: {ego_level}.",
+          "Aggressive stance driven by {ego_level} ego. Agent quality: {agent_quality}. Expects market value.",
+          "High money priority ({money_priority}). Will push hard for top dollar. {competing_offers} other teams involved.",
+          "Player focused on being paid fairly relative to market. Gap currently {gap_percentage}%.",
+          "Round {negotiation_round}: Player holding firm on demands. {rounds_remaining} rounds of patience remaining."
         ]
       }
     },
@@ -74,22 +213,90 @@
       "feedback_templates": {
         "reject_low_offer": [
           "I'm willing to wait for the right opportunity.",
-          "This offer doesn't meet my standards. I can afford to be patient."
+          "This offer doesn't meet my standards. I can afford to be patient.",
+          "There's no rush here. I'll wait for fair value.",
+          "I appreciate the offer, but it's not there yet.",
+          "The market is still developing. I'm in no hurry.",
+          "I've learned that patience pays off in negotiations.",
+          "This doesn't feel right yet. Let's take our time.",
+          "I'm not desperate. I can wait for the right deal.",
+          "Good things come to those who wait. This isn't good enough.",
+          "I've seen better offers come later in the process.",
+          "My agent and I are content to let this play out.",
+          "We're {gap_percentage}% apart. That's worth waiting on.",
+          "I'll let the market determine my value. No rush.",
+          "First offers are rarely the best offers.",
+          "I trust the process. Better offers will come."
         ],
         "counter_offer": [
           "I need more guarantees for a deal of this length.",
-          "Let's find a middle ground that works for both sides."
+          "Let's find a middle ground that works for both sides.",
+          "We're getting closer. A few adjustments would help.",
+          "If you can improve the guarantees, we're in business.",
+          "The AAV is close. The structure needs work.",
+          "I'm not asking for the moon—just fair value.",
+          "Small improvements would make this much more attractive.",
+          "We're in the ballpark. Let's fine-tune the details.",
+          "Add some security and I'll seriously consider this.",
+          "The base looks okay, but I need more protection.",
+          "I think we can find a solution here. Keep working.",
+          "You're {gap_percentage}% away from where I need to be.",
+          "A {offer_years}-year deal needs better guarantees than this.",
+          "I'm flexible on structure. Meet me halfway.",
+          "Let's not let small differences derail this. Adjust a bit."
         ],
         "holdout_warning": [
           "I'm not rushing into anything that doesn't feel right.",
-          "I'll wait for the right situation to develop."
+          "I'll wait for the right situation to develop.",
+          "I'd rather miss time than sign a bad deal.",
+          "Patience is a virtue. I have plenty.",
+          "I'm comfortable waiting for fair value.",
+          "There's no pressure on my end. I can wait.",
+          "Missing a few weeks is better than a bad contract.",
+          "I trust that the right deal will come eventually.",
+          "I'm not in a rush to make a mistake.",
+          "The team will come around when they're ready.",
+          "I've waited this long. I can wait longer.",
+          "Holding out isn't ideal, but neither is a bad deal.",
+          "My timeline is different from yours. I'm patient.",
+          "Let's not force something that isn't right.",
+          "When it's right, we'll both know. This isn't it yet."
         ],
         "accept": [
           "This feels like the right opportunity at the right time.",
-          "I appreciate the team's patience in finding common ground."
+          "I appreciate the team's patience in finding common ground.",
+          "Waiting paid off. This is a fair deal.",
+          "We found the middle ground. I'm happy with this.",
+          "Good things come to those who wait. This is good.",
+          "The structure works for both sides. Let's do it.",
+          "I knew we'd get here eventually. Let's move forward.",
+          "This gives me the security I was looking for.",
+          "Patient negotiation led to a fair outcome. I'm pleased.",
+          "We took our time and got it right. I'm in.",
+          "The terms are fair. That's all I wanted.",
+          "I'm comfortable with this deal. Let's make it official.",
+          "Worth the wait. This is a solid contract.",
+          "We found common ground. That's how it should work.",
+          "I'm satisfied with what we've built here."
+        ],
+        "shortlist": [
+          "This is a reasonable offer. I want to see what else develops.",
+          "You're definitely in consideration. Let me think on it.",
+          "I appreciate this offer. I'm going to take my time deciding.",
+          "This is competitive. I'll factor it into my decision.",
+          "Not ruling this out, but not committing yet either.",
+          "I want to be thorough. This stays on my list.",
+          "You've given me something to think about. I'll be back.",
+          "Solid offer. I'm weighing all my options carefully.",
+          "I'm going to sleep on this. It's worth considering.",
+          "You're in the mix. Let me see how things develop."
         ],
         "gm_note": [
-          "Player prioritized guarantees ({guarantee_priority}) and length ({length_priority}). Agent quality: {agent_quality}."
+          "Player prioritized guarantees ({guarantee_priority}) and length ({length_priority}). Agent quality: {agent_quality}.",
+          "Patient approach—expects fair market value over time. Currently {gap_percentage}% from target.",
+          "Will wait for right deal. Round {negotiation_round} of negotiations. Low urgency.",
+          "Guarantee-focused ({guarantee_priority}). Length preference: {contract_length_pref} years.",
+          "Measured approach to negotiations. {rounds_remaining} rounds of patience. Will accept fair offers."
         ]
       }
     },
@@ -120,22 +327,90 @@
       "feedback_templates": {
         "reject_low_offer": [
           "I really want to play, but I need some guarantees.",
-          "I'm not trying to be difficult, I just need security."
+          "I'm not trying to be difficult, I just need security.",
+          "Look, I want to make this work, but this is too low.",
+          "I'll be reasonable, but this isn't enough to live on.",
+          "I'm flexible on most things, but the base is too low.",
+          "I need to take care of my family. This doesn't cut it.",
+          "I'm not asking for a lot, just fair treatment.",
+          "Please, just give me a little more security.",
+          "I want to sign, I really do, but I need more.",
+          "Can we at least get closer to {expected_apy}?",
+          "I'm not trying to hold out. I just need basics covered.",
+          "I'll play hard for you, but I need fair pay.",
+          "This is below what I can accept. Help me out here.",
+          "I'm eager to contribute. Just bump it a little.",
+          "I've got bills to pay. This needs to be better."
         ],
         "counter_offer": [
           "Could you add a little more guaranteed money?",
-          "Just a small bump in guarantees would help."
+          "Just a small bump in guarantees would help.",
+          "I'm so close to signing. A small increase seals it.",
+          "Can we add a bit more security? That's all I'm asking.",
+          "I'll make this easy—just improve the guarantees slightly.",
+          "We're almost there. A little more and I'll sign.",
+          "I don't need top dollar, just fair value.",
+          "Throw in a small signing bonus and we're done.",
+          "I'll be the easiest negotiation you've had. Just a bit more.",
+          "I want to make this work. Help me get there.",
+          "Small adjustment to the base and I'm your guy.",
+          "I'm not being greedy. Just need a touch more.",
+          "Meet me somewhere in the middle and we're good.",
+          "I'll sign today if you can improve this slightly.",
+          "I don't want to hold up your plans. Let's find a way."
         ],
         "holdout_warning": [
           "I'm not trying to hold out, I just need security.",
-          "I want to be on the field, but I need protection."
+          "I want to be on the field, but I need protection.",
+          "I don't want it to come to this, but I need fair pay.",
+          "Please don't make me sit out. I just want to play.",
+          "Holding out is the last thing I want to do.",
+          "I'll report as soon as we get close to fair value.",
+          "I'm not a holdout guy, but I have to protect my family.",
+          "Let's avoid drama. Just give me something reasonable.",
+          "I hate that it's come to this. Let's work it out.",
+          "Missing camp isn't good for anyone. Let's solve this.",
+          "I want to be there Day 1. Help me make that happen.",
+          "I'm stressed about this. I just want to play football.",
+          "Don't force me to hold out. That's not who I am.",
+          "I'll be the first one at practice if you fix this.",
+          "I'm not demanding. I just need enough to feel secure."
         ],
         "accept": [
           "I'm excited to get back to playing football.",
-          "Thank you for giving me this opportunity."
+          "Thank you for giving me this opportunity.",
+          "Finally, I can focus on football. Thank you.",
+          "I really appreciate you working with me on this.",
+          "This means a lot to me and my family. Let's go.",
+          "I can't wait to get started. Thank you for believing in me.",
+          "You won't regret this. I'll work harder than anyone.",
+          "I'm so relieved we got this done. Let's ball.",
+          "Thank you for being fair. I'll give you everything I have.",
+          "This is exactly what I needed. I'm ready to contribute.",
+          "I'll make you proud. Thanks for the chance.",
+          "I'm going to prove this was a great decision.",
+          "This takes so much stress off. I can finally focus.",
+          "You've given me stability. I won't let you down.",
+          "I'm grateful. Now let me show you what I can do."
+        ],
+        "shortlist": [
+          "This is close. I want to accept but need just a bit more.",
+          "I'm leaning yes, but let me think about it.",
+          "You're my top choice. I just need to be sure.",
+          "I want to say yes. Give me a day to decide.",
+          "This is tempting. I'm strongly considering it.",
+          "I'm almost ready to commit. Just processing.",
+          "You're ahead of everyone else. I'll likely accept.",
+          "I want this to work out. Let me sleep on it.",
+          "This is probably going to be a yes. Stand by.",
+          "I'm basically there. Just confirming with family."
         ],
         "gm_note": [
-          "Player highly values guarantees ({guarantee_priority}) and security. Injury anxiety: {injury_anxiety}."
+          "Player highly values guarantees ({guarantee_priority}) and security. Injury anxiety: {injury_anxiety}.",
+          "Desperate to sign—will accept reasonable offers quickly. Low holdout threshold.",
+          "Security-focused. {rounds_remaining} rounds before likely acceptance. Easy negotiation.",
+          "Minimal counter-offer pressure (1.05x multiplier). Wants to play above all else.",
+          "Round {negotiation_round}: Player very willing to deal. Close this quickly."
         ]
       }
     },
@@ -166,22 +441,90 @@
       "feedback_templates": {
         "reject_low_offer": [
           "I love this team, but I need fair compensation.",
-          "I want to stay here, but the offer needs to be fair."
+          "I want to stay here, but the offer needs to be fair.",
+          "Look, I bleed these colors, but I have a family to support.",
+          "My loyalty shouldn't be taken advantage of.",
+          "I've given this organization everything. Return the respect.",
+          "I want to be here long-term, but not at any price.",
+          "Don't mistake my loyalty for desperation.",
+          "I'll give you a hometown discount, but this is too much.",
+          "I've turned down other offers to be here. Meet me halfway.",
+          "This team means everything to me. Treat me like it.",
+          "I'm not asking for market value. Just fair value.",
+          "My commitment to this city is real. Honor that.",
+          "I've been loyal. It's time for the team to be loyal back.",
+          "The fans deserve better than watching me leave over money.",
+          "I'd rather stay than get paid elsewhere. But I need respect."
         ],
         "counter_offer": [
           "I'm willing to work with you on this.",
-          "Let's find a solution that works for everyone."
+          "Let's find a solution that works for everyone.",
+          "I'll take less than market to stay. But not this much less.",
+          "We're close. Let's find a way to make this work.",
+          "I don't want to leave. Help me stay.",
+          "A small adjustment shows you value me. That matters.",
+          "I'll be flexible if you show some flexibility too.",
+          "I'm not trying to break the bank. Just fair treatment.",
+          "Let's compromise. That's what partners do.",
+          "I've earned a little more than this. Just a bit.",
+          "Show me this organization values loyalty.",
+          "I'll work with whatever structure. Just improve the total.",
+          "Let's not let a small gap break up something good.",
+          "I'm giving you a discount. Meet me somewhere reasonable.",
+          "We've built something here. Don't throw it away over money."
         ],
         "holdout_warning": [
           "I don't want to hold out, let's work something out.",
-          "I'm committed to this team, but I need fair treatment."
+          "I'm committed to this team, but I need fair treatment.",
+          "Missing time would break my heart. Don't make me do it.",
+          "I've never held out before. Don't push me to start.",
+          "The last thing I want is a contract dispute.",
+          "I want to be at camp. Help me be there.",
+          "Holding out goes against everything I stand for.",
+          "I'd be heartbroken to sit out. Let's prevent that.",
+          "This city means too much to me to hold out.",
+          "I'll show up no matter what, but I'd prefer fair pay.",
+          "I don't believe in holdouts. But I also believe in fairness.",
+          "Let's solve this before it becomes a story.",
+          "I want to lead by example. Hard to do from home.",
+          "Missing time hurts the team. I care about that.",
+          "I'm loyal to a fault. But even loyalty has limits."
         ],
         "accept": [
           "I'm excited to continue building something special with this team!",
-          "This is where I want to be. Let's make it work."
+          "This is where I want to be. Let's make it work.",
+          "Home is where the heart is. My heart is here.",
+          "I couldn't be happier to stay. Let's win together.",
+          "This organization believed in me. I believe in them.",
+          "I've dreamed of finishing my career here. This makes it possible.",
+          "The money's fair and I get to stay. Perfect.",
+          "My family is rooted here. Thank you for keeping us together.",
+          "I turned down more money elsewhere. No regrets.",
+          "This isn't just a contract. It's a commitment to this city.",
+          "I'm emotional right now. This means so much.",
+          "They did right by me. I'll do right by them.",
+          "I'll give this team everything I have. Always.",
+          "Loyalty was rewarded. That's how it should be.",
+          "Let's bring a championship to these fans."
+        ],
+        "shortlist": [
+          "I want to stay. Let me see if anyone else values my loyalty.",
+          "This is home. But I need to explore what's fair.",
+          "You're my first choice. I'm just doing due diligence.",
+          "I'll probably come back to you. Just checking the market.",
+          "My preference is clear. But I have to be smart.",
+          "I'd rather negotiate here than anywhere else.",
+          "You'll get a chance to match. I promise.",
+          "Family comes first. Need to make sure this is right.",
+          "I'm not shopping myself. Just being thorough.",
+          "Loyalty means I give you every chance. But I need fairness."
         ],
         "gm_note": [
-          "Player strongly values team loyalty ({team_loyalty}) and location ({location_priority}). Role promise: {role_promise}."
+          "Player strongly values team loyalty ({team_loyalty}) and location ({location_priority}). Role promise: {role_promise}.",
+          "Loyal player—will accept below-market to stay. Location match: {location_match}.",
+          "Low comparison weight ({comparison_weight}). Doesn't care about other contracts. Wants to stay.",
+          "Cooperative negotiator. Counter-offer multiplier: 1.0x. Will work with team on structure.",
+          "Round {negotiation_round}: Strong preference to stay with current team. Compromise-oriented."
         ]
       }
     },
@@ -212,22 +555,90 @@
       "feedback_templates": {
         "reject_low_offer": [
           "I want to win. Show me this team is serious about contending.",
-          "I'll take less money if you're building a winner."
+          "I'll take less money for a ring, but this isn't a contender.",
+          "Where are we winning? I need to see a championship path.",
+          "I'm chasing rings, not dollars. But this team isn't either.",
+          "Your roster doesn't scream championship. Neither does this offer.",
+          "I'd sign for less with a contender. Are you one?",
+          "What's the plan to win? I need to believe.",
+          "I'm flexible on money for winners. This doesn't feel like winning.",
+          "Show me the championship blueprint and I'll be flexible.",
+          "I've been on losing teams. I'm done with that.",
+          "At {age}, my window is closing. I need a winner.",
+          "The offer would work if I believed in the team.",
+          "Championship or bust. This offer is neither.",
+          "I'm not here to rebuild. I'm here to win now.",
+          "Convince me this team can win. The money doesn't matter as much."
         ],
         "counter_offer": [
           "I'll take less money if you're building a winner.",
-          "Show me the playoff plan and I'll be flexible on terms."
+          "Show me the playoff plan and I'll be flexible on terms.",
+          "If this team is truly contending, I'll work with you.",
+          "I'm cheap for a contender. Prove you're one.",
+          "Less money is fine if we're winning in January.",
+          "I'll sacrifice for a ring. What are you sacrificing?",
+          "My price drops for real contenders. Are you real?",
+          "Winning changes everything. Including my demands.",
+          "I'll take a discount for a championship roster.",
+          "Show me the path to the playoffs and I'll adjust.",
+          "Contenders get the discount. Prove you deserve one.",
+          "I'll be your best value signing if we win.",
+          "Championship upside matters more than the contract.",
+          "I'm flexible if the team is truly committed to winning.",
+          "Get me to the Super Bowl and money won't be an issue."
         ],
         "holdout_warning": [
           "I'm not holding out for money, I'm waiting for the right opportunity.",
-          "I want to win championships, not just get paid."
+          "I want to win championships, not just get paid.",
+          "I'd rather sit out than waste a year on a losing team.",
+          "I'll wait for a contender. That's more important than camp.",
+          "Winning is worth waiting for.",
+          "I'm not desperate to play anywhere. Only winners.",
+          "My holdout is about opportunity, not money.",
+          "I'll miss time to find the right situation.",
+          "Championships don't come from settling.",
+          "I'm patient. The right contender will call.",
+          "I'd rather rehab than play for a bad team.",
+          "Sitting out beats losing games.",
+          "I'm looking for a championship window, not just a paycheck.",
+          "The right team is worth waiting for.",
+          "I'll hold out until I find a real contender."
         ],
         "accept": [
           "I want to win championships, and this team gives me that opportunity!",
-          "This is exactly the kind of situation I've been looking for."
+          "This is exactly the kind of situation I've been looking for.",
+          "You're built to win. That's all I needed to hear.",
+          "Let's go get a ring. I'm all in.",
+          "This roster is special. I had to be part of it.",
+          "Championship culture. That's what I signed up for.",
+          "I took less because I believe in this team.",
+          "Let's make history together.",
+          "This is a Super Bowl roster. Count me in.",
+          "I'm here to win, and this team can.",
+          "Money wasn't the priority. Winning was. This checks out.",
+          "I've waited my whole career for this opportunity.",
+          "Let's bring a championship to this city.",
+          "This is what contending looks like. I'm ready.",
+          "Championship or bust. Let's go."
+        ],
+        "shortlist": [
+          "Interesting offer. Are you really contenders though?",
+          "I like the fit, but need to verify the championship window.",
+          "You're on my list. Let me see what other contenders offer.",
+          "The money works. I'm evaluating rosters now.",
+          "I want to believe. Give me more reason to.",
+          "This is promising. Just confirming competitive level.",
+          "You might be my best shot at a ring. Deciding.",
+          "I'm comparing contenders, not contracts.",
+          "Winning probability matters most. You're in the mix.",
+          "Let me analyze your championship odds and get back to you."
         ],
         "gm_note": [
-          "Player prioritized winning ({winning_priority}) over money ({money_priority}). Team competitiveness: {team_competitiveness}."
+          "Player prioritized winning ({winning_priority}) over money ({money_priority}). Team competitiveness: {team_competitiveness}.",
+          "Ring chaser—will take discounts for true contenders. Team status critical.",
+          "Low location priority ({location_priority}). Will go anywhere to win.",
+          "Deadline behavior: prioritize opportunity. Will wait for right contender.",
+          "Round {negotiation_round}: Evaluating championship potential more than contract value."
         ]
       }
     },
@@ -258,22 +669,90 @@
       "feedback_templates": {
         "reject_low_offer": [
           "I need more guaranteed money for my family's security.",
-          "At my age, I can't afford to take risks."
+          "At my age, I can't afford to take risks.",
+          "The guarantees are too low. One injury and I'm done.",
+          "I've seen teammates get cut with nothing. Not me.",
+          "Security matters more than total value at this point.",
+          "My body has taken a lot of hits. I need protection.",
+          "I've earned guaranteed money. This doesn't reflect that.",
+          "Without proper guarantees, this is too risky.",
+          "I've got {age} years on this body. Protect my future.",
+          "The base is fine. The guarantees are not.",
+          "I've seen too many careers end suddenly. Guarantees matter.",
+          "My family depends on financial security. This doesn't provide it.",
+          "I'm not gambling at this stage of my career.",
+          "Injury anxiety is real at my age. Guarantees help.",
+          "I need to know I'm protected no matter what happens."
         ],
         "counter_offer": [
           "I want more guarantees, even if it means less total money.",
-          "Security over upside. That's what I need."
+          "Security over upside. That's what I need.",
+          "Convert some base to guaranteed. I'll take less overall.",
+          "Structure this to protect me and we have a deal.",
+          "I'll be flexible on AAV if you lock in guarantees.",
+          "More years guaranteed matters more than the yearly number.",
+          "Full guarantees for year one and two. That's my ask.",
+          "I need injury protection. Adjust the structure accordingly.",
+          "Less money with more security works better for me.",
+          "Add guaranteed money and I'll sign immediately.",
+          "My priority is protection. Make this contract safe.",
+          "I'll take a discount for fully guaranteed money.",
+          "Structure it however you want, but guarantee more of it.",
+          "At {age}, I need certainty more than upside.",
+          "Protect my downside and we're partners."
         ],
         "holdout_warning": [
           "I'm not playing without proper guarantees.",
-          "My family depends on this. I need security."
+          "My family depends on this. I need security.",
+          "I'll sit out before I sign an unsafe contract.",
+          "Holding out is safer than playing with bad guarantees.",
+          "I've seen players get hurt in camp. I need protection first.",
+          "I'm not risking my future for an unsafe deal.",
+          "Security comes before football at this point.",
+          "I'll miss time to get the right guarantees.",
+          "My body won't last forever. The contract needs to reflect that.",
+          "I'm not showing up until my family is protected.",
+          "Call it a holdout, call it smart. I need guarantees.",
+          "The risk of playing without security is too high.",
+          "I've earned the right to demand protection.",
+          "Missing camp beats missing my kids' futures.",
+          "Get the guarantees right or I stay home."
         ],
         "accept": [
           "This gives me the security I need for my family.",
-          "I appreciate the team understanding my situation."
+          "I appreciate the team understanding my situation.",
+          "The guarantees are right. I can focus on football now.",
+          "My family is protected. That's what matters most.",
+          "Thank you for structuring this safely. I'm committed.",
+          "Security and fair value. That's all I wanted.",
+          "I can play without worrying about what happens if I get hurt.",
+          "This protects my future. I'm grateful.",
+          "The guarantees show you value my contributions.",
+          "My wife can stop worrying. Thank you for that.",
+          "This is how you take care of veterans. Well done.",
+          "I'll give everything I have knowing I'm protected.",
+          "Financial peace of mind lets me focus on the game.",
+          "You've set up my family. I'll set up your team.",
+          "This is the kind of security I've earned."
+        ],
+        "shortlist": [
+          "The guarantees are interesting. Let me compare structures.",
+          "I'm evaluating security across offers. You're in the mix.",
+          "The protection is promising. Need to see the full market.",
+          "I like the guarantee structure. Considering options.",
+          "This could work. Comparing protection levels with other offers.",
+          "Security-wise, you're competitive. Still deciding.",
+          "The structure is appealing. Let me confirm it's the best.",
+          "I want to be sure I'm maximizing guarantees.",
+          "You've addressed my main concern. Thinking it over.",
+          "Promising offer. My agent is comparing safety across deals."
         ],
         "gm_note": [
-          "Player highly values guarantees ({guarantee_priority}) and security. Age factor: {age_factor}, family considerations: {family_priority}."
+          "Player highly values guarantees ({guarantee_priority}) and security. Age factor: {age}, injury anxiety: {injury_anxiety}.",
+          "Conservative veteran—prioritizes guaranteed money over total value. Risk averse.",
+          "Very low risk tolerance. Will sacrifice upside for protection.",
+          "Length priority: {length_priority}. Wants multi-year security at {age} years old.",
+          "Round {negotiation_round}: Focused on guarantee structure more than AAV."
         ]
       }
     }

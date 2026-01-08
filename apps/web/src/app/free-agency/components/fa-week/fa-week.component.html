@@ -8,16 +8,61 @@
   <!-- Salary Cap Section -->
   <app-salary-cap></app-salary-cap>
 
+  <!-- Header Section with Available Players Title and Your Bids Button -->
+  <div class="players-header-section">
+    <h2 class="players-title">Available Players</h2>
+    <button
+      pButton
+      type="button"
+      icon="pi pi-list"
+      label="Your Bids"
+      (click)="showBidsSidebar = true"
+      class="p-button-outlined p-button-secondary"
+    >
+      <span class="bids-count-badge">{{ teamBidsCount() }}</span>
+    </button>
+  </div>
+
   <!-- Main Content Grid -->
   <div class="content-grid">
     <!-- Available Players Section -->
     <div class="players-section">
       <app-players-table [config]="playersTableConfig()"></app-players-table>
     </div>
+  </div>
 
-    <!-- Team Bids Section -->
-    <div class="bids-section max-h-[1000t to .px] overflow-y-auto">
-      <app-team-bids></app-team-bids>
+  <!-- Your Bids Sidebar Flyout -->
+  <div
+    class="bids-sidebar-overlay"
+    [class.active]="showBidsSidebar"
+    (click)="showBidsSidebar = false"
+  >
+    <div
+      class="bids-sidebar"
+      [class.active]="showBidsSidebar"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="bids-sidebar-header">
+        <h2 class="text-xl font-semibold text-white m-0">Your Bids</h2>
+        <div class="flex items-center gap-3">
+          <span
+            class="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium"
+          >
+            {{ teamBidsCount() }} active
+          </span>
+          <button
+            pButton
+            type="button"
+            icon="pi pi-times"
+            (click)="showBidsSidebar = false"
+            class="p-button-text p-button-rounded p-button-plain"
+            styleClass="p-button-sm"
+          ></button>
+        </div>
+      </div>
+      <div class="bids-sidebar-content">
+        <app-team-bids></app-team-bids>
+      </div>
     </div>
   </div>
 
@@ -26,14 +71,13 @@
 
   <!-- Bid Modal -->
   <p-dialog
-    [visible]="showBidModal()"
+    [(visible)]="showBidModal"
     [modal]="true"
     [closable]="true"
     [draggable]="false"
     [resizable]="false"
     [style]="{ width: '50rem' }"
     [header]="isEditingBid() ? 'Update Bid' : 'Submit Bid'"
-    (onHide)="closeBidModal()"
   >
     @if (selectedPlayer()) {
     <div class="bid-modal-content">
@@ -54,6 +98,16 @@
         </div>
         }
       </div>
+
+      <!-- Existing Bid Feedback (if any) -->
+      @if (existingBidFeedback()) {
+      <div class="existing-feedback-section mb-4">
+        <app-player-feedback
+          [feedbackData]="existingBidFeedback()"
+          [showLabel]="true"
+        ></app-player-feedback>
+      </div>
+      }
 
       <!-- Contract Inputs -->
       <app-contract-inputs
@@ -78,8 +132,10 @@
           <span class="value">{{ formatCurrency(averageAnnualValue()) }}</span>
         </div>
       </div>
+    </div>
+    }
 
-      <!-- Action Buttons -->
+    <ng-template pTemplate="footer">
       <div class="modal-actions">
         <button
           pButton
@@ -109,7 +165,15 @@
           class="p-button-primary"
         ></button>
       </div>
-    </div>
-    }
+    </ng-template>
   </p-dialog>
+
+  <!-- Social Media Feed Modal -->
+  @if (leagueService.selectedLeague()?.id) {
+  <app-social-media-feed-modal
+    [visible]="showSocialMediaModal"
+    [leagueId]="leagueService.selectedLeague()!.id"
+    (visibleChange)="showSocialMediaModal = $event"
+  ></app-social-media-feed-modal>
+  }
 </div>

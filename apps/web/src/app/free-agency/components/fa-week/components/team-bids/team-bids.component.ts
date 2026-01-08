@@ -1,7 +1,9 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, signal, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { BadgeModule } from 'primeng/badge';
+import { SelectModule } from 'primeng/select';
+import { FormsModule } from '@angular/forms';
 import { FreeAgencyService } from '../../../../../services/free-agency.service';
 import { LeagueService } from '../../../../../services/league.service';
 import { SportsDataService } from '../../../../../services/sports-data.service';
@@ -10,16 +12,28 @@ import {
   PlayerCardData,
   PlayerCardConfig,
 } from '../../../../../shared/components/player-card';
+import {
+  PlayerFeedbackComponent,
+  PlayerFeedbackData,
+} from '../../../../../shared/components/player-feedback';
 
 @Component({
   selector: 'app-team-bids',
   standalone: true,
-  imports: [CommonModule, ButtonModule, BadgeModule, PlayerCardComponent],
+  imports: [
+    CommonModule,
+    ButtonModule,
+    BadgeModule,
+    SelectModule,
+    FormsModule,
+    PlayerCardComponent,
+    PlayerFeedbackComponent,
+  ],
   templateUrl: './team-bids.component.html',
 })
 export class TeamBidsComponent {
   private readonly freeAgencyService = inject(FreeAgencyService);
-  private readonly leagueService = inject(LeagueService);
+  public readonly leagueService = inject(LeagueService);
   private readonly sportsDataService = inject(SportsDataService);
 
   // Computed values from services
@@ -31,14 +45,41 @@ export class TeamBidsComponent {
   // Check if sports data is ready
   public sportsDataReady = this.sportsDataService.dataReady;
 
+  // Status filter
+  public selectedStatus = signal<string>('all');
+  public statusOptions = [
+    { label: 'All Bids', value: 'all' },
+    { label: 'Pending', value: 'pending' },
+    { label: 'Accepted', value: 'accepted' },
+    { label: 'Shortlisted', value: 'shortlisted' },
+    { label: 'Rejected', value: 'rejected' },
+  ];
+
   // Team bids filtered for current user - show ALL bids including accepted ones
   public teamBids = computed(() => {
     const currentUserTeamId = this.leagueService.currentUserTeamId();
-    if (!currentUserTeamId) return [];
+    console.log('[Team Bids] teamBids computed - currentUserTeamId:', currentUserTeamId);
+    if (!currentUserTeamId) {
+      console.log('[Team Bids] No teamId, returning empty array');
+      return [];
+    }
 
     // Get all bids from the service (including accepted ones)
     const allBids = this.freeAgencyService.getAllTeamBids(currentUserTeamId);
-    return allBids.filter((bid) => bid.teamId === currentUserTeamId);
+    console.log('[Team Bids] getAllTeamBids returned:', allBids.length, 'bids');
+    const filteredBids = allBids.filter((bid) => bid.teamId === currentUserTeamId);
+    console.log('[Team Bids] After filtering by teamId:', filteredBids.length, 'bids');
+
+    // Apply status filter
+    const statusFilter = this.selectedStatus();
+    console.log('[Team Bids] Status filter:', statusFilter);
+    if (statusFilter === 'all') {
+      console.log('[Team Bids] Returning all filtered bids:', filteredBids.length);
+      return filteredBids;
+    }
+    const statusFiltered = filteredBids.filter((bid) => bid.status === statusFilter);
+    console.log('[Team Bids] After status filter:', statusFiltered.length, 'bids');
+    return statusFiltered;
   });
 
   /**
@@ -174,6 +215,23 @@ export class TeamBidsComponent {
   }
 
   /**
+   * Convert Firestore Timestamp to Date for date pipe
+   */
+  getSubmittedAtDate(bid: any): Date {
+    if (!bid.submittedAt) return new Date();
+    // Handle Firestore Timestamp
+    if (bid.submittedAt?.toDate) {
+      return bid.submittedAt.toDate();
+    }
+    // Handle Date object
+    if (bid.submittedAt instanceof Date) {
+      return bid.submittedAt;
+    }
+    // Handle string or number
+    return new Date(bid.submittedAt);
+  }
+
+  /**
    * Get PrimeNG severity level for bid status
    */
   getStatusSeverity(status: string): 'success' | 'warn' | 'danger' | 'info' {
@@ -274,9 +332,19 @@ export class TeamBidsComponent {
       showStatus: true,
       showTeamLogo: true,
       showPlayerPhoto: true,
+      showSocialMediaLink: true,
       size: 'medium',
       layout: 'horizontal',
       theme: 'dark',
     };
+  }
+
+  /**
+   * Handle player social media click
+   */
+  socialMediaClick = output<{ playerId: number; leagueId: string }>();
+
+  onPlayerSocialMediaClick(event: { playerId: number; leagueId: string }): void {
+    this.socialMediaClick.emit(event);
   }
 }
