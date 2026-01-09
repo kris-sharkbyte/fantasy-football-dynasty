@@ -1,4 +1,11 @@
-import { Component, inject, computed, signal, output } from '@angular/core';
+import {
+  Component,
+  inject,
+  computed,
+  signal,
+  output,
+  effect,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { BadgeModule } from 'primeng/badge';
@@ -45,6 +52,9 @@ export class TeamBidsComponent {
   // Check if sports data is ready
   public sportsDataReady = this.sportsDataService.dataReady;
 
+  // Cache for league player data (keyed by leaguePlayerId)
+  private leaguePlayersCache = signal<Map<string, any>>(new Map());
+
   // Status filter
   public selectedStatus = signal<string>('all');
   public statusOptions = [
@@ -58,7 +68,10 @@ export class TeamBidsComponent {
   // Team bids filtered for current user - show ALL bids including accepted ones
   public teamBids = computed(() => {
     const currentUserTeamId = this.leagueService.currentUserTeamId();
-    console.log('[Team Bids] teamBids computed - currentUserTeamId:', currentUserTeamId);
+    console.log(
+      '[Team Bids] teamBids computed - currentUserTeamId:',
+      currentUserTeamId
+    );
     if (!currentUserTeamId) {
       console.log('[Team Bids] No teamId, returning empty array');
       return [];
@@ -67,18 +80,33 @@ export class TeamBidsComponent {
     // Get all bids from the service (including accepted ones)
     const allBids = this.freeAgencyService.getAllTeamBids(currentUserTeamId);
     console.log('[Team Bids] getAllTeamBids returned:', allBids.length, 'bids');
-    const filteredBids = allBids.filter((bid) => bid.teamId === currentUserTeamId);
-    console.log('[Team Bids] After filtering by teamId:', filteredBids.length, 'bids');
+    const filteredBids = allBids.filter(
+      (bid) => bid.teamId === currentUserTeamId
+    );
+    console.log(
+      '[Team Bids] After filtering by teamId:',
+      filteredBids.length,
+      'bids'
+    );
 
     // Apply status filter
     const statusFilter = this.selectedStatus();
     console.log('[Team Bids] Status filter:', statusFilter);
     if (statusFilter === 'all') {
-      console.log('[Team Bids] Returning all filtered bids:', filteredBids.length);
+      console.log(
+        '[Team Bids] Returning all filtered bids:',
+        filteredBids.length
+      );
       return filteredBids;
     }
-    const statusFiltered = filteredBids.filter((bid) => bid.status === statusFilter);
-    console.log('[Team Bids] After status filter:', statusFiltered.length, 'bids');
+    const statusFiltered = filteredBids.filter(
+      (bid) => bid.status === statusFilter
+    );
+    console.log(
+      '[Team Bids] After status filter:',
+      statusFiltered.length,
+      'bids'
+    );
     return statusFiltered;
   });
 
@@ -285,36 +313,93 @@ export class TeamBidsComponent {
     console.log('Navigate to roster view');
   }
 
+  constructor() {
+    // Load league player data when bids change
+    // Use effect with proper async handling to avoid injection context issues
+    effect(() => {
+      const bids = this.teamBids();
+      const leagueId = this.leagueService.selectedLeague()?.id;
+
+      if (!leagueId || bids.length === 0) return;
+
+      // Load league player data for all bids with leaguePlayerId
+      const cache = new Map(this.leaguePlayersCache());
+      const missingPlayerIds: string[] = [];
+
+      bids.forEach((bid) => {
+        const leaguePlayerId = bid.leaguePlayerId;
+        if (leaguePlayerId && !cache.has(leaguePlayerId)) {
+          missingPlayerIds.push(leaguePlayerId);
+        }
+      });
+
+      // Load missing players asynchronously outside the effect
+      if (missingPlayerIds.length > 0) {
+        // Use setTimeout to ensure we're outside the effect's synchronous execution
+        setTimeout(() => {
+          missingPlayerIds.forEach((leaguePlayerId) => {
+            this.leagueService
+              .getLeaguePlayer(leagueId, leaguePlayerId)
+              .then((player) => {
+                if (player) {
+                  const updatedCache = new Map(this.leaguePlayersCache());
+                  updatedCache.set(leaguePlayerId, player);
+                  this.leaguePlayersCache.set(updatedCache);
+                }
+              })
+              .catch((error) => {
+                console.warn('[Team Bids] Error loading league player:', error);
+              });
+          });
+        }, 0);
+      }
+    });
+  }
+
   /**
    * Get player card data for a specific bid
+   * Uses leaguePlayerId to look up player from leagues/{leagueId}/players/{leaguePlayerId}
    */
   getPlayerCardData(bid: any): PlayerCardData {
-    const playerId = bid.playerId;
-    const player = this.sportsDataService.getPlayerById(parseInt(playerId));
+    const playerId = bid.playerId; // Sports player ID
+    const leaguePlayerId = bid.leaguePlayerId; // Firestore document ID
 
-    if (!player) {
-      return {
-        playerId: playerId,
-        firstName: 'Unknown',
-        lastName: 'Player',
-        position: 'Unknown',
-        team: 'Unknown Team',
-        overall: 0,
-        age: 0,
-        experience: 0,
-        status: 'unknown',
-      };
-    }
+    // Try to get player from league cache first (using leaguePlayerId)
+    const leaguePlayer = leaguePlayerId
+      ? this.leaguePlayersCache().get(leaguePlayerId)
+      : null;
+
+    // Fallback to sports data
+    const sportsPlayer = this.sportsDataService.getPlayerById(
+      parseInt(playerId)
+    );
+
+    // Use league player data if available, otherwise use sports player data
+    const firstName =
+      leaguePlayer?.name?.split(' ')[0] || sportsPlayer?.FirstName || 'Unknown';
+    const lastName =
+      leaguePlayer?.name?.split(' ').slice(1).join(' ') ||
+      sportsPlayer?.LastName ||
+      'Player';
+    const position =
+      leaguePlayer?.position || sportsPlayer?.Position || 'Unknown';
+    const overall = leaguePlayer?.overall || sportsPlayer?.overall || 0;
+    const age = leaguePlayer?.age || sportsPlayer?.Age || 0;
+    const experience = leaguePlayer?.yearsExp || sportsPlayer?.Experience || 0;
+    const team =
+      leaguePlayer?.nflTeam ||
+      sportsPlayer?.teamInfo?.FullName ||
+      'Unknown Team';
 
     return {
       playerId: playerId,
-      firstName: player.FirstName || 'Unknown',
-      lastName: player.LastName || 'Player',
-      position: player.Position || 'Unknown',
-      team: player.teamInfo?.FullName || 'Unknown Team',
-      overall: player.overall || 0,
-      age: player.Age || 0,
-      experience: player.Experience || 0,
+      firstName: firstName,
+      lastName: lastName,
+      position: position,
+      team: team,
+      overall: overall,
+      age: age,
+      experience: experience,
       status: bid.status || 'unknown',
       photoUrl: this.getPlayerPhotoUrl(playerId) || undefined,
       teamLogoUrl: this.getTeamLogoUrl(playerId) || undefined,
@@ -344,7 +429,10 @@ export class TeamBidsComponent {
    */
   socialMediaClick = output<{ playerId: number; leagueId: string }>();
 
-  onPlayerSocialMediaClick(event: { playerId: number; leagueId: string }): void {
+  onPlayerSocialMediaClick(event: {
+    playerId: number;
+    leagueId: string;
+  }): void {
     this.socialMediaClick.emit(event);
   }
 }

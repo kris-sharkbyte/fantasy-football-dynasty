@@ -159,7 +159,7 @@ interface BidAnalysis {
     roleScore: number;
     totalScore: number;
   };
-  decision: 'accept' | 'shortlist' | 'reject';
+  decision: 'accept' | 'shortlist' | 'considering' | 'reject';
   decisionReason: string;
   isLowball: boolean;
 }
@@ -207,13 +207,20 @@ Your job is to evaluate contract offers for a player based on their personality 
 
 KEY RULES:
 1. Respect the player's personality weights (moneyPriority, winningPriority, etc.)
-2. Week 1-2: Be picky (85% threshold). Week 3: 70%. Week 4: 60%.
+2. Week 1: Be picky but open (85% threshold for acceptance, but use "considering" for offers 70-85%). Week 2: 85% threshold. Week 3: 70%. Week 4: 60%.
 3. Lowball offers (APY < 60% of expectedAPY) should be REJECTED with trust penalty
 4. Only ONE offer can be accepted. Shortlist up to 3 offers for next week.
 5. Generate realistic, personality-appropriate feedback
 6. Check if teams can actually afford their offers (capSpaceAvailable >= offer APY)
 7. Consider market conditions (seller vs buyer market based on league cap health)
 8. ALWAYS include "isLowball": true/false for EVERY bid in bidAnalysis (true if APY < 60% of expectedAPY)
+
+WEEK 1 SPECIAL RULE (Less Harsh):
+- Week 1 is the first week of free agency - players are exploring the market
+- For offers scoring 70-85%: Use "considering" status instead of "rejected" 
+- Only REJECT offers that are truly lowball (< 60% of expectedAPY) or score < 70%
+- This gives teams a chance to improve their offers in week 2
+- "considering" bids stay active but aren't shortlisted - they're in a "wait and see" state
 
 PRIVACY RULES FOR TEAM MESSAGES (CRITICAL):
 - Each teamMessage is a PRIVATE response to ONLY that team
@@ -283,7 +290,7 @@ Return a JSON object with this exact structure:
         "roleScore": 0.0-1.0,
         "totalScore": 0.0-1.0
       },
-      "decision": "accept" | "shortlist" | "reject",
+      "decision": "accept" | "shortlist" | "considering" | "reject",
       "decisionReason": "string",
       "isLowball": boolean  // REQUIRED: true if APY < 60% of expectedAPY, false otherwise
     }
@@ -322,7 +329,10 @@ export const evaluateFAWeekBidsLLM = onCall(
       const { leagueId, weekNumber } = request.data;
 
       if (!leagueId || weekNumber === undefined) {
-        throw new HttpsError('invalid-argument', 'Missing leagueId or weekNumber');
+        throw new HttpsError(
+          'invalid-argument',
+          'Missing leagueId or weekNumber'
+        );
       }
 
       // Get API key - works for both emulator and production
@@ -336,20 +346,30 @@ export const evaluateFAWeekBidsLLM = onCall(
         );
       }
 
-      const openai = new OpenAI({ apiKey, organization: organization || undefined });
+      const openai = new OpenAI({
+        apiKey,
+        organization: organization || undefined,
+      });
 
-      console.log(`[FA-LLM] Starting evaluation for league ${leagueId}, week ${weekNumber}`);
+      console.log(
+        `[FA-LLM] Starting evaluation for league ${leagueId}, week ${weekNumber}`
+      );
 
-      // 1. Gather all pending bids for this week
+      // 1. Gather all pending and considering bids for this week
+      // "considering" bids from week 1 should be re-evaluated in subsequent weeks
       const bidsSnapshot = await db
         .collection('faBids')
         .where('leagueId', '==', leagueId)
         .where('weekNumber', '==', weekNumber)
-        .where('status', '==', 'pending')
+        .where('status', 'in', ['pending', 'considering'])
         .get();
 
       if (bidsSnapshot.empty) {
-        return { success: true, message: 'No pending bids to evaluate', decisions: [] };
+        return {
+          success: true,
+          message: 'No pending bids to evaluate',
+          decisions: [],
+        };
       }
 
       console.log(`[FA-LLM] Found ${bidsSnapshot.docs.length} pending bids`);
@@ -366,12 +386,21 @@ export const evaluateFAWeekBidsLLM = onCall(
 
       // 4. Process each player
       const results: LLMOutput[] = [];
-      const processingLog: Array<{ playerId: string; playerName: string; status: string; error?: string }> = [];
+      const processingLog: Array<{
+        playerId: string;
+        playerName: string;
+        status: string;
+        error?: string;
+      }> = [];
 
       // Process in batches of 3 for rate limiting
       for (let i = 0; i < playerIds.length; i += 3) {
         const batch = playerIds.slice(i, i + 3);
-        console.log(`[FA-LLM] Processing batch ${Math.floor(i / 3) + 1}: ${batch.join(', ')}`);
+        console.log(
+          `[FA-LLM] Processing batch ${Math.floor(i / 3) + 1}: ${batch.join(
+            ', '
+          )}`
+        );
 
         const batchResults = await Promise.all(
           batch.map(async (playerId) => {
@@ -384,10 +413,17 @@ export const evaluateFAWeekBidsLLM = onCall(
                 bidsByPlayer[playerId],
                 teamTrustHistory
               );
-              processingLog.push({ playerId, playerName: result.playerName, status: 'success' });
+              processingLog.push({
+                playerId,
+                playerName: result.playerName,
+                status: 'success',
+              });
               return result;
             } catch (error) {
-              console.error(`[FA-LLM] Error processing player ${playerId}:`, error);
+              console.error(
+                `[FA-LLM] Error processing player ${playerId}:`,
+                error
+              );
               processingLog.push({
                 playerId,
                 playerName: 'Unknown',
@@ -399,11 +435,15 @@ export const evaluateFAWeekBidsLLM = onCall(
           })
         );
 
-        results.push(...(batchResults.filter((r): r is LLMOutput => r !== null)));
+        results.push(...batchResults.filter((r): r is LLMOutput => r !== null));
       }
 
       // 5. Process results and update Firestore
-      const updateResults = await processDecisions(leagueId, weekNumber, results);
+      const updateResults = await processDecisions(
+        leagueId,
+        weekNumber,
+        results
+      );
 
       // 6. Return detailed results
       return {
@@ -419,7 +459,9 @@ export const evaluateFAWeekBidsLLM = onCall(
       console.error('[FA-LLM] Fatal error:', error);
       throw new HttpsError(
         'internal',
-        `Failed to process FA week evaluation: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Failed to process FA week evaluation: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
       );
     }
   }
@@ -457,7 +499,10 @@ async function buildLeagueContext(leagueId: string): Promise<LeagueContext> {
   }
 
   // Get all teams in the league
-  const teamsSnapshot = await db.collection('teams').where('leagueId', '==', leagueId).get();
+  const teamsSnapshot = await db
+    .collection('teams')
+    .where('leagueId', '==', leagueId)
+    .get();
 
   const teams: LeagueContextTeam[] = [];
   let totalCapSpace = 0;
@@ -491,7 +536,9 @@ async function buildLeagueContext(leagueId: string): Promise<LeagueContext> {
     leagueName: league['name'] || 'Fantasy League',
     salaryCap,
     numberOfTeams: teams.length,
-    rosterRequirements: league['rules']?.['roster']?.['positionRequirements'] || {
+    rosterRequirements: league['rules']?.['roster']?.[
+      'positionRequirements'
+    ] || {
       QB: 1,
       RB: 2,
       WR: 3,
@@ -510,7 +557,10 @@ async function buildLeagueContext(leagueId: string): Promise<LeagueContext> {
   };
 }
 
-async function buildMarketContext(leagueId: string, weekNumber: number): Promise<MarketContext> {
+async function buildMarketContext(
+  leagueId: string,
+  weekNumber: number
+): Promise<MarketContext> {
   // Get recent signings from this league
   const recentSigningsSnapshot = await db
     .collection('contracts')
@@ -542,7 +592,8 @@ async function buildMarketContext(leagueId: string, weekNumber: number): Promise
 
   return {
     currentWeek: weekNumber,
-    seasonStage: weekNumber <= 2 ? 'EarlyFA' : weekNumber <= 4 ? 'MidFA' : 'Camp',
+    seasonStage:
+      weekNumber <= 2 ? 'EarlyFA' : weekNumber <= 4 ? 'MidFA' : 'Camp',
     positionalDemand,
     marketTrends: {
       overall: 'stable',
@@ -552,8 +603,13 @@ async function buildMarketContext(leagueId: string, weekNumber: number): Promise
   };
 }
 
-async function getTeamTrustHistory(leagueId: string): Promise<Record<string, TeamTrustEntry>> {
-  const trustSnapshot = await db.collection('teamTrust').where('leagueId', '==', leagueId).get();
+async function getTeamTrustHistory(
+  leagueId: string
+): Promise<Record<string, TeamTrustEntry>> {
+  const trustSnapshot = await db
+    .collection('teamTrust')
+    .where('leagueId', '==', leagueId)
+    .get();
 
   const trustHistory: Record<string, TeamTrustEntry> = {};
   for (const doc of trustSnapshot.docs) {
@@ -578,31 +634,87 @@ async function evaluatePlayerWithLLM(
 ): Promise<LLMOutput> {
   // Get player data from the first bid (all bids for same player)
   const firstBidData = bidDocs[0].data();
-  const playerId = String(firstBidData['playerId'] || ''); // Convert to string and handle undefined/null
   const leagueId = String(firstBidData['leagueId'] || ''); // Convert to string
+  const leaguePlayerId = firstBidData['leaguePlayerId'] as string | undefined; // Firestore document ID if available
+  const sportPlayerID = String(firstBidData['playerId'] || ''); // Fallback: sports player ID (for backwards compatibility)
 
-  if (!playerId || playerId === 'undefined' || playerId === 'null' || !leagueId || leagueId === 'undefined' || leagueId === 'null') {
-    throw new Error(`Missing or invalid playerId or leagueId in bid data. playerId: ${playerId}, leagueId: ${leagueId}, bidId: ${bidDocs[0].id}`);
+  if (!leagueId || leagueId === 'undefined' || leagueId === 'null') {
+    throw new Error(
+      `Missing or invalid leagueId in bid data. leagueId: ${leagueId}, bidId: ${bidDocs[0].id}`
+    );
   }
 
   // Get full player data from leagues/{leagueId}/players subcollection
-  const playerDoc = await db.collection('leagues').doc(leagueId).collection('players').doc(playerId).get();
+  let playerDoc: FirebaseFirestore.DocumentSnapshot;
+  let playerFirestoreId: string;
+
+  if (leaguePlayerId) {
+    // Use leaguePlayerId directly (preferred - faster, no query needed)
+    playerDoc = await db
+      .collection('leagues')
+      .doc(leagueId)
+      .collection('players')
+      .doc(leaguePlayerId)
+      .get();
+    playerFirestoreId = leaguePlayerId;
+
+    if (!playerDoc.exists) {
+      throw new Error(
+        `Player document ${leaguePlayerId} not found in league ${leagueId}`
+      );
+    }
+  } else {
+    // Fallback: Query by sportPlayerID (for backwards compatibility with old bids)
+    if (
+      !sportPlayerID ||
+      sportPlayerID === 'undefined' ||
+      sportPlayerID === 'null'
+    ) {
+      throw new Error(
+        `Missing both leaguePlayerId and playerId in bid data. bidId: ${bidDocs[0].id}`
+      );
+    }
+
+    const playersRef = db
+      .collection('leagues')
+      .doc(leagueId)
+      .collection('players');
+    const playerQuery = await playersRef
+      .where('sportPlayerID', '==', sportPlayerID)
+      .limit(1)
+      .get();
+
+    if (playerQuery.empty) {
+      throw new Error(
+        `Player with sportPlayerID ${sportPlayerID} not found in league ${leagueId}`
+      );
+    }
+
+    playerDoc = playerQuery.docs[0];
+    playerFirestoreId = playerDoc.id; // This is the Firestore document ID
+  }
+
   const playerData = playerDoc.data();
 
   if (!playerData) {
-    throw new Error(`Player ${playerId} not found in league ${leagueId}`);
+    throw new Error(
+      `Player data not found for document ${playerFirestoreId} in league ${leagueId}`
+    );
   }
 
   // Build player object with personality
   const player: PlayerData = {
-    id: playerId,
+    id: playerFirestoreId, // Use Firestore document ID for LLM
     name: playerData['name'] || 'Unknown Player',
     position: playerData['position'] || 'WR',
     age: playerData['age'] || 25,
     overall: playerData['overall'] || 75,
     yearsExp: playerData['yearsExp'] || 3,
     nflTeam: playerData['nflTeam'] || 'FA',
-    expectedAPY: calculateExpectedAPY(playerData['overall'] || 75, playerData['position'] || 'WR'),
+    expectedAPY: calculateExpectedAPY(
+      playerData['overall'] || 75,
+      playerData['position'] || 'WR'
+    ),
     personality: playerData['personality'] || generateDefaultPersonality(),
   };
 
@@ -625,7 +737,10 @@ async function evaluatePlayerWithLLM(
           taxRate: 0,
           currentRoster: {
             position: player.position,
-            count: teamData?.['roster']?.filter((p: { position: string }) => p.position === player.position)?.length || 0,
+            count:
+              teamData?.['roster']?.filter(
+                (p: { position: string }) => p.position === player.position
+              )?.length || 0,
             hasStarter: false, // Would need roster analysis
           },
         },
@@ -637,7 +752,9 @@ async function evaluatePlayerWithLLM(
           totalValue: bidData['offer']?.['totalValue'] || 5000000,
           apy: bidData['offer']?.['apy'] || 5000000,
         },
-        submittedAt: bidData['submittedAt']?.toDate?.()?.toISOString() || new Date().toISOString(),
+        submittedAt:
+          bidData['submittedAt']?.toDate?.()?.toISOString() ||
+          new Date().toISOString(),
       };
     })
   );
@@ -647,7 +764,8 @@ async function evaluatePlayerWithLLM(
     weekContext: {
       weekNumber,
       phase: weekNumber <= 4 ? 'FA_WEEK' : 'OPEN_FA',
-      seasonStage: weekNumber <= 2 ? 'EarlyFA' : weekNumber <= 4 ? 'MidFA' : 'Camp',
+      seasonStage:
+        weekNumber <= 2 ? 'EarlyFA' : weekNumber <= 4 ? 'MidFA' : 'Camp',
     },
     leagueContext,
     marketContext,
@@ -661,7 +779,9 @@ async function evaluatePlayerWithLLM(
     teamTrustHistory,
   };
 
-  console.log(`[FA-LLM] Calling OpenAI for player ${player.name} with ${bids.length} bids`);
+  console.log(
+    `[FA-LLM] Calling OpenAI for player ${player.name} with ${bids.length} bids`
+  );
 
   // Call OpenAI
   const response = await openai.chat.completions.create({
@@ -747,42 +867,63 @@ async function processDecisions(
   let updated = 0;
   const errors: string[] = [];
 
-  console.log(`[FA-LLM] Processing ${decisions.length} decisions for league ${leagueId}, week ${weekNumber}`);
+  console.log(
+    `[FA-LLM] Processing ${decisions.length} decisions for league ${leagueId}, week ${weekNumber}`
+  );
 
   for (const decision of decisions) {
     try {
-      console.log(`[FA-LLM] Processing decision for player ${decision.playerId}:`, {
-        acceptedBidId: decision.decision.acceptedBidId,
-        shortlistedCount: decision.decision.shortlistedBidIds.length,
-        rejectedCount: decision.decision.rejectedBidIds.length,
-      });
+      console.log(
+        `[FA-LLM] Processing decision for player ${decision.playerId}:`,
+        {
+          acceptedBidId: decision.decision.acceptedBidId,
+          shortlistedCount: decision.decision.shortlistedBidIds.length,
+          rejectedCount: decision.decision.rejectedBidIds.length,
+        }
+      );
 
       // Update accepted bid
       if (decision.decision.acceptedBidId) {
-        const bidRef = db.collection('faBids').doc(decision.decision.acceptedBidId);
-        const acceptedBidAnalysis = decision.bidAnalysis.find((b) => b.bidId === decision.decision.acceptedBidId);
+        const bidRef = db
+          .collection('faBids')
+          .doc(decision.decision.acceptedBidId);
+        const acceptedBidAnalysis = decision.bidAnalysis.find(
+          (b) => b.bidId === decision.decision.acceptedBidId
+        );
         const acceptedTeamId = acceptedBidAnalysis?.teamId || '';
-        
+
         batch.update(bidRef, {
           status: 'accepted',
           evaluatedAt: new Date(),
           feedback: decision.feedback.publicStatement,
-          teamMessage: decision.feedback.teamMessages[acceptedTeamId] || decision.feedback.publicStatement,
+          teamMessage:
+            decision.feedback.teamMessages[acceptedTeamId] ||
+            decision.feedback.publicStatement,
         });
         updated++;
-        console.log(`[FA-LLM] Updated bid ${decision.decision.acceptedBidId} to accepted`);
+        console.log(
+          `[FA-LLM] Updated bid ${decision.decision.acceptedBidId} to accepted`
+        );
 
         // Update player status (players are stored in leagues/{leagueId}/players subcollection)
-        const playerRef = db.collection('leagues').doc(leagueId).collection('players').doc(String(decision.playerId));
+        const playerRef = db
+          .collection('leagues')
+          .doc(leagueId)
+          .collection('players')
+          .doc(String(decision.playerId));
         const playerDoc = await playerRef.get();
         if (playerDoc.exists) {
           batch.update(playerRef, {
             status: 'signed',
-            signedTeamId: decision.bidAnalysis.find((b) => b.bidId === decision.decision.acceptedBidId)?.teamId,
+            signedTeamId: decision.bidAnalysis.find(
+              (b) => b.bidId === decision.decision.acceptedBidId
+            )?.teamId,
             lastUpdated: new Date(),
           });
         } else {
-          console.warn(`[FA-LLM] Player document not found: ${decision.playerId} in league ${leagueId}`);
+          console.warn(
+            `[FA-LLM] Player document not found: ${decision.playerId} in league ${leagueId}`
+          );
         }
       }
 
@@ -795,7 +936,9 @@ async function processDecisions(
           status: 'shortlisted',
           evaluatedAt: new Date(),
           feedback: decision.feedback.publicStatement,
-          teamMessage: decision.feedback.teamMessages[teamId] || 'Considering your offer...',
+          teamMessage:
+            decision.feedback.teamMessages[teamId] ||
+            'Considering your offer...',
         });
         updated++;
         console.log(`[FA-LLM] Updated bid ${bidId} to shortlisted`);
@@ -810,42 +953,81 @@ async function processDecisions(
           status: 'rejected',
           evaluatedAt: new Date(),
           feedback: decision.feedback.publicStatement,
-          teamMessage: decision.feedback.teamMessages[teamId] || 'Offer did not meet expectations.',
+          teamMessage:
+            decision.feedback.teamMessages[teamId] ||
+            'Offer did not meet expectations.',
           isLowball: bidAnalysis?.isLowball || false,
         });
         updated++;
         console.log(`[FA-LLM] Updated bid ${bidId} to rejected`);
       }
 
+      // Update "considering" bids (week 1 only - offers that are close but not quite there)
+      // These are bids that scored 70-85% in week 1 - they stay active but aren't shortlisted
+      for (const bidAnalysisItem of decision.bidAnalysis) {
+        if (bidAnalysisItem.decision === 'considering') {
+          const bidRef = db.collection('faBids').doc(bidAnalysisItem.bidId);
+          const teamId = bidAnalysisItem.teamId || '';
+          batch.update(bidRef, {
+            status: 'considering',
+            evaluatedAt: new Date(),
+            feedback: decision.feedback.publicStatement,
+            teamMessage:
+              decision.feedback.teamMessages[teamId] ||
+              'Still evaluating your offer...',
+            isLowball: bidAnalysisItem.isLowball || false,
+          });
+          updated++;
+          console.log(
+            `[FA-LLM] Updated bid ${bidAnalysisItem.bidId} to considering`
+          );
+        }
+      }
+
       // Save social media post if present
       if (decision.feedback.socialMediaPost) {
-        const playerDoc = await db.collection('leagues').doc(leagueId).collection('players').doc(String(decision.playerId)).get();
+        const playerDoc = await db
+          .collection('leagues')
+          .doc(leagueId)
+          .collection('players')
+          .doc(String(decision.playerId))
+          .get();
         const playerData = playerDoc.data();
-        
-        const socialMediaRef = db.collection('leagues').doc(leagueId).collection('socialMediaPosts').doc();
+
+        const socialMediaRef = db
+          .collection('leagues')
+          .doc(leagueId)
+          .collection('socialMediaPosts')
+          .doc();
         batch.set(socialMediaRef, {
           playerId: String(decision.playerId),
-          playerName: decision.playerName || playerData?.['name'] || 'Unknown Player',
+          playerName:
+            decision.playerName || playerData?.['name'] || 'Unknown Player',
           position: playerData?.['position'] || '',
           post: decision.feedback.socialMediaPost,
           postedAt: new Date(),
           weekNumber,
           context: 'free-agency',
         });
-        console.log(`[FA-LLM] Saved social media post for player ${decision.playerId}`);
+        console.log(
+          `[FA-LLM] Saved social media post for player ${decision.playerId}`
+        );
       }
 
       // Update trust history for lowball offers
       for (const [teamId, impact] of Object.entries(decision.trustImpacts)) {
         if (impact.change < 0) {
-          const trustRef = db.collection('teamTrust').doc(`${leagueId}_${teamId}`);
+          const trustRef = db
+            .collection('teamTrust')
+            .doc(`${leagueId}_${teamId}`);
           batch.set(
             trustRef,
             {
               leagueId,
               teamId,
               currentTrust: impact.newTotal,
-              lowballCount: (await trustRef.get()).data()?.['lowballCount'] || 0 + 1,
+              lowballCount:
+                (await trustRef.get()).data()?.['lowballCount'] || 0 + 1,
               lastLowballSeason: new Date().getFullYear(),
               updatedAt: new Date(),
             },
@@ -854,14 +1036,18 @@ async function processDecisions(
         }
       }
     } catch (error) {
-      errors.push(`Error processing decision for player ${decision.playerId}: ${error}`);
+      errors.push(
+        `Error processing decision for player ${decision.playerId}: ${error}`
+      );
     }
   }
 
   try {
     console.log(`[FA-LLM] Committing batch with ${updated} updates...`);
     await batch.commit();
-    console.log(`[FA-LLM] Batch committed successfully. Updated ${updated} bids.`);
+    console.log(
+      `[FA-LLM] Batch committed successfully. Updated ${updated} bids.`
+    );
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error(`[FA-LLM] Batch commit error:`, errorMsg);
@@ -1059,7 +1245,11 @@ function generateBids(scenario: string, expectedAPY: number): Bid[] {
         },
         offer: {
           years: 3,
-          baseSalary: { '2024': Math.round(expectedAPY * 0.9), '2025': Math.round(expectedAPY * 1.0), '2026': Math.round(expectedAPY * 1.1) },
+          baseSalary: {
+            '2024': Math.round(expectedAPY * 0.9),
+            '2025': Math.round(expectedAPY * 1.0),
+            '2026': Math.round(expectedAPY * 1.1),
+          },
           signingBonus: Math.round(expectedAPY * 0.6),
           guarantees: [
             { type: 'full', amount: Math.round(expectedAPY * 1.5), year: 2024 },
@@ -1084,9 +1274,14 @@ function generateBids(scenario: string, expectedAPY: number): Bid[] {
         },
         offer: {
           years: 2,
-          baseSalary: { '2024': Math.round(expectedAPY * 0.8), '2025': Math.round(expectedAPY * 0.9) },
+          baseSalary: {
+            '2024': Math.round(expectedAPY * 0.8),
+            '2025': Math.round(expectedAPY * 0.9),
+          },
           signingBonus: Math.round(expectedAPY * 0.4),
-          guarantees: [{ type: 'full', amount: Math.round(expectedAPY * 1.1), year: 2024 }],
+          guarantees: [
+            { type: 'full', amount: Math.round(expectedAPY * 1.1), year: 2024 },
+          ],
           totalValue: Math.round(expectedAPY * 2.1),
           apy: Math.round(expectedAPY * 1.05),
         },
@@ -1120,24 +1315,85 @@ function generateBids(scenario: string, expectedAPY: number): Bid[] {
         id: 'bid_test_1',
         teamId: 'team_1',
         teamName: 'Team Alpha',
-        teamInfo: { marketSize: 'large', climate: 'cold', isContender: true, isStable: true, taxRate: 0.08, currentRoster: { position: 'WR', count: 2, hasStarter: false } },
-        offer: { years: 3, baseSalary: { '2024': Math.round(expectedAPY * 1.0), '2025': Math.round(expectedAPY * 1.1), '2026': Math.round(expectedAPY * 1.2) }, signingBonus: Math.round(expectedAPY * 0.7), guarantees: [{ type: 'full', amount: Math.round(expectedAPY * 2.0), year: 2024 }], totalValue: Math.round(expectedAPY * 4.0), apy: Math.round(expectedAPY * 1.3) },
+        teamInfo: {
+          marketSize: 'large',
+          climate: 'cold',
+          isContender: true,
+          isStable: true,
+          taxRate: 0.08,
+          currentRoster: { position: 'WR', count: 2, hasStarter: false },
+        },
+        offer: {
+          years: 3,
+          baseSalary: {
+            '2024': Math.round(expectedAPY * 1.0),
+            '2025': Math.round(expectedAPY * 1.1),
+            '2026': Math.round(expectedAPY * 1.2),
+          },
+          signingBonus: Math.round(expectedAPY * 0.7),
+          guarantees: [
+            { type: 'full', amount: Math.round(expectedAPY * 2.0), year: 2024 },
+          ],
+          totalValue: Math.round(expectedAPY * 4.0),
+          apy: Math.round(expectedAPY * 1.3),
+        },
         submittedAt: timestamp,
       },
       {
         id: 'bid_test_2',
         teamId: 'team_2',
         teamName: 'Team Beta',
-        teamInfo: { marketSize: 'medium', climate: 'warm', isContender: true, isStable: true, taxRate: 0, currentRoster: { position: 'WR', count: 2, hasStarter: false } },
-        offer: { years: 4, baseSalary: { '2024': Math.round(expectedAPY * 0.95), '2025': Math.round(expectedAPY * 1.0), '2026': Math.round(expectedAPY * 1.05), '2027': Math.round(expectedAPY * 1.1) }, signingBonus: Math.round(expectedAPY * 0.8), guarantees: [{ type: 'full', amount: Math.round(expectedAPY * 2.5), year: 2024 }], totalValue: Math.round(expectedAPY * 4.9), apy: Math.round(expectedAPY * 1.22) },
+        teamInfo: {
+          marketSize: 'medium',
+          climate: 'warm',
+          isContender: true,
+          isStable: true,
+          taxRate: 0,
+          currentRoster: { position: 'WR', count: 2, hasStarter: false },
+        },
+        offer: {
+          years: 4,
+          baseSalary: {
+            '2024': Math.round(expectedAPY * 0.95),
+            '2025': Math.round(expectedAPY * 1.0),
+            '2026': Math.round(expectedAPY * 1.05),
+            '2027': Math.round(expectedAPY * 1.1),
+          },
+          signingBonus: Math.round(expectedAPY * 0.8),
+          guarantees: [
+            { type: 'full', amount: Math.round(expectedAPY * 2.5), year: 2024 },
+          ],
+          totalValue: Math.round(expectedAPY * 4.9),
+          apy: Math.round(expectedAPY * 1.22),
+        },
         submittedAt: timestamp,
       },
       {
         id: 'bid_test_3',
         teamId: 'team_3',
         teamName: 'Team Gamma',
-        teamInfo: { marketSize: 'large', climate: 'warm', isContender: false, isStable: true, taxRate: 0, currentRoster: { position: 'WR', count: 1, hasStarter: false } },
-        offer: { years: 3, baseSalary: { '2024': Math.round(expectedAPY * 1.05), '2025': Math.round(expectedAPY * 1.1), '2026': Math.round(expectedAPY * 1.15) }, signingBonus: Math.round(expectedAPY * 0.5), guarantees: [{ type: 'full', amount: Math.round(expectedAPY * 1.8), year: 2024 }], totalValue: Math.round(expectedAPY * 3.8), apy: Math.round(expectedAPY * 1.27) },
+        teamInfo: {
+          marketSize: 'large',
+          climate: 'warm',
+          isContender: false,
+          isStable: true,
+          taxRate: 0,
+          currentRoster: { position: 'WR', count: 1, hasStarter: false },
+        },
+        offer: {
+          years: 3,
+          baseSalary: {
+            '2024': Math.round(expectedAPY * 1.05),
+            '2025': Math.round(expectedAPY * 1.1),
+            '2026': Math.round(expectedAPY * 1.15),
+          },
+          signingBonus: Math.round(expectedAPY * 0.5),
+          guarantees: [
+            { type: 'full', amount: Math.round(expectedAPY * 1.8), year: 2024 },
+          ],
+          totalValue: Math.round(expectedAPY * 3.8),
+          apy: Math.round(expectedAPY * 1.27),
+        },
         submittedAt: timestamp,
       },
     ],
@@ -1146,16 +1402,47 @@ function generateBids(scenario: string, expectedAPY: number): Bid[] {
         id: 'bid_test_1',
         teamId: 'team_1',
         teamName: 'Team Alpha',
-        teamInfo: { marketSize: 'large', climate: 'cold', isContender: true, isStable: true, taxRate: 0.08, currentRoster: { position: 'WR', count: 2, hasStarter: false } },
-        offer: { years: 2, baseSalary: { '2024': Math.round(expectedAPY * 0.4), '2025': Math.round(expectedAPY * 0.45) }, signingBonus: Math.round(expectedAPY * 0.1), guarantees: [], totalValue: Math.round(expectedAPY * 0.95), apy: Math.round(expectedAPY * 0.48) },
+        teamInfo: {
+          marketSize: 'large',
+          climate: 'cold',
+          isContender: true,
+          isStable: true,
+          taxRate: 0.08,
+          currentRoster: { position: 'WR', count: 2, hasStarter: false },
+        },
+        offer: {
+          years: 2,
+          baseSalary: {
+            '2024': Math.round(expectedAPY * 0.4),
+            '2025': Math.round(expectedAPY * 0.45),
+          },
+          signingBonus: Math.round(expectedAPY * 0.1),
+          guarantees: [],
+          totalValue: Math.round(expectedAPY * 0.95),
+          apy: Math.round(expectedAPY * 0.48),
+        },
         submittedAt: timestamp,
       },
       {
         id: 'bid_test_2',
         teamId: 'team_2',
         teamName: 'Team Beta',
-        teamInfo: { marketSize: 'medium', climate: 'warm', isContender: false, isStable: true, taxRate: 0, currentRoster: { position: 'WR', count: 2, hasStarter: false } },
-        offer: { years: 1, baseSalary: { '2024': Math.round(expectedAPY * 0.35) }, signingBonus: Math.round(expectedAPY * 0.05), guarantees: [], totalValue: Math.round(expectedAPY * 0.4), apy: Math.round(expectedAPY * 0.4) },
+        teamInfo: {
+          marketSize: 'medium',
+          climate: 'warm',
+          isContender: false,
+          isStable: true,
+          taxRate: 0,
+          currentRoster: { position: 'WR', count: 2, hasStarter: false },
+        },
+        offer: {
+          years: 1,
+          baseSalary: { '2024': Math.round(expectedAPY * 0.35) },
+          signingBonus: Math.round(expectedAPY * 0.05),
+          guarantees: [],
+          totalValue: Math.round(expectedAPY * 0.4),
+          apy: Math.round(expectedAPY * 0.4),
+        },
         submittedAt: timestamp,
       },
     ],
@@ -1164,8 +1451,28 @@ function generateBids(scenario: string, expectedAPY: number): Bid[] {
         id: 'bid_test_1',
         teamId: 'team_1',
         teamName: 'Team Alpha',
-        teamInfo: { marketSize: 'large', climate: 'cold', isContender: true, isStable: true, taxRate: 0.08, currentRoster: { position: 'WR', count: 2, hasStarter: false } },
-        offer: { years: 3, baseSalary: { '2024': Math.round(expectedAPY * 0.95), '2025': Math.round(expectedAPY * 1.0), '2026': Math.round(expectedAPY * 1.05) }, signingBonus: Math.round(expectedAPY * 0.5), guarantees: [{ type: 'full', amount: Math.round(expectedAPY * 1.5), year: 2024 }], totalValue: Math.round(expectedAPY * 3.5), apy: Math.round(expectedAPY * 1.17) },
+        teamInfo: {
+          marketSize: 'large',
+          climate: 'cold',
+          isContender: true,
+          isStable: true,
+          taxRate: 0.08,
+          currentRoster: { position: 'WR', count: 2, hasStarter: false },
+        },
+        offer: {
+          years: 3,
+          baseSalary: {
+            '2024': Math.round(expectedAPY * 0.95),
+            '2025': Math.round(expectedAPY * 1.0),
+            '2026': Math.round(expectedAPY * 1.05),
+          },
+          signingBonus: Math.round(expectedAPY * 0.5),
+          guarantees: [
+            { type: 'full', amount: Math.round(expectedAPY * 1.5), year: 2024 },
+          ],
+          totalValue: Math.round(expectedAPY * 3.5),
+          apy: Math.round(expectedAPY * 1.17),
+        },
         submittedAt: timestamp,
       },
     ],
@@ -1174,16 +1481,56 @@ function generateBids(scenario: string, expectedAPY: number): Bid[] {
         id: 'bid_test_1',
         teamId: 'team_1',
         teamName: 'Team Alpha (HAS STARTER)',
-        teamInfo: { marketSize: 'large', climate: 'cold', isContender: true, isStable: true, taxRate: 0.08, currentRoster: { position: 'WR', count: 3, hasStarter: true } },
-        offer: { years: 3, baseSalary: { '2024': Math.round(expectedAPY * 1.1), '2025': Math.round(expectedAPY * 1.2), '2026': Math.round(expectedAPY * 1.3) }, signingBonus: Math.round(expectedAPY * 0.8), guarantees: [{ type: 'full', amount: Math.round(expectedAPY * 2.2), year: 2024 }], totalValue: Math.round(expectedAPY * 4.4), apy: Math.round(expectedAPY * 1.47) },
+        teamInfo: {
+          marketSize: 'large',
+          climate: 'cold',
+          isContender: true,
+          isStable: true,
+          taxRate: 0.08,
+          currentRoster: { position: 'WR', count: 3, hasStarter: true },
+        },
+        offer: {
+          years: 3,
+          baseSalary: {
+            '2024': Math.round(expectedAPY * 1.1),
+            '2025': Math.round(expectedAPY * 1.2),
+            '2026': Math.round(expectedAPY * 1.3),
+          },
+          signingBonus: Math.round(expectedAPY * 0.8),
+          guarantees: [
+            { type: 'full', amount: Math.round(expectedAPY * 2.2), year: 2024 },
+          ],
+          totalValue: Math.round(expectedAPY * 4.4),
+          apy: Math.round(expectedAPY * 1.47),
+        },
         submittedAt: timestamp,
       },
       {
         id: 'bid_test_2',
         teamId: 'team_2',
         teamName: 'Team Beta (No Starter)',
-        teamInfo: { marketSize: 'medium', climate: 'warm', isContender: false, isStable: true, taxRate: 0, currentRoster: { position: 'WR', count: 1, hasStarter: false } },
-        offer: { years: 3, baseSalary: { '2024': Math.round(expectedAPY * 0.9), '2025': Math.round(expectedAPY * 0.95), '2026': Math.round(expectedAPY * 1.0) }, signingBonus: Math.round(expectedAPY * 0.4), guarantees: [{ type: 'full', amount: Math.round(expectedAPY * 1.3), year: 2024 }], totalValue: Math.round(expectedAPY * 3.25), apy: Math.round(expectedAPY * 1.08) },
+        teamInfo: {
+          marketSize: 'medium',
+          climate: 'warm',
+          isContender: false,
+          isStable: true,
+          taxRate: 0,
+          currentRoster: { position: 'WR', count: 1, hasStarter: false },
+        },
+        offer: {
+          years: 3,
+          baseSalary: {
+            '2024': Math.round(expectedAPY * 0.9),
+            '2025': Math.round(expectedAPY * 0.95),
+            '2026': Math.round(expectedAPY * 1.0),
+          },
+          signingBonus: Math.round(expectedAPY * 0.4),
+          guarantees: [
+            { type: 'full', amount: Math.round(expectedAPY * 1.3), year: 2024 },
+          ],
+          totalValue: Math.round(expectedAPY * 3.25),
+          apy: Math.round(expectedAPY * 1.08),
+        },
         submittedAt: timestamp,
       },
     ],
@@ -1192,16 +1539,56 @@ function generateBids(scenario: string, expectedAPY: number): Bid[] {
         id: 'bid_test_1',
         teamId: 'team_1',
         teamName: 'Team Alpha (BAD TRUST)',
-        teamInfo: { marketSize: 'large', climate: 'cold', isContender: true, isStable: true, taxRate: 0.08, currentRoster: { position: 'WR', count: 2, hasStarter: false } },
-        offer: { years: 3, baseSalary: { '2024': Math.round(expectedAPY * 1.15), '2025': Math.round(expectedAPY * 1.25), '2026': Math.round(expectedAPY * 1.35) }, signingBonus: Math.round(expectedAPY * 0.9), guarantees: [{ type: 'full', amount: Math.round(expectedAPY * 2.5), year: 2024 }], totalValue: Math.round(expectedAPY * 4.65), apy: Math.round(expectedAPY * 1.55) },
+        teamInfo: {
+          marketSize: 'large',
+          climate: 'cold',
+          isContender: true,
+          isStable: true,
+          taxRate: 0.08,
+          currentRoster: { position: 'WR', count: 2, hasStarter: false },
+        },
+        offer: {
+          years: 3,
+          baseSalary: {
+            '2024': Math.round(expectedAPY * 1.15),
+            '2025': Math.round(expectedAPY * 1.25),
+            '2026': Math.round(expectedAPY * 1.35),
+          },
+          signingBonus: Math.round(expectedAPY * 0.9),
+          guarantees: [
+            { type: 'full', amount: Math.round(expectedAPY * 2.5), year: 2024 },
+          ],
+          totalValue: Math.round(expectedAPY * 4.65),
+          apy: Math.round(expectedAPY * 1.55),
+        },
         submittedAt: timestamp,
       },
       {
         id: 'bid_test_2',
         teamId: 'team_2',
         teamName: 'Team Beta (Good Trust)',
-        teamInfo: { marketSize: 'medium', climate: 'warm', isContender: false, isStable: true, taxRate: 0, currentRoster: { position: 'WR', count: 2, hasStarter: false } },
-        offer: { years: 3, baseSalary: { '2024': Math.round(expectedAPY * 0.85), '2025': Math.round(expectedAPY * 0.9), '2026': Math.round(expectedAPY * 0.95) }, signingBonus: Math.round(expectedAPY * 0.3), guarantees: [{ type: 'full', amount: Math.round(expectedAPY * 1.1), year: 2024 }], totalValue: Math.round(expectedAPY * 3.0), apy: Math.round(expectedAPY * 1.0) },
+        teamInfo: {
+          marketSize: 'medium',
+          climate: 'warm',
+          isContender: false,
+          isStable: true,
+          taxRate: 0,
+          currentRoster: { position: 'WR', count: 2, hasStarter: false },
+        },
+        offer: {
+          years: 3,
+          baseSalary: {
+            '2024': Math.round(expectedAPY * 0.85),
+            '2025': Math.round(expectedAPY * 0.9),
+            '2026': Math.round(expectedAPY * 0.95),
+          },
+          signingBonus: Math.round(expectedAPY * 0.3),
+          guarantees: [
+            { type: 'full', amount: Math.round(expectedAPY * 1.1), year: 2024 },
+          ],
+          totalValue: Math.round(expectedAPY * 3.0),
+          apy: Math.round(expectedAPY * 1.0),
+        },
         submittedAt: timestamp,
       },
     ],
@@ -1236,7 +1623,10 @@ export const simulateFAWeekEvaluation = onCall(
     const organization = openaiOrg.value() || process.env['OPENAI_ORG'];
 
     // Debug logging
-    console.log('[FA-LLM-TEST] API Key found:', apiKey ? `${apiKey.substring(0, 10)}...` : 'NONE');
+    console.log(
+      '[FA-LLM-TEST] API Key found:',
+      apiKey ? `${apiKey.substring(0, 10)}...` : 'NONE'
+    );
 
     if (!apiKey) {
       throw new HttpsError(
@@ -1245,7 +1635,10 @@ export const simulateFAWeekEvaluation = onCall(
       );
     }
 
-    const openai = new OpenAI({ apiKey, organization: organization || undefined });
+    const openai = new OpenAI({
+      apiKey,
+      organization: organization || undefined,
+    });
 
     // Extract parameters from request
     const weekNumber = request.data.weekNumber || 2;
@@ -1258,13 +1651,16 @@ export const simulateFAWeekEvaluation = onCall(
     const bids = generateBids(bidScenario, expectedAPY);
     const trustHistory = getTrustHistory(bidScenario);
 
-    console.log(`[FA-LLM-TEST] Week: ${weekNumber}, Personality: ${personalityType}, Overall: ${playerOverall}, Scenario: ${bidScenario}`);
+    console.log(
+      `[FA-LLM-TEST] Week: ${weekNumber}, Personality: ${personalityType}, Overall: ${playerOverall}, Scenario: ${bidScenario}`
+    );
 
     const testInput: LLMInput = {
       weekContext: {
         weekNumber,
         phase: 'FA_WEEK',
-        seasonStage: weekNumber <= 2 ? 'EarlyFA' : weekNumber <= 4 ? 'MidFA' : 'Camp',
+        seasonStage:
+          weekNumber <= 2 ? 'EarlyFA' : weekNumber <= 4 ? 'MidFA' : 'Camp',
       },
       leagueContext: {
         leagueId: 'test_league',
@@ -1274,9 +1670,24 @@ export const simulateFAWeekEvaluation = onCall(
         rosterRequirements: { QB: 1, RB: 2, WR: 3, TE: 1, K: 1, DEF: 1 },
         maxRosterSize: 26,
         teams: [
-          { teamId: 'team_1', teamName: 'Team Alpha', capSpaceAvailable: 45000000, rosterCount: 22 },
-          { teamId: 'team_2', teamName: 'Team Beta', capSpaceAvailable: 28000000, rosterCount: 24 },
-          { teamId: 'team_3', teamName: 'Team Gamma', capSpaceAvailable: 62000000, rosterCount: 20 },
+          {
+            teamId: 'team_1',
+            teamName: 'Team Alpha',
+            capSpaceAvailable: 45000000,
+            rosterCount: 22,
+          },
+          {
+            teamId: 'team_2',
+            teamName: 'Team Beta',
+            capSpaceAvailable: 28000000,
+            rosterCount: 24,
+          },
+          {
+            teamId: 'team_3',
+            teamName: 'Team Gamma',
+            capSpaceAvailable: 62000000,
+            rosterCount: 20,
+          },
         ],
         leagueCapHealth: {
           totalCapSpaceAvailable: 135000000,
@@ -1287,15 +1698,38 @@ export const simulateFAWeekEvaluation = onCall(
       },
       marketContext: {
         currentWeek: weekNumber,
-        seasonStage: weekNumber <= 2 ? 'EarlyFA' : weekNumber <= 4 ? 'MidFA' : 'Camp',
-        positionalDemand: { QB: 0.6, RB: 0.5, WR: 0.7, TE: 0.4, K: 0.2, DEF: 0.3 },
+        seasonStage:
+          weekNumber <= 2 ? 'EarlyFA' : weekNumber <= 4 ? 'MidFA' : 'Camp',
+        positionalDemand: {
+          QB: 0.6,
+          RB: 0.5,
+          WR: 0.7,
+          TE: 0.4,
+          K: 0.2,
+          DEF: 0.3,
+        },
         marketTrends: {
           overall: 'stable',
-          byPosition: { QB: 'stable', RB: 'falling', WR: 'rising', TE: 'stable' },
+          byPosition: {
+            QB: 'stable',
+            RB: 'falling',
+            WR: 'rising',
+            TE: 'stable',
+          },
         },
         recentSignings: [
-          { playerName: "Ja'Marr Chase", position: 'WR', apy: 28000000, overall: 96 },
-          { playerName: 'CeeDee Lamb', position: 'WR', apy: 26500000, overall: 94 },
+          {
+            playerName: "Ja'Marr Chase",
+            position: 'WR',
+            apy: 28000000,
+            overall: 96,
+          },
+          {
+            playerName: 'CeeDee Lamb',
+            position: 'WR',
+            apy: 26500000,
+            overall: 94,
+          },
         ],
       },
       player: {
@@ -1346,4 +1780,3 @@ export const simulateFAWeekEvaluation = onCall(
     };
   }
 );
-

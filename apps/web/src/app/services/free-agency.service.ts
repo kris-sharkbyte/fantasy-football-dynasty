@@ -232,17 +232,12 @@ export class FreeAgencyService {
       }
     });
 
-    // Listen to ALL bids including accepted ones (for team display)
+    // Listen to ALL bids including rejected ones (for team display)
     const bidsRef = collection(this.firestore, 'faBids');
     const bidsQuery = query(
       bidsRef,
-      where('leagueId', '==', leagueId),
-      where('status', 'in', [
-        'pending',
-        'evaluating',
-        'shortlisted',
-        'accepted',
-      ])
+      where('leagueId', '==', leagueId)
+      // Note: Removed status filter to include ALL bids (pending, accepted, shortlisted, rejected, etc.)
     );
 
     const unsubscribeBids = onSnapshot(bidsQuery, (snapshot) => {
@@ -270,7 +265,8 @@ export class FreeAgencyService {
           id: doc.id,
           leagueId: data['leagueId'],
           teamId: data['teamId'],
-          playerId: data['playerId'],
+          playerId: data['playerId'], // Sports player ID
+          leaguePlayerId: data['leaguePlayerId'], // Firestore document ID from leagues/{leagueId}/players
           position: data['position'],
           weekNumber: data['weekNumber'],
           offer: data['offer'],
@@ -315,7 +311,8 @@ export class FreeAgencyService {
   async submitBid(
     playerId: number,
     teamId: string,
-    offer: ContractOffer
+    offer: ContractOffer,
+    leaguePlayerId?: string // Optional: Firestore document ID to avoid query
   ): Promise<FABid | null> {
     try {
       // Check if team can submit more bids
@@ -340,10 +337,73 @@ export class FreeAgencyService {
         throw new Error('No active league found');
       }
 
-      // Calculate dynamic minimum for informational purposes
-      const dynamicMinimum = await this.calculateDynamicPlayerMinimum(
-        player,
-        currentLeague.rules
+      // Use provided leaguePlayerId or query for it
+      let finalLeaguePlayerId: string | undefined = leaguePlayerId;
+
+      if (!finalLeaguePlayerId) {
+        // Query for the player's Firestore document ID in this league
+        // Add timeout to prevent hanging
+        try {
+          const playersRef = collection(
+            this.firestore,
+            'leagues',
+            currentLeague.id,
+            'players'
+          );
+          const playerQuery = query(
+            playersRef,
+            where('sportPlayerID', '==', playerId.toString()),
+            limit(1)
+          );
+
+          // Add timeout to prevent hanging (5 seconds max)
+          const queryPromise = getDocs(playerQuery);
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(
+              () => reject(new Error('Query timeout after 5 seconds')),
+              5000
+            )
+          );
+
+          const playerSnapshot = await Promise.race([
+            queryPromise,
+            timeoutPromise,
+          ]);
+
+          if (!playerSnapshot.empty) {
+            finalLeaguePlayerId = playerSnapshot.docs[0].id;
+            console.log(
+              '[FA Service] Found league player document ID via query:',
+              finalLeaguePlayerId
+            );
+          } else {
+            console.warn(
+              `[FA Service] Player with sportPlayerID ${playerId} not found in league ${currentLeague.id}`
+            );
+          }
+        } catch (error) {
+          console.error(
+            '[FA Service] Error finding league player document (non-critical, continuing):',
+            error
+          );
+          // Continue without leaguePlayerId - it's optional
+        }
+      } else {
+        console.log(
+          '[FA Service] Using provided leaguePlayerId:',
+          finalLeaguePlayerId
+        );
+      }
+
+      // Calculate dynamic minimum for informational purposes (non-blocking)
+      // Don't await this - it's just for logging/info, not required for bid submission
+      this.calculateDynamicPlayerMinimum(player, currentLeague.rules).catch(
+        (error) => {
+          console.warn(
+            '[FA Service] Error calculating dynamic minimum (non-critical):',
+            error
+          );
+        }
       );
 
       // Note: We no longer block bids below minimum - users can submit lower offers
@@ -353,7 +413,8 @@ export class FreeAgencyService {
       const bidData: Omit<FABid, 'id'> = {
         leagueId: currentWeek.leagueId,
         teamId,
-        playerId,
+        playerId, // Sports player ID (PlayerID from SportsPlayer)
+        leaguePlayerId: finalLeaguePlayerId, // Firestore document ID of the player in this league
         position: player.Position as Position, // Add missing position property
         weekNumber: currentWeek.weekNumber,
         offer,
@@ -429,21 +490,36 @@ export class FreeAgencyService {
       );
 
       // Create updated bid object
+      // When updating a bid, reset it to pending and clear evaluation fields
       const updatedBid: FABid = {
         ...existingBid,
         offer,
         status: 'pending', // Reset to pending when updated
         submittedAt: new Date(),
         updatedAt: new Date(),
+        evaluatedAt: undefined, // Clear evaluation timestamp
+        feedback: undefined, // Clear previous feedback
+        teamMessage: undefined, // Clear previous team message
+        isLowball: undefined, // Clear lowball flag
       };
 
       // Update directly in Firestore
       const bidRef = doc(this.firestore, 'faBids', bidId);
       await updateDoc(bidRef, {
         offer: updatedBid.offer,
-        status: updatedBid.status,
+        status: 'pending', // Explicitly set to pending
         submittedAt: updatedBid.submittedAt,
         updatedAt: updatedBid.updatedAt,
+        evaluatedAt: null, // Clear evaluation timestamp
+        feedback: null, // Clear previous feedback
+        teamMessage: null, // Clear previous team message
+        isLowball: null, // Clear lowball flag
+      });
+
+      console.log('[FA Service] Updated bid:', {
+        bidId,
+        newStatus: 'pending',
+        previousStatus: existingBid.status,
       });
 
       return updatedBid;
@@ -2718,11 +2794,13 @@ export class FreeAgencyService {
         nextWeekNumber
       );
 
-      // Get all bids that are not rejected (accepted, shortlisted, pending)
+      // Get all bids that are not rejected (accepted, shortlisted, pending, considering)
       // These are the bids that should continue to the next week
       const activeBids = this.activeBids().filter(
         (bid) =>
-          bid.status !== 'rejected' && bid.weekNumber === currentWeek.weekNumber
+          bid.status !== 'rejected' &&
+          bid.status !== 'accepted' && // Accepted bids don't need to carry over
+          bid.weekNumber === currentWeek.weekNumber
       );
 
       console.log(

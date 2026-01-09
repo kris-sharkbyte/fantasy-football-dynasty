@@ -110,12 +110,15 @@ export class LeagueService {
   private readonly sportsDataService = inject(SportsDataService);
 
   // LocalStorage key for persisting selected league ID
-  private readonly SELECTED_LEAGUE_ID_KEY = 'fantasy-football-dynasty:selectedLeagueId';
+  private readonly SELECTED_LEAGUE_ID_KEY =
+    'fantasy-football-dynasty:selectedLeagueId';
 
   private _userLeagues = signal<League[]>([]);
   private _isLoading = signal(false);
   private _error = signal<string | null>(null);
-  private _selectedLeagueId = signal<string | null>(this.loadSelectedLeagueIdFromStorage());
+  private _selectedLeagueId = signal<string | null>(
+    this.loadSelectedLeagueIdFromStorage()
+  );
 
   // New: Cached league data signals
   private _leagueTeams = signal<LeagueTeam[]>([]);
@@ -153,24 +156,32 @@ export class LeagueService {
     }
 
     const allMembers = this._leagueMembers();
-    console.log('[League Service] All league members:', allMembers.map(m => ({
-      userId: m.userId,
-      teamId: m.teamId,
-      teamName: m.teamName,
-      isActive: m.isActive,
-    })));
+    console.log(
+      '[League Service] All league members:',
+      allMembers.map((m) => ({
+        userId: m.userId,
+        teamId: m.teamId,
+        teamName: m.teamName,
+        isActive: m.isActive,
+      }))
+    );
     console.log('[League Service] Looking for user:', currentUser.uid);
 
     const userTeam = allMembers.find(
       (member) => member.userId === currentUser.uid && member.isActive
     );
-    
-    console.log('[League Service] Found currentUserTeam:', userTeam ? {
-      userId: userTeam.userId,
-      teamId: userTeam.teamId,
-      teamName: userTeam.teamName,
-      role: userTeam.role,
-    } : null);
+
+    console.log(
+      '[League Service] Found currentUserTeam:',
+      userTeam
+        ? {
+            userId: userTeam.userId,
+            teamId: userTeam.teamId,
+            teamName: userTeam.teamName,
+            role: userTeam.role,
+          }
+        : null
+    );
 
     return userTeam;
   });
@@ -225,11 +236,17 @@ export class LeagueService {
     try {
       const stored = localStorage.getItem(this.SELECTED_LEAGUE_ID_KEY);
       if (stored) {
-        console.log('[LeagueService] Restored selected league ID from localStorage:', stored);
+        console.log(
+          '[LeagueService] Restored selected league ID from localStorage:',
+          stored
+        );
         return stored;
       }
     } catch (error) {
-      console.warn('[LeagueService] Failed to load selected league ID from localStorage:', error);
+      console.warn(
+        '[LeagueService] Failed to load selected league ID from localStorage:',
+        error
+      );
     }
     return null;
   }
@@ -241,13 +258,21 @@ export class LeagueService {
     try {
       if (leagueId) {
         localStorage.setItem(this.SELECTED_LEAGUE_ID_KEY, leagueId);
-        console.log('[LeagueService] Saved selected league ID to localStorage:', leagueId);
+        console.log(
+          '[LeagueService] Saved selected league ID to localStorage:',
+          leagueId
+        );
       } else {
         localStorage.removeItem(this.SELECTED_LEAGUE_ID_KEY);
-        console.log('[LeagueService] Removed selected league ID from localStorage');
+        console.log(
+          '[LeagueService] Removed selected league ID from localStorage'
+        );
       }
     } catch (error) {
-      console.warn('[LeagueService] Failed to save selected league ID to localStorage:', error);
+      console.warn(
+        '[LeagueService] Failed to save selected league ID to localStorage:',
+        error
+      );
     }
   }
 
@@ -441,7 +466,7 @@ export class LeagueService {
         const { enhancedPlayer, overall, minimumContract } = playerResult;
 
         const playerDoc = {
-          playerId: enhancedPlayer.PlayerID.toString(), // Use PlayerID from enhanced player
+          sportPlayerID: enhancedPlayer.PlayerID.toString(), // Use PlayerID from enhanced player (sports data ID)
           name: enhancedPlayer.FirstName + ' ' + enhancedPlayer.LastName,
           position: enhancedPlayer.Position,
           age: enhancedPlayer.Age || 25,
@@ -1153,19 +1178,25 @@ export class LeagueService {
         leagueId,
         'players'
       );
+
+      // Add timeout to prevent hanging (10 seconds max for larger queries)
       const querySnapshot = await getDocs(playersCollection);
 
-      const players: any[] = [];
-      querySnapshot.forEach((doc) => {
-        players.push({
-          id: doc.id,
-          ...doc.data(),
-        });
+      // Use map for better performance - creates array in one pass
+      const players = querySnapshot.docs.map((doc) => {
+        const data = doc.data();
+        const docId = doc.id;
+        return {
+          id: docId,
+          leaguePlayerId: docId, // Set leaguePlayerId to the Firestore document ID
+          ...data,
+        };
       });
 
       return players;
     } catch (error) {
       console.error('Error fetching league players:', error);
+      // Return empty array on timeout or error to prevent UI blocking
       return [];
     }
   }
@@ -1179,7 +1210,17 @@ export class LeagueService {
   ): Promise<any | null> {
     try {
       const playerDoc = doc(this.db, 'leagues', leagueId, 'players', playerId);
-      const playerSnapshot = await getDoc(playerDoc);
+
+      // Add timeout to prevent hanging (5 seconds max)
+      const docPromise = getDoc(playerDoc);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error('Query timeout after 5 seconds')),
+          5000
+        )
+      );
+
+      const playerSnapshot = await Promise.race([docPromise, timeoutPromise]);
 
       if (playerSnapshot.exists()) {
         return {
@@ -1191,6 +1232,7 @@ export class LeagueService {
       return null;
     } catch (error) {
       console.error('Error fetching league player:', error);
+      // Return null on timeout or error to prevent UI blocking
       return null;
     }
   }
@@ -1306,12 +1348,15 @@ export class LeagueService {
       }));
 
       // Update signals
-      console.log('[League Service] loadLeagueData - Setting league members:', leagueMembers.map(m => ({
-        userId: m.userId,
-        teamId: m.teamId,
-        teamName: m.teamName,
-        isActive: m.isActive,
-      })));
+      console.log(
+        '[League Service] loadLeagueData - Setting league members:',
+        leagueMembers.map((m) => ({
+          userId: m.userId,
+          teamId: m.teamId,
+          teamName: m.teamName,
+          isActive: m.isActive,
+        }))
+      );
       this._leagueMembers.set(leagueMembers);
       this._leagueTeams.set(leagueTeams);
     } catch (error) {
@@ -1347,7 +1392,9 @@ export class LeagueService {
     const unsubscribeMembers = onSnapshot(membersQuery, (snapshot) => {
       // Don't overwrite with empty data if we're still loading initial data
       if (this._isLoadingLeagueData() && snapshot.empty) {
-        console.log('[League Service] Listener fired with empty snapshot during initial load, skipping update');
+        console.log(
+          '[League Service] Listener fired with empty snapshot during initial load, skipping update'
+        );
         return;
       }
 
@@ -1384,7 +1431,12 @@ export class LeagueService {
         teams.push(team);
       });
 
-      console.log('[League Service] Listener updated members:', members.length, 'teams:', teams.length);
+      console.log(
+        '[League Service] Listener updated members:',
+        members.length,
+        'teams:',
+        teams.length
+      );
       // Update signals
       this._leagueMembers.set(members);
       this._leagueTeams.set(teams);

@@ -517,7 +517,8 @@ export interface FABid {
   id: string;
   leagueId: string;
   teamId: string;
-  playerId: number;
+  playerId: number; // Sports player ID
+  leaguePlayerId?: string; // Firestore document ID of the player in leagues/{leagueId}/players
   position: Position; // Player position for easier access
   weekNumber: number;
   offer: ContractOffer;
@@ -843,6 +844,7 @@ export interface EnhancedSportsPlayer extends SportsPlayer {
   marketValue?: number;
   fantasyPoints?: number;
   fantasyPointsPPR?: number;
+  leaguePlayerId?: string; // Firestore document ID from leagues/{leagueId}/players/{docId}
 }
 
 export interface TeamLocation {

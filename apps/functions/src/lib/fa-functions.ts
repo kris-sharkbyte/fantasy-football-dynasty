@@ -136,21 +136,42 @@ async function processPlayerBidsWithDomainLogic(
 export const onFABidCreated = onDocumentCreated(
   'faBids/{bidId}',
   async (event) => {
+    const bidId = event.params.bidId;
     const bid = event.data?.data();
+    const leagueId = bid?.['leagueId'];
+    const leaguePlayerId = bid?.['leaguePlayerId'];
+
     console.log(
-      `New FA bid created: ${bid?.['id']} for player ${bid?.['playerId']}`
+      `New FA bid created: ${bidId} for player ${leaguePlayerId} in league ${leagueId}`
     );
 
-    // Update player status to 'bidding'
-    if (bid?.['playerId']) {
+    // Update player status to 'bidding' using leaguePlayerId in leagues/{leagueId}/players
+    if (leagueId && leaguePlayerId) {
       try {
-        await db.collection('players').doc(bid['playerId']).update({
+        const playerRef = db
+          .collection('leagues')
+          .doc(leagueId)
+          .collection('players')
+          .doc(leaguePlayerId);
+
+        await playerRef.update({
           status: 'bidding',
           lastUpdated: new Date(),
         });
+        console.log(
+          `[onFABidCreated] Updated player ${leaguePlayerId} status to 'bidding' in league ${leagueId}`
+        );
       } catch (error) {
-        console.error('Error updating player status:', error);
+        console.error(
+          `[onFABidCreated] Error updating player status for ${leaguePlayerId} in league ${leagueId}:`,
+          error
+        );
+        // Don't throw - this is a non-critical update
       }
+    } else {
+      console.warn(
+        `[onFABidCreated] Missing leagueId or leaguePlayerId in bid ${bidId}. leagueId: ${leagueId}, leaguePlayerId: ${leaguePlayerId}`
+      );
     }
   }
 );
@@ -178,21 +199,44 @@ export const onFABidUpdated = onDocumentUpdated(
         after['status'] === 'cancelled'
       ) {
         // Update player status back to available if no more bids
-        try {
-          const remainingBids = await db
-            .collection('faBids')
-            .where('playerId', '==', after['playerId'])
-            .where('status', 'in', ['pending', 'evaluating'])
-            .get();
+        // Use leaguePlayerId to update player in leagues/{leagueId}/players
+        const leagueId = after['leagueId'];
+        const leaguePlayerId = after['leaguePlayerId'];
 
-          if (remainingBids.empty) {
-            await db.collection('players').doc(after['playerId']).update({
-              status: 'available',
-              lastUpdated: new Date(),
-            });
+        if (leagueId && leaguePlayerId) {
+          try {
+            const remainingBids = await db
+              .collection('faBids')
+              .where('leagueId', '==', leagueId)
+              .where('leaguePlayerId', '==', leaguePlayerId)
+              .where('status', 'in', ['pending', 'evaluating'])
+              .get();
+
+            if (remainingBids.empty) {
+              const playerRef = db
+                .collection('leagues')
+                .doc(leagueId)
+                .collection('players')
+                .doc(leaguePlayerId);
+
+              await playerRef.update({
+                status: 'available',
+                lastUpdated: new Date(),
+              });
+              console.log(
+                `[onFABidUpdated] Updated player ${leaguePlayerId} status to 'available' in league ${leagueId}`
+              );
+            }
+          } catch (error) {
+            console.error(
+              `[onFABidUpdated] Error updating player status for ${leaguePlayerId} in league ${leagueId}:`,
+              error
+            );
           }
-        } catch (error) {
-          console.error('Error updating player status:', error);
+        } else {
+          console.warn(
+            `[onFABidUpdated] Missing leagueId or leaguePlayerId in bid ${after['id']}. leagueId: ${leagueId}, leaguePlayerId: ${leaguePlayerId}`
+          );
         }
       }
     }

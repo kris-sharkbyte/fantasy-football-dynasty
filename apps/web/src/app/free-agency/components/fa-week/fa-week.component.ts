@@ -35,7 +35,7 @@ import {
 } from '../../../shared/components/player-card';
 import { PlayerFeedbackComponent } from '../../../shared/components/player-feedback';
 import { SocialMediaFeedModalComponent } from '../../../shared/components/social-media-feed-modal/social-media-feed-modal.component';
-import { SportsPlayer } from 'libs/types/src/lib/types';
+import { SportsPlayer, EnhancedSportsPlayer } from 'libs/types/src/lib/types';
 
 @Component({
   selector: 'app-fa-week',
@@ -77,7 +77,9 @@ export class FAWeekComponent implements OnInit {
   private readonly messageService = inject(MessageService);
 
   // State signals
-  public selectedPlayer = signal<SportsPlayer | null>(null);
+  public selectedPlayer = signal<SportsPlayer | EnhancedSportsPlayer | null>(
+    null
+  );
   public bidForm = signal({ years: 1, baseSalary: 0, signingBonus: 0 });
   public isSubmitting = signal<boolean>(false);
   public playerMinimum = signal<number | null>(null);
@@ -388,10 +390,14 @@ export class FAWeekComponent implements OnInit {
           contractOffer
         );
       } else {
+        // Get leaguePlayerId from player if available (EnhancedSportsPlayer)
+        const playerLeaguePlayerId = (player as any).leaguePlayerId;
+
         bid = await this.freeAgencyService.submitBid(
           player.PlayerID,
           currentUserTeamId,
-          contractOffer
+          contractOffer,
+          playerLeaguePlayerId // Pass leaguePlayerId if available to avoid query
         );
       }
 

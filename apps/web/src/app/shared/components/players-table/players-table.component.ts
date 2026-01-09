@@ -610,10 +610,10 @@ export class PlayersTableComponent implements OnInit {
       // Enhance each league player with sports data
       const enhancedPlayers: EnhancedSportsPlayer[] = leaguePlayers
         .map((leaguePlayer) => {
-          // Find matching sports player by PlayerID
-          const sportsPlayer = sportsPlayersMap.get(
-            parseInt(leaguePlayer.playerId)
-          );
+          // Find matching sports player by PlayerID (using sportPlayerID field)
+          const sportPlayerID =
+            leaguePlayer.sportPlayerID || leaguePlayer.playerId;
+          const sportsPlayer = sportsPlayersMap.get(parseInt(sportPlayerID));
 
           if (!sportsPlayer) {
             return null;
@@ -626,6 +626,8 @@ export class PlayersTableComponent implements OnInit {
             overall: leaguePlayer.overall || sportsPlayer.overall,
             // Add league-specific properties
             ...leaguePlayer,
+            // Preserve the Firestore document ID as leaguePlayerId
+            leaguePlayerId: leaguePlayer.id,
           };
 
           return enhancedPlayer;
