@@ -78,6 +78,11 @@ interface Bid {
   teamInfo: TeamInfo;
   offer: BidOffer;
   submittedAt: string;
+  status?: string; // Current bid status (pending, shortlisted, considering, etc.)
+  previousFeedback?: string; // Previous feedback from player/agent
+  previousTeamMessage?: string; // Previous private message to this team
+  evaluatedAt?: string; // When this bid was last evaluated
+  isLowball?: boolean; // Whether this was previously marked as lowball
 }
 
 interface TeamTrustEntry {
@@ -214,6 +219,14 @@ KEY RULES:
 6. Check if teams can actually afford their offers (capSpaceAvailable >= offer APY)
 7. Consider market conditions (seller vs buyer market based on league cap health)
 8. ALWAYS include "isLowball": true/false for EVERY bid in bidAnalysis (true if APY < 60% of expectedAPY)
+
+COUNTER-OFFER HANDLING (CRITICAL):
+- If a bid has status "shortlisted", "considering", or previous feedback, this is a COUNTER-OFFER from a team you already provided feedback to
+- Use the previous feedback (previousFeedback, previousTeamMessage) to understand what the player/agent said before
+- If the team improved their offer based on your feedback, reward them with a higher score
+- If the team ignored your feedback or made minimal changes, be less favorable
+- Reference the previous feedback in your decision reasoning (e.g., "They increased guarantees as I requested")
+- Previous feedback shows what the player wants - use it to evaluate if the new offer addresses those concerns
 
 WEEK 1 SPECIAL RULE (Less Harsh):
 - Week 1 is the first week of free agency - players are exploring the market
@@ -755,6 +768,12 @@ async function evaluatePlayerWithLLM(
         submittedAt:
           bidData['submittedAt']?.toDate?.()?.toISOString() ||
           new Date().toISOString(),
+        // Include previous evaluation data for counter-offer context
+        status: bidData['status'] || 'pending',
+        previousFeedback: bidData['feedback'] || undefined,
+        previousTeamMessage: bidData['teamMessage'] || undefined,
+        evaluatedAt: bidData['evaluatedAt']?.toDate?.()?.toISOString() || undefined,
+        isLowball: bidData['isLowball'] || false,
       };
     })
   );

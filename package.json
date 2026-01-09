@@ -5,7 +5,7 @@
   "scripts": {
     "seed": "node scripts/seed-emulator.js",
     "emu": "firebase emulators:start",
-    "build:dev": "npx nx build web --configuration=development && npx nx build functions && cd dist/apps/functions && npm install && cd ../../.. && copy apps\\functions\\.secret.local dist\\apps\\functions\\.secret.local 2>nul || echo.",
+    "build:dev": "npx nx build web --configuration=development && npx nx build functions && copy apps\\functions\\.secret.local dist\\apps\\functions\\.secret.local 2>nul || echo. && npm --prefix dist/apps/functions install --production",
     "dev": "npm run build:dev && firebase emulators:start"
   },
   "private": true,

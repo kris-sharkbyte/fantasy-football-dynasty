@@ -8,18 +8,41 @@
   <!-- Filters Section -->
   <div *ngIf="hasFilters()" class="filters-section">
     <div class="filter-row">
-      <!-- Position Filter -->
-      <div class="filter-group">
-        <label for="position-filter">Position:</label>
-        <p-select
-          id="position-filter"
-          [options]="positionOptions()"
-          [(ngModel)]="selectedPosition"
-          (onChange)="updatePositionFilter($event.value)"
-          placeholder="All Positions"
-          class="filter-select"
-        >
-        </p-select>
+      <!-- Position Filter - Radio Buttons -->
+      <div class="filter-group position-filter-group">
+        <label>Position:</label>
+        <div class="position-radio-buttons">
+          <div
+            *ngFor="let option of positionFilterOptions"
+            class="position-radio-wrapper"
+          >
+            <input
+              type="radio"
+              [id]="'position-' + option.value"
+              name="position-filter"
+              [value]="option.value"
+              [checked]="selectedPosition() === option.value"
+              (change)="updatePositionFilter(option.value)"
+              class="position-radio-input"
+            />
+            <label
+              [for]="'position-' + option.value"
+              class="position-radio-label"
+              [class.position-radio-selected]="selectedPosition() === option.value"
+              [style.background-color]="
+                selectedPosition() === option.value
+                  ? getPositionFilterColor(option.value)
+                  : 'transparent'
+              "
+              [style.color]="
+                selectedPosition() === option.value ? 'white' : 'var(--text-color)'
+              "
+              [style.border-color]="getPositionFilterColor(option.value)"
+            >
+              {{ option.label }}
+            </label>
+          </div>
+        </div>
       </div>
 
       <!-- Team Filter -->
@@ -338,8 +361,12 @@
       <ng-template pTemplate="body" let-player>
         <tr
           class="player-row"
+          [class]="
+            'player-row ' +
+            getRowPositionColorClass(player) +
+            (isBidMode() && hasTeamBid(player.PlayerID) ? ' has-team-bid' : '')
+          "
           (click)="onPlayerClick(player)"
-          [class.has-team-bid]="isBidMode() && hasTeamBid(player.PlayerID)"
         >
           <!-- Photo -->
           <!-- <td class="photo-cell">

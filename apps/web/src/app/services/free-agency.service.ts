@@ -490,36 +490,28 @@ export class FreeAgencyService {
       );
 
       // Create updated bid object
-      // When updating a bid, reset it to pending and clear evaluation fields
+      // When updating a bid, keep the current status and feedback so LLM knows it's a counter-offer
       const updatedBid: FABid = {
         ...existingBid,
         offer,
-        status: 'pending', // Reset to pending when updated
-        submittedAt: new Date(),
+        // Keep existing status - don't reset to pending
+        // Keep existing feedback, teamMessage, evaluatedAt so LLM can use previous feedback
         updatedAt: new Date(),
-        evaluatedAt: undefined, // Clear evaluation timestamp
-        feedback: undefined, // Clear previous feedback
-        teamMessage: undefined, // Clear previous team message
-        isLowball: undefined, // Clear lowball flag
       };
 
-      // Update directly in Firestore
+      // Update directly in Firestore - only update offer and updatedAt, preserve status and feedback
       const bidRef = doc(this.firestore, 'faBids', bidId);
       await updateDoc(bidRef, {
         offer: updatedBid.offer,
-        status: 'pending', // Explicitly set to pending
-        submittedAt: updatedBid.submittedAt,
         updatedAt: updatedBid.updatedAt,
-        evaluatedAt: null, // Clear evaluation timestamp
-        feedback: null, // Clear previous feedback
-        teamMessage: null, // Clear previous team message
-        isLowball: null, // Clear lowball flag
+        // Explicitly preserve status and feedback fields - don't clear them
       });
 
       console.log('[FA Service] Updated bid:', {
         bidId,
-        newStatus: 'pending',
-        previousStatus: existingBid.status,
+        status: existingBid.status,
+        hasFeedback: !!existingBid.feedback,
+        hasTeamMessage: !!existingBid.teamMessage,
       });
 
       return updatedBid;

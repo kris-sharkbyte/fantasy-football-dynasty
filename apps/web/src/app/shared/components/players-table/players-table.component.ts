@@ -27,6 +27,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { SelectModule } from 'primeng/select';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
+import { RadioButtonModule } from 'primeng/radiobutton';
 
 import {
   Position,
@@ -93,6 +94,7 @@ export interface PlayersTableConfig {
     SelectModule,
     IconFieldModule,
     InputIconModule,
+    RadioButtonModule,
   ],
   templateUrl: './players-table.component.html',
   styleUrls: ['./players-table.component.scss'],
@@ -111,7 +113,7 @@ export class PlayersTableComponent implements OnInit {
   isLoading = signal(false);
   error = signal<string | null>(null);
   searchQuery = signal('');
-  selectedPosition = signal<Position | 'ALL'>('ALL');
+  selectedPosition = signal<Position | 'ALL' | 'S'>('ALL');
   selectedTeam = signal<string>('ALL');
   currentPage = signal(1);
 
@@ -134,11 +136,15 @@ export class PlayersTableComponent implements OnInit {
 
       // Position filter
       if (this.selectedPosition() !== 'ALL') {
-        filtered = filtered.filter(
-          (player) =>
-            (player.Position || (player as any).position) ===
-            this.selectedPosition()
-        );
+        const selectedPos = this.selectedPosition();
+        filtered = filtered.filter((player) => {
+          const playerPos = player.Position || (player as any).position;
+          // Handle DEF/DST mapping
+          if (selectedPos === 'DEF' && (playerPos === 'DEF' || playerPos === 'DST')) {
+            return true;
+          }
+          return playerPos === selectedPos;
+        });
       }
 
       // Team filter
@@ -181,11 +187,15 @@ export class PlayersTableComponent implements OnInit {
 
       // Position filter
       if (this.selectedPosition() !== 'ALL') {
-        filtered = filtered.filter(
-          (player) =>
-            (player.Position || (player as any).position) ===
-            this.selectedPosition()
-        );
+        const selectedPos = this.selectedPosition();
+        filtered = filtered.filter((player) => {
+          const playerPos = player.Position || (player as any).position;
+          // Handle DEF/DST mapping
+          if (selectedPos === 'DEF' && (playerPos === 'DEF' || playerPos === 'DST')) {
+            return true;
+          }
+          return playerPos === selectedPos;
+        });
       }
 
       // Team filter
@@ -229,11 +239,15 @@ export class PlayersTableComponent implements OnInit {
 
       // Position filter
       if (this.selectedPosition() !== 'ALL') {
-        filtered = filtered.filter(
-          (player) =>
-            (player.Position || (player as any).position) ===
-            this.selectedPosition()
-        );
+        const selectedPos = this.selectedPosition();
+        filtered = filtered.filter((player) => {
+          const playerPos = player.Position || (player as any).position;
+          // Handle DEF/DST mapping
+          if (selectedPos === 'DEF' && (playerPos === 'DEF' || playerPos === 'DST')) {
+            return true;
+          }
+          return playerPos === selectedPos;
+        });
       }
 
       // Team filter
@@ -371,55 +385,19 @@ export class PlayersTableComponent implements OnInit {
         this.config?.showMarketTrends)
   );
 
-  // Position options for filter
-  public positionOptions = computed(() => {
-    // Priority 1: Use getPlayers() function if provided
-    if (this.config?.getPlayers) {
-      const positions = [
-        ...new Set(
-          this.config
-            .getPlayers()
-            .map((player) => player.Position || (player as any).position)
-            .filter(Boolean)
-        ),
-      ];
-      return [
-        { label: 'All Positions', value: 'ALL' },
-        ...positions.map((pos) => ({ label: pos, value: pos })),
-      ];
-    }
-    // Priority 2: Use enhanced players with league data if available
-    else if (this.config?.leagueId && this._enhancedPlayers().length > 0) {
-      // Get positions from enhanced players
-      const positions = [
-        ...new Set(
-          this._enhancedPlayers()
-            .map((player) => player.Position || (player as any).position)
-            .filter(Boolean)
-        ),
-      ];
-      return [
-        { label: 'All Positions', value: 'ALL' },
-        ...positions.map((pos) => ({ label: pos, value: pos })),
-      ];
-    }
-    // Priority 3: Get positions from sports data service
-    else {
-      // Get positions from sports data service
-      const positions = [
-        ...new Set(
-          this.sportsDataService
-            .activePlayers()
-            .map((player) => player.Position)
-            .filter(Boolean)
-        ),
-      ];
-      return [
-        { label: 'All Positions', value: 'ALL' },
-        ...positions.map((pos) => ({ label: pos, value: pos })),
-      ];
-    }
-  });
+  // Position options for radio buttons (fixed order)
+  public positionFilterOptions: Array<{ label: string; value: Position | 'ALL' | 'S' }> = [
+    { label: 'All', value: 'ALL' },
+    { label: 'QB', value: 'QB' },
+    { label: 'RB', value: 'RB' },
+    { label: 'WR', value: 'WR' },
+    { label: 'TE', value: 'TE' },
+    { label: 'K', value: 'K' },
+    { label: 'DST', value: 'DEF' }, // DST maps to DEF in the data
+    { label: 'DL', value: 'DL' },
+    { label: 'LB', value: 'LB' },
+    { label: 'S', value: 'S' },
+  ];
 
   // Team options for filter
   public teamOptions = computed(() => {
@@ -650,11 +628,39 @@ export class PlayersTableComponent implements OnInit {
   }
 
   /**
-   * Update position filter
+   * Update position filter (radio button handler)
    */
-  updatePositionFilter(position: Position | 'ALL'): void {
+  updatePositionFilter(position: Position | 'ALL' | 'S'): void {
     this.selectedPosition.set(position);
     this.currentPage.set(1); // Reset to first page
+  }
+
+  /**
+   * Get position color for radio button styling
+   */
+  getPositionFilterColor(position: Position | 'ALL' | 'S'): string {
+    const colorMap: Record<string, string> = {
+      ALL: '#6b7280', // Gray for "All"
+      QB: '#3b82f6', // Blue
+      RB: '#10b981', // Green
+      WR: '#f59e0b', // Amber
+      TE: '#8b5cf6', // Purple
+      K: '#ef4444', // Red
+      DEF: '#6b7280', // Gray (DST)
+      DL: '#dc2626', // Red
+      LB: '#7c3aed', // Violet
+      S: '#064e3b', // Dark green
+    };
+    return colorMap[position] || '#6b7280';
+  }
+
+  /**
+   * Get position color class for row highlighting
+   */
+  getRowPositionColorClass(player: EnhancedSportsPlayer): string {
+    const position = player.Position || (player as any).position;
+    if (!position) return '';
+    return `row-position--${position}`;
   }
 
   /**

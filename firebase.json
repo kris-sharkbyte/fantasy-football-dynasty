@@ -3,7 +3,7 @@
       {
         "source": "dist/apps/functions",
         "codebase": "default",
-        "runtime": "nodejs20",
+        "runtime": "nodejs22",
         "predeploy": [
           "npm --prefix \"$PROJECT_DIR\" run build:functions"
         ]

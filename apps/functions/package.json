@@ -4,8 +4,9 @@
   "main": "index.js",
   "type": "commonjs",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
+  "_comment": "Note: Node 22 is experimental for Firebase Functions. For production stability, consider using Node 20 instead.",
   "scripts": {
     "lint": "echo 'Linting disabled for now'",
     "build": "tsc",
