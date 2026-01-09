@@ -52,39 +52,14 @@ export class TeamComponent implements OnInit {
   currentUserTeam = computed(() => this.leagueService.currentUserTeam());
 
   rosterPlayers = computed(() => {
-    const team = this.currentTeam();
+    // Players are now loaded directly from contracts, so just enhance with sports data
     const allPlayers = this.players();
-
-    if (
-      !team ||
-      !team.roster ||
-      team.roster.length === 0 ||
-      !allPlayers.length
-    ) {
+    if (!allPlayers.length) {
       return [];
     }
 
-    // Filter to only show roster players and enhance with roster data
-    const rosterPlayers = allPlayers
-      .filter((player: any) => {
-        return team.roster.some(
-          (rosterSlot) => rosterSlot.playerId === player.playerId
-        );
-      })
-      .map((player: any) => {
-        const rosterSlot = team.roster.find(
-          (slot) => slot.playerId === player.playerId
-        );
-        return {
-          ...player,
-          rosterStatus: rosterSlot?.status || 'active',
-          rosterPosition: rosterSlot?.position || player.position,
-          rosterId: rosterSlot?.id,
-        };
-      });
-
     // Enhance roster players with sports data
-    return this.enhanceRosterPlayersWithSportsData(rosterPlayers);
+    return this.enhanceRosterPlayersWithSportsData(allPlayers);
   });
 
   // Players table configuration
@@ -129,10 +104,14 @@ export class TeamComponent implements OnInit {
 
       this.teamId.set(currentUserTeam.teamId);
 
-      // Load league players for roster display
+      // Load team players from contracts (source of truth)
       const leagueId = this.leagueId();
-      if (leagueId) {
-        const players = await this.leagueService.getLeaguePlayers(leagueId);
+      const teamId = this.teamId();
+      if (leagueId && teamId) {
+        const players = await this.leagueService.getTeamPlayersFromContracts(
+          leagueId,
+          teamId
+        );
         this.players.set(players);
       }
     } catch (error) {

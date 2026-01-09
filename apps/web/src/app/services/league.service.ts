@@ -1238,6 +1238,89 @@ export class LeagueService {
   }
 
   /**
+   * Get team players from active contracts (source of truth)
+   * This replaces the old method of reading from member roster array
+   */
+  async getTeamPlayersFromContracts(
+    leagueId: string,
+    teamId: string
+  ): Promise<any[]> {
+    try {
+      // Query active contracts for this team
+      const contractsRef = collection(this.db, 'contracts');
+      const contractsQuery = query(
+        contractsRef,
+        where('leagueId', '==', leagueId),
+        where('teamId', '==', teamId),
+        where('status', '==', 'active')
+      );
+
+      const contractsSnapshot = await getDocs(contractsQuery);
+      
+      if (contractsSnapshot.empty) {
+        return [];
+      }
+
+      // Get all league players for lookup
+      const leaguePlayers = await this.getLeaguePlayers(leagueId);
+      const leaguePlayersMap = new Map<string, any>();
+      leaguePlayers.forEach((player) => {
+        // Map by both leaguePlayerId (doc ID) and playerId for compatibility
+        if (player.leaguePlayerId) {
+          leaguePlayersMap.set(player.leaguePlayerId, player);
+        }
+        if (player.playerId) {
+          leaguePlayersMap.set(player.playerId.toString(), player);
+        }
+        if (player.sportPlayerID) {
+          leaguePlayersMap.set(player.sportPlayerID.toString(), player);
+        }
+      });
+
+      // Build array of players with contract info
+      const teamPlayers: any[] = [];
+      
+      contractsSnapshot.forEach((contractDoc) => {
+        const contractData = contractDoc.data();
+        const playerId = contractData['leaguePlayerId'] || contractData['playerId'];
+        
+        if (!playerId) {
+          console.warn('[League Service] Contract missing playerId:', contractDoc.id);
+          return;
+        }
+
+        // Find the player data
+        const player = leaguePlayersMap.get(playerId.toString());
+        
+        if (player) {
+          // Enhance player with contract info
+          teamPlayers.push({
+            ...player,
+            contractId: contractDoc.id,
+            contract: {
+              startYear: contractData['startYear'],
+              endYear: contractData['endYear'],
+              baseSalary: contractData['baseSalary'],
+              signingBonus: contractData['signingBonus'],
+              guarantees: contractData['guarantees'] || [],
+              noTradeClause: contractData['noTradeClause'] || false,
+            },
+          });
+        } else {
+          console.warn(
+            `[League Service] Player not found for contract ${contractDoc.id}, playerId: ${playerId}`
+          );
+        }
+      });
+
+      return teamPlayers;
+    } catch (error) {
+      console.error('[League Service] Error getting team players from contracts:', error);
+      return [];
+    }
+  }
+
+  /**
    * Load all leagues for the current user
    * Optimized to use array-contains query for efficient membership lookup
    */

@@ -2790,13 +2790,35 @@ export class FreeAgencyService {
 
       console.log('[FA Service] Member document reference:', memberRef.path);
 
-      // Create the roster entry using leaguePlayerId
+      // Create minimal roster entry - contract data is stored in contracts collection
+      // We only store references here, contracts are the source of truth
+      const contractId = contract.id || contract.contractId;
+      if (!contractId) {
+        console.warn('[FA Service] Contract missing id, cannot create roster entry');
+        return;
+      }
+
+      // Get player data to determine position
+      const leagueId = currentLeague.leagueId;
+      const playerData = await this.leagueService.getLeaguePlayer(leagueId, leaguePlayerId);
+      const position = (playerData?.position || 'RB') as any; // Default to RB if not found
+
+      // Generate unique ID for roster entry using Firestore's ID generation
+      const rosterEntryId = doc(collection(this.firestore, '_temp')).id;
+
       const rosterEntry = {
-        leaguePlayerId: leaguePlayerId, // Use leaguePlayerId (Firestore doc ID)
-        contractId: contract.id,
-        signedAt: new Date(),
-        contract: contract.contract,
-        status: 'active',
+        id: rosterEntryId, // Auto-generated unique ID (Firestore doc ID)
+        teamId: teamId,
+        playerId: leaguePlayerId, // Contains leaguePlayerId (Firestore doc ID from leagues/{leagueId}/players)
+        // Note: This is leaguePlayerId, not sportsPlayerID. To get sports data, look up the league player doc.
+        contractId: contractId, // Reference to contract document
+        position: position, // Required for roster spot assignment and lineup management
+        status: 'active' as const, // active, bench, ir, taxi - used for weekly lineup assignment
+        activeFrom: new Date(),
+        // Note: Contract details are in contracts collection, not duplicated here
+        // This entry is used for: position tracking, weekly lineup assignment, roster status management
+        // For trading: contract.teamId is updated, roster entry teamId is updated separately
+        // For weekly lineups: roster entries are filtered by position and status
       };
 
       console.log('[FA Service] Creating roster entry:', rosterEntry);
@@ -2885,7 +2907,7 @@ export class FreeAgencyService {
 
       console.log(`[FA Service] Open FA contract created: ${contractId}`);
 
-      // Add player to team roster
+      // Add player to team roster (contract is already created, so pass contractDoc with id)
       await this.addPlayerToTeamRoster(playerId, teamId, contractDoc);
     } catch (error) {
       console.error('Error creating contract from Open FA signing:', error);
@@ -2944,12 +2966,44 @@ export class FreeAgencyService {
         teamMember.userId
       );
 
-      // Create the roster entry
+      // Get player data to determine position and ensure we have leaguePlayerId
+      const leagueId = currentLeague.leagueId;
+      // playerId here should be leaguePlayerId (Firestore doc ID from leagues/{leagueId}/players)
+      const leaguePlayerId = playerId; // This should already be leaguePlayerId when called
+      const playerData = await this.leagueService.getLeaguePlayer(leagueId, leaguePlayerId);
+      const position = (playerData?.position || 'RB') as any; // Default to RB if not found
+
+      // Find the contractId by querying contracts collection
+      const contractsRef = collection(this.firestore, 'contracts');
+      const contractQuery = query(
+        contractsRef,
+        where('leagueId', '==', leagueId),
+        where('teamId', '==', teamId),
+        where('leaguePlayerId', '==', leaguePlayerId),
+        where('status', '==', 'active'),
+        limit(1)
+      );
+      const contractSnapshot = await getDocs(contractQuery);
+      const contractId = contractSnapshot.empty ? null : contractSnapshot.docs[0].id;
+
+      if (!contractId) {
+        console.warn('[FA Service] No active contract found for player, cannot create roster entry');
+        return;
+      }
+
+      // Generate unique ID for roster entry
+      const rosterEntryId = doc(collection(this.firestore, '_temp')).id; // Use Firestore ID generation
+
       const rosterEntry = {
-        playerId,
-        signedAt: new Date(),
-        contract: contract,
-        status: 'active',
+        id: rosterEntryId, // Auto-generated unique ID
+        teamId: teamId,
+        playerId: leaguePlayerId, // Store leaguePlayerId in playerId field (RosterSlot interface uses playerId)
+        contractId: contractId, // Reference to contract document
+        position: position, // Required for roster spot assignment and lineup management
+        status: 'active' as const, // active, bench, ir, taxi
+        activeFrom: new Date(),
+        // Note: Contract details are in contracts collection, not duplicated here
+        // This entry is used for: position tracking, weekly lineup assignment, roster status management
       };
 
       // Update the member document with the new roster entry
