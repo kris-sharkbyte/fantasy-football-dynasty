@@ -167,6 +167,22 @@
       font-size: 0.75rem;
       padding: 0.25rem 0.5rem;
     }
+
+    .signed-team-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.5rem;
+      background: var(--green-100);
+      color: var(--green-700);
+      border-radius: var(--border-radius);
+      font-size: 0.75rem;
+      font-weight: 500;
+
+      i {
+        color: var(--green-600);
+      }
+    }
   }
 
   .empty-state {

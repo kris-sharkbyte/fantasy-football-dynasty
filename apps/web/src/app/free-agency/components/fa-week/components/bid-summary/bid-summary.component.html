@@ -1,111 +1,50 @@
-<div class="salary-cap-section">
-  <div class="cap-info">
-    <div class="cap-item">
-      <span class="label">Salary Cap:</span>
-      <span class="value">{{ formatCurrency(currentTeamCap()) }}</span>
-    </div>
-    <div class="cap-item">
-      <span class="label">Active Contracts:</span>
-      <span class="value">{{ formatCurrency(totalContractsCapHit()) }}</span>
-    </div>
-    <div class="cap-item">
-      <span class="label">Active Bids:</span>
-      <span class="value">{{ formatCurrency(totalBidsValue()) }}</span>
-    </div>
-    <div class="cap-item">
-      <span class="label">Remaining Cap:</span>
-      <span
-        class="value"
-        [class]="remainingCapSpace() < 0 ? 'negative' : 'positive'"
-      >
-        {{ formatCurrency(remainingCapSpace()) }}
-      </span>
-    </div>
-  </div>
-
-  <!-- Financial Summary for Accepted Bids (using flex) -->
-  @if (financialSummary().acceptedCount > 0) {
-    <div class="financial-summary">
-      <div class="summary-item">
-        <span class="label">Total Contract Value:</span>
-        <span class="value text-green-500">{{ formatCurrency(financialSummary().totalContractValue) }}</span>
-      </div>
-      <div class="summary-item">
-        <span class="label">Average APY:</span>
-        <span class="value">{{ formatCurrency(financialSummary().averageAPY) }}</span>
-      </div>
-      <div class="summary-item">
-        <span class="label">Total Signing Bonuses:</span>
-        <span class="value">{{ formatCurrency(financialSummary().totalSigningBonuses) }}</span>
-      </div>
-      <div class="summary-item">
-        <span class="label">Total Guarantees:</span>
-        <span class="value">{{ formatCurrency(financialSummary().totalGuarantees) }}</span>
-      </div>
-    </div>
-
-    <!-- Position Breakdown -->
-    @if (getObjectKeys(positionBreakdown()).length > 0) {
-      <div class="position-breakdown">
-        <div class="breakdown-header">
-          <span class="label">Position Breakdown:</span>
-        </div>
-        <div class="breakdown-items">
-          @for (entry of getObjectEntries(positionBreakdown()); track entry[0]) {
-            <div class="position-item">
-              <span class="position-label position-color--{{ entry[0] }}">
-                {{ entry[0] }}
-              </span>
-              <span class="position-count">{{ entry[1].count }}</span>
-              <span class="position-value">{{ formatCurrency(entry[1].averageAPY) }} avg</span>
-            </div>
-          }
-        </div>
-      </div>
-    }
-  }
-
-  <!-- Roster Spot Tracking -->
-  @if (rosterSpotTracking().length > 0) {
-  <div class="roster-spot-tracking">
-    @for (spot of rosterSpotTracking(); track spot.position) {
-    <div class="position-spot" [class]="spot.status">
-      <span class="position-label position-color--{{ spot.position }}">
-        {{ spot.position }}
-      </span>
-      <span class="bid-count">{{ spot.currentBids }}</span>
-      <span class="separator">/</span>
-      <span class="required-count">{{ spot.required }}</span>
-    </div>
-    }
-  </div>
-  }
-
-  <!-- View Details Button -->
-  @if (allTeamBids().length > 0) {
-    <div class="details-section">
-      <button
-        pButton
-        type="button"
-        label="View Bid Details"
-        icon="pi pi-chart-bar"
-        (click)="openBidSummary()"
-        class="p-button-outlined p-button-secondary"
-        size="small"
-      ></button>
-    </div>
-  }
-</div>
-
-<!-- Bid Summary Dialog -->
 <p-dialog
-  [(visible)]="showBidSummaryDialog"
+  [(visible)]="showDialog"
+  (visibleChange)="onDialogVisibleChange($event)"
   [modal]="true"
   [style]="{ width: '90vw', maxWidth: '1200px' }"
   [closable]="true"
-  header="Bid Summary"
+  header="Week Bid Summary"
 >
   @if (allTeamBids().length > 0) {
+    <!-- Financial Summary (for accepted bids) -->
+    @if (financialSummary().acceptedCount > 0) {
+      <div class="grid mb-4">
+        <div class="col-12 md:col-3">
+          <p-card>
+            <div class="text-center">
+              <div class="text-2xl font-bold text-green-500">{{ formatCurrency(financialSummary().totalContractValue) }}</div>
+              <div class="text-color-secondary">Total Contract Value</div>
+            </div>
+          </p-card>
+        </div>
+        <div class="col-12 md:col-3">
+          <p-card>
+            <div class="text-center">
+              <div class="text-2xl font-bold">{{ formatCurrency(financialSummary().averageAPY) }}</div>
+              <div class="text-color-secondary">Average APY</div>
+            </div>
+          </p-card>
+        </div>
+        <div class="col-12 md:col-3">
+          <p-card>
+            <div class="text-center">
+              <div class="text-2xl font-bold">{{ formatCurrency(financialSummary().totalSigningBonuses) }}</div>
+              <div class="text-color-secondary">Total Signing Bonuses</div>
+            </div>
+          </p-card>
+        </div>
+        <div class="col-12 md:col-3">
+          <p-card>
+            <div class="text-center">
+              <div class="text-2xl font-bold">{{ formatCurrency(financialSummary().totalGuarantees) }}</div>
+              <div class="text-color-secondary">Total Guarantees</div>
+            </div>
+          </p-card>
+        </div>
+      </div>
+    }
+
     <!-- Bid Details Tabs -->
     <p-tabs value="accepted">
       <p-tablist>
@@ -133,7 +72,6 @@
               <ng-template pTemplate="header">
                 <tr>
                   <th>Player</th>
-                  <th>Position</th>
                   <th>APY</th>
                   <th>Years</th>
                   <th>Signing Bonus</th>
@@ -144,7 +82,6 @@
               <ng-template pTemplate="body" let-bid>
                 <tr>
                   <td>{{ bid.playerName }}</td>
-                  <td>{{ bid.position || '-' }}</td>
                   <td>{{ formatCurrency(bid.apy) }}</td>
                   <td>{{ bid.years }}</td>
                   <td>{{ formatCurrency(bid.signingBonus) }}</td>
@@ -159,7 +96,7 @@
               </ng-template>
               <ng-template pTemplate="emptymessage">
                 <tr>
-                  <td colspan="7" class="text-center p-4">No pending bids</td>
+                  <td colspan="6" class="text-center p-4">No pending bids</td>
                 </tr>
               </ng-template>
             </p-table>
@@ -175,7 +112,6 @@
               <ng-template pTemplate="header">
                 <tr>
                   <th>Player</th>
-                  <th>Position</th>
                   <th>APY</th>
                   <th>Years</th>
                   <th>Signing Bonus</th>
@@ -187,7 +123,6 @@
               <ng-template pTemplate="body" let-bid>
                 <tr>
                   <td>{{ bid.playerName }}</td>
-                  <td>{{ bid.position || '-' }}</td>
                   <td>{{ formatCurrency(bid.apy) }}</td>
                   <td>{{ bid.years }}</td>
                   <td>{{ formatCurrency(bid.signingBonus) }}</td>
@@ -205,12 +140,12 @@
               </ng-template>
               <ng-template pTemplate="emptymessage">
                 <tr>
-                  <td colspan="8" class="text-center p-4">No accepted bids</td>
+                  <td colspan="7" class="text-center p-4">No accepted bids</td>
                 </tr>
               </ng-template>
             </p-table>
           } @else {
-            <p class="text-center text-color-secondary p-4">No bids were accepted.</p>
+            <p class="text-center text-color-secondary p-4">No bids were accepted this week.</p>
           }
         </p-tabpanel>
 
@@ -221,7 +156,6 @@
               <ng-template pTemplate="header">
                 <tr>
                   <th>Player</th>
-                  <th>Position</th>
                   <th>APY</th>
                   <th>Years</th>
                   <th>Signing Bonus</th>
@@ -233,7 +167,6 @@
               <ng-template pTemplate="body" let-bid>
                 <tr>
                   <td>{{ bid.playerName }}</td>
-                  <td>{{ bid.position || '-' }}</td>
                   <td>{{ formatCurrency(bid.apy) }}</td>
                   <td>{{ bid.years }}</td>
                   <td>{{ formatCurrency(bid.signingBonus) }}</td>
@@ -251,12 +184,12 @@
               </ng-template>
               <ng-template pTemplate="emptymessage">
                 <tr>
-                  <td colspan="8" class="text-center p-4">No shortlisted bids</td>
+                  <td colspan="7" class="text-center p-4">No shortlisted bids</td>
                 </tr>
               </ng-template>
             </p-table>
           } @else {
-            <p class="text-center text-color-secondary p-4">No bids were shortlisted.</p>
+            <p class="text-center text-color-secondary p-4">No bids were shortlisted this week.</p>
           }
         </p-tabpanel>
 
@@ -267,7 +200,6 @@
               <ng-template pTemplate="header">
                 <tr>
                   <th>Player</th>
-                  <th>Position</th>
                   <th>APY</th>
                   <th>Years</th>
                   <th>Signing Bonus</th>
@@ -279,7 +211,6 @@
               <ng-template pTemplate="body" let-bid>
                 <tr>
                   <td>{{ bid.playerName }}</td>
-                  <td>{{ bid.position || '-' }}</td>
                   <td>{{ formatCurrency(bid.apy) }}</td>
                   <td>{{ bid.years }}</td>
                   <td>{{ formatCurrency(bid.signingBonus) }}</td>
@@ -297,7 +228,7 @@
               </ng-template>
               <ng-template pTemplate="emptymessage">
                 <tr>
-                  <td colspan="8" class="text-center p-4">No bids under consideration</td>
+                  <td colspan="7" class="text-center p-4">No bids under consideration</td>
                 </tr>
               </ng-template>
             </p-table>
@@ -313,7 +244,6 @@
               <ng-template pTemplate="header">
                 <tr>
                   <th>Player</th>
-                  <th>Position</th>
                   <th>APY</th>
                   <th>Years</th>
                   <th>Signing Bonus</th>
@@ -325,7 +255,6 @@
               <ng-template pTemplate="body" let-bid>
                 <tr>
                   <td>{{ bid.playerName }}</td>
-                  <td>{{ bid.position || '-' }}</td>
                   <td>{{ formatCurrency(bid.apy) }}</td>
                   <td>{{ bid.years }}</td>
                   <td>{{ formatCurrency(bid.signingBonus) }}</td>
@@ -343,19 +272,19 @@
               </ng-template>
               <ng-template pTemplate="emptymessage">
                 <tr>
-                  <td colspan="8" class="text-center p-4">No rejected bids</td>
+                  <td colspan="7" class="text-center p-4">No rejected bids</td>
                 </tr>
               </ng-template>
             </p-table>
           } @else {
-            <p class="text-center text-color-secondary p-4">No bids were rejected.</p>
+            <p class="text-center text-color-secondary p-4">No bids were rejected this week.</p>
           }
         </p-tabpanel>
       </p-tabpanels>
     </p-tabs>
   } @else {
     <div class="text-center p-4">
-      <p class="text-color-secondary">No bids to display.</p>
+      <p class="text-color-secondary">No bids to display for this week.</p>
     </div>
   }
 </p-dialog>

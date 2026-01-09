@@ -19,6 +19,7 @@ import { SelectModule } from 'primeng/select';
 import { FreeAgencyService } from '../../../../../services/free-agency.service';
 import { EnhancedPlayerMinimumService } from '../../../../../services/enhanced-player-minimum.service';
 import { LeagueService } from '../../../../../services/league.service';
+import { PlayerService } from '../../../../../services/player.service';
 
 @Component({
   selector: 'app-available-players',
@@ -43,6 +44,7 @@ export class AvailablePlayersComponent {
     EnhancedPlayerMinimumService
   );
   private readonly leagueService = inject(LeagueService);
+  private readonly playerService = inject(PlayerService);
 
   // Outputs
   @Output() bidButtonClick = new EventEmitter<any>();
@@ -53,6 +55,9 @@ export class AvailablePlayersComponent {
   public isLoadingMore = signal<boolean>(false);
   public hasMorePlayers = signal<boolean>(true);
   public playerMinimums = signal<Record<string, number | null>>({});
+  
+  // Cache for contract team names (keyed by playerId)
+  private _contractTeamNames = signal<Map<number, string>>(new Map());
 
   // Sorting state
   public sortField = signal<string>('name');
@@ -79,6 +84,8 @@ export class AvailablePlayersComponent {
       if (players.length > 0) {
         this.loadPlayerMinimums();
         this.filterPlayers(); // Initial filter
+        // Load contract team names for players with contracts
+        this.loadContractTeamNames();
       }
     });
 
@@ -86,6 +93,30 @@ export class AvailablePlayersComponent {
     effect(() => {
       this.filterPlayers();
     });
+  }
+
+  /**
+   * Load contract team names for players with contracts
+   */
+  private async loadContractTeamNames(): Promise<void> {
+    const players = this.availablePlayers();
+    const leagueId = this.leagueData()?.id;
+    if (!leagueId) return;
+
+    // Get players with contracts
+    const playersWithContracts = await this.playerService.getPlayersWithContracts(leagueId);
+
+    // Load team names for players with contracts
+    for (const player of players) {
+      // Check both leaguePlayerId and sportsPlayerId
+      const hasContract = player.leaguePlayerId 
+        ? playersWithContracts.has(player.leaguePlayerId) || playersWithContracts.has(player.playerId.toString())
+        : playersWithContracts.has(player.playerId.toString());
+      
+      if (hasContract) {
+        await this.getPlayerContractTeamName(player.playerId);
+      }
+    }
   }
 
   /**
@@ -100,25 +131,16 @@ export class AvailablePlayersComponent {
       players = players.filter(
         (player) => player.position === this.positionFilter()
       );
-      console.log(
-        `[AvailablePlayers] Position filter applied: ${this.positionFilter()}, players remaining: ${
-          players.length
-        }`
-      );
     }
 
     // Apply search filter
     if (this.searchQuery()) {
       const query = this.searchQuery().toLowerCase();
-      const beforeSearch = players.length;
       players = players.filter(
         (player) =>
           player.name?.toLowerCase().includes(query) ||
           player.nflTeam?.toLowerCase().includes(query) ||
           player.position?.toLowerCase().includes(query)
-      );
-      console.log(
-        `[AvailablePlayers] Search filter applied: "${query}", players before: ${beforeSearch}, after: ${players.length}`
       );
     }
 
@@ -132,11 +154,6 @@ export class AvailablePlayersComponent {
       return 0;
     });
 
-    console.log(
-      `[AvailablePlayers] Filtering complete: ${totalPlayers} total → ${
-        players.length
-      } filtered, sorted by: ${this.sortField()}`
-    );
     this.filteredPlayers.set(players);
   }
 
@@ -188,10 +205,18 @@ export class AvailablePlayersComponent {
   }
 
   /**
-   * Get bid count for a specific player
+   * Get bid count for a specific player (excluding accepted and rejected bids)
+   * Only counts active bids: pending, shortlisted, considering
    */
   public getPlayerBidCount = (playerId: number): number => {
-    return this.activeBids().filter((bid) => bid.playerId === playerId).length;
+    const bids = this.activeBids().filter(
+      (bid) =>
+        bid.playerId === playerId &&
+        bid.status !== 'accepted' &&
+        bid.status !== 'rejected'
+    );
+
+    return bids.length;
   };
 
   // Load player minimums for all available players
@@ -311,8 +336,154 @@ export class AvailablePlayersComponent {
     if (!currentTeamId) return false;
 
     return this.activeBids().some(
-      (bid) => bid.playerId === playerId && bid.teamId === currentTeamId
+      (bid) =>
+        bid.playerId === playerId &&
+        bid.teamId === currentTeamId &&
+        bid.status !== 'accepted' &&
+        bid.status !== 'rejected'
     );
+  }
+
+  /**
+   * Check if a player has been signed (has an accepted bid or active contract)
+   */
+  public isPlayerSigned(playerId: number): boolean {
+    // Check for accepted bid first
+    const acceptedBid = this.activeBids().find(
+      (bid) => bid.playerId === playerId && bid.status === 'accepted'
+    );
+
+    if (acceptedBid) {
+      return true;
+    }
+
+    // Also check for active contract
+    const leagueId = this.leagueData()?.id;
+    if (leagueId) {
+      const playersWithContracts = this.playerService.playersWithContractsCache();
+      const cached = playersWithContracts.get(leagueId);
+      if (cached && cached.has(playerId.toString())) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if player has an active contract (for hiding bid button)
+   */
+  public hasActiveContract(playerId: number): boolean {
+    const leagueId = this.leagueData()?.id;
+    if (!leagueId) return false;
+
+    const player = this.availablePlayers().find((p) => p.playerId === playerId);
+    const playersWithContracts = this.playerService.playersWithContractsCache();
+    const cached = playersWithContracts.get(leagueId);
+    
+    if (cached) {
+      // Check by leaguePlayerId first
+      if (player?.leaguePlayerId && cached.has(player.leaguePlayerId)) {
+        return true;
+      }
+      // Fallback to sportsPlayerId
+      if (cached.has(playerId.toString())) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * Get team name for a player with a contract
+   */
+  public async getPlayerContractTeamName(playerId: number): Promise<string | null> {
+    const leagueId = this.leagueData()?.id;
+    if (!leagueId) return null;
+
+    try {
+      // Check cache first
+      const cache = this._contractTeamNames();
+      if (cache.has(playerId)) {
+        return cache.get(playerId) || null;
+      }
+
+      // Get contract info
+      const contract = await this.playerService.getPlayerContract(
+        playerId,
+        leagueId
+      );
+
+      if (!contract) {
+        return null;
+      }
+
+      // Get team name from league members
+      const leagueMembers = this.leagueService.leagueMembers();
+      const teamMember = leagueMembers.find(
+        (member) => member.teamId === contract.teamId
+      );
+
+      const teamName = teamMember?.teamName || 'Unknown Team';
+
+      // Update cache
+      this._contractTeamNames.update((cache) => {
+        const newCache = new Map(cache);
+        newCache.set(playerId, teamName);
+        return newCache;
+      });
+
+      return teamName;
+    } catch (error) {
+      console.error('[Available Players] Error getting contract team name:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get team name synchronously (from cache)
+   */
+  public getPlayerContractTeamNameSync(playerId: number): string | null {
+    const cache = this._contractTeamNames();
+    return cache.get(playerId) || null;
+  }
+
+  /**
+   * Get the team name that signed the player
+   */
+  public getSignedTeamName(playerId: number): string | null {
+    const acceptedBid = this.activeBids().find(
+      (bid) => bid.playerId === playerId && bid.status === 'accepted'
+    );
+
+    if (!acceptedBid) {
+      return null;
+    }
+
+    const teams = this.leagueTeams();
+    const team = teams.find((t) => t.id === acceptedBid.teamId);
+
+    if (team) {
+      console.log(
+        `[Available Players] Found signed team for player ${playerId}:`,
+        {
+          teamId: acceptedBid.teamId,
+          teamName: team.name,
+        }
+      );
+      return team.name;
+    }
+
+      console.warn(
+        `[Available Players] Team not found for signed player ${playerId}:`,
+        {
+          bidTeamId: acceptedBid.teamId,
+          availableTeams: teams.map((t) => ({ teamId: t.id, name: t.name })),
+        }
+      );
+
+    return 'Unknown Team';
   }
 
   /**

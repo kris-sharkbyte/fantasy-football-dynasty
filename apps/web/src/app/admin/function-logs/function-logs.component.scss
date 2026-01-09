@@ -1,0 +1,34 @@
+.function-logs-container {
+  .log-entry {
+    border-left: 3px solid var(--surface-border);
+    
+    &.log-error {
+      border-left-color: var(--red-500);
+      background-color: var(--red-50);
+    }
+    
+    &.log-warn {
+      border-left-color: var(--orange-500);
+      background-color: var(--orange-50);
+    }
+    
+    &.log-info {
+      border-left-color: var(--blue-500);
+      background-color: var(--blue-50);
+    }
+    
+    &.log-debug {
+      border-left-color: var(--gray-500);
+      background-color: var(--gray-50);
+    }
+    
+    .log-message {
+      font-weight: 500;
+    }
+    
+    .log-data {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+  }
+}

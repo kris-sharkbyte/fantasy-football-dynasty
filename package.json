@@ -5,7 +5,7 @@
   "scripts": {
     "seed": "node scripts/seed-emulator.js",
     "emu": "firebase emulators:start",
-    "build:dev": "npx nx build web --configuration=development && npx nx build functions && copy apps\\functions\\.secret.local dist\\apps\\functions\\.secret.local 2>nul || echo. && npm --prefix dist/apps/functions install --production",
+    "build:dev": "npx nx build web --configuration=development && npx nx build functions && cd dist/apps/functions && npm install && cd ../../.. && node -e \"const fs=require('fs');const p=require('path');const s=p.join(process.cwd(),'apps/functions/.secret.local');const d=p.join(process.cwd(),'dist/apps/functions/.secret.local');if(fs.existsSync(s)){fs.copyFileSync(s,d);console.log('Copied .secret.local')}else{console.log('Warning: .secret.local not found')}\"",
     "dev": "npm run build:dev && firebase emulators:start"
   },
   "private": true,

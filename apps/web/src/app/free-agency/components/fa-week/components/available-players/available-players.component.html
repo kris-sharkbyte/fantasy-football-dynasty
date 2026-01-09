@@ -215,7 +215,28 @@
 
         <!-- Actions -->
         <td>
+          <!-- Show "Signed" status if player has accepted bid -->
+          <div *ngIf="isPlayerSigned(player.id)" class="signed-status">
+            <p-tag
+              value="Signed"
+              severity="success"
+              styleClass="signed-tag"
+            ></p-tag>
+            <span class="signed-team-name">
+              {{ getSignedTeamName(player.id) }}
+            </span>
+          </div>
+          <!-- Show team name if player has contract, otherwise show bid button -->
+          <span
+            *ngIf="hasActiveContract(player.playerId)"
+            class="signed-team-badge"
+            [title]="'Player has an active contract'"
+          >
+            <i class="pi pi-check-circle"></i>
+            {{ getPlayerContractTeamNameSync(player.playerId) || 'Signed' }}
+          </span>
           <p-button
+            *ngIf="!hasActiveContract(player.playerId) && !isPlayerSigned(player.playerId)"
             icon="pi pi-plus"
             label="Bid"
             size="small"

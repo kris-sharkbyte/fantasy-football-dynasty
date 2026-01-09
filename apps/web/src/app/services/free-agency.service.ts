@@ -33,6 +33,7 @@ import { SportsDataService } from './sports-data.service';
 import { TeamService } from './team.service';
 import { LeagueService } from './league.service';
 import { EnhancedPlayerMinimumService } from './enhanced-player-minimum.service';
+import { PlayerService } from './player.service';
 
 export interface FAWeekBid {
   id: string;
@@ -47,8 +48,9 @@ export interface FAWeekBid {
 }
 
 export interface FAWeekPlayer {
-  id: string;
-  playerId: number;
+  id: string; // sportsPlayerId (for backward compatibility)
+  playerId: number; // sportsPlayerId
+  leaguePlayerId?: string; // Firestore doc ID from leagues/{leagueId}/players
   name: string;
   position: string;
   age: number;
@@ -76,6 +78,7 @@ export class FreeAgencyService {
   private readonly enhancedPlayerMinimumService = inject(
     EnhancedPlayerMinimumService
   );
+  private readonly playerService = inject(PlayerService);
 
   // State signals
   public currentFAWeek = signal<FAWeek | null>(null);
@@ -87,6 +90,8 @@ export class FreeAgencyService {
   public playerDecisions = signal<FAEvaluationResult[]>([]);
   public isAdvancingWeek = signal<boolean>(false);
   public weekAdvancementProgress = signal<string>('');
+  public lastWeekEvaluationResult = signal<any>(null);
+  public showBidSummary = signal<boolean>(false);
 
   // Computed signals
   public currentWeekNumber = computed(
@@ -282,22 +287,8 @@ export class FreeAgencyService {
         } as FABid;
 
         bids.push(bidData);
-        console.log('[FA Service] Loaded bid:', {
-          id: bidData.id,
-          playerId: bidData.playerId,
-          teamId: bidData.teamId,
-          leagueId: bidData.leagueId,
-          status: bidData.status,
-          submittedAt: bidData.submittedAt,
-          submittedAtType: typeof bidData.submittedAt,
-        });
       });
 
-      console.log('[FA Service] Total bids loaded:', bids.length);
-      console.log(
-        '[FA Service] All bid teamIds:',
-        bids.map((b) => b.teamId)
-      );
       this.activeBids.set(bids);
     });
 
@@ -337,50 +328,16 @@ export class FreeAgencyService {
         throw new Error('No active league found');
       }
 
-      // Use provided leaguePlayerId or query for it
+      // Use provided leaguePlayerId or get it from PlayerService
       let finalLeaguePlayerId: string | undefined = leaguePlayerId;
 
       if (!finalLeaguePlayerId) {
-        // Query for the player's Firestore document ID in this league
-        // Add timeout to prevent hanging
+        // Use PlayerService to get league player ID
         try {
-          const playersRef = collection(
-            this.firestore,
-            'leagues',
-            currentLeague.id,
-            'players'
-          );
-          const playerQuery = query(
-            playersRef,
-            where('sportPlayerID', '==', playerId.toString()),
-            limit(1)
-          );
-
-          // Add timeout to prevent hanging (5 seconds max)
-          const queryPromise = getDocs(playerQuery);
-          const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(
-              () => reject(new Error('Query timeout after 5 seconds')),
-              5000
-            )
-          );
-
-          const playerSnapshot = await Promise.race([
-            queryPromise,
-            timeoutPromise,
-          ]);
-
-          if (!playerSnapshot.empty) {
-            finalLeaguePlayerId = playerSnapshot.docs[0].id;
-            console.log(
-              '[FA Service] Found league player document ID via query:',
-              finalLeaguePlayerId
-            );
-          } else {
-            console.warn(
-              `[FA Service] Player with sportPlayerID ${playerId} not found in league ${currentLeague.id}`
-            );
-          }
+          finalLeaguePlayerId = await this.playerService.getLeaguePlayerId(
+            playerId,
+            currentLeague.id
+          ) || undefined;
         } catch (error) {
           console.error(
             '[FA Service] Error finding league player document (non-critical, continuing):',
@@ -388,11 +345,6 @@ export class FreeAgencyService {
           );
           // Continue without leaguePlayerId - it's optional
         }
-      } else {
-        console.log(
-          '[FA Service] Using provided leaguePlayerId:',
-          finalLeaguePlayerId
-        );
       }
 
       // Calculate dynamic minimum for informational purposes (non-blocking)
@@ -422,16 +374,6 @@ export class FreeAgencyService {
         submittedAt: new Date(),
       };
 
-      console.log('[FA Service] Submitting bid:', {
-        leagueId: bidData.leagueId,
-        teamId: bidData.teamId,
-        playerId: bidData.playerId,
-        position: bidData.position,
-        weekNumber: bidData.weekNumber,
-        status: bidData.status,
-        offer: bidData.offer,
-      });
-
       // Save directly to Firestore with auto-generated ID
       const bidRef = doc(collection(this.firestore, 'faBids'));
       await setDoc(bidRef, bidData);
@@ -441,8 +383,6 @@ export class FreeAgencyService {
         id: bidRef.id,
         ...bidData,
       };
-
-      console.log('[FA Service] Bid saved to Firestore with ID:', bid.id);
 
       // Don't update local state immediately - let the Firestore listener handle it
       // This prevents duplicate entries when the listener fires
@@ -507,12 +447,6 @@ export class FreeAgencyService {
         // Explicitly preserve status and feedback fields - don't clear them
       });
 
-      console.log('[FA Service] Updated bid:', {
-        bidId,
-        status: existingBid.status,
-        hasFeedback: !!existingBid.feedback,
-        hasTeamMessage: !!existingBid.teamMessage,
-      });
 
       return updatedBid;
     } catch (error) {
@@ -628,10 +562,6 @@ export class FreeAgencyService {
         throw new Error('No active FA week found');
       }
 
-      console.log(
-        `[FA Service] Starting week advancement from week ${currentWeek.weekNumber}`
-      );
-
       this.isAdvancingWeek.set(true);
       this.weekAdvancementProgress.set('Processing player decisions...');
 
@@ -641,26 +571,35 @@ export class FreeAgencyService {
         throw new Error('No active league found for week advancement');
       }
 
-      console.log(`[FA Service] League context:`, {
-        leagueId: currentLeague.id,
-        leagueName: currentLeague.name,
-        scoringRules: currentLeague.rules.scoring,
-        rosterRules: currentLeague.rules.roster,
-        capRules: currentLeague.rules.cap,
-      });
-
       // Process weekly player evaluation before advancing
-      console.log(`[FA Service] Processing weekly player evaluation...`);
-      await this.processWeeklyPlayerEvaluation();
+      const evaluationResult = await this.processWeeklyPlayerEvaluation();
+      
+      // Store evaluation result for summary display
+      // If no evaluation happened, create a summary from active bids for the current week
+      if (!evaluationResult) {
+        // Get all bids for the current week to show in summary
+        const weekBids = this.activeBids().filter(
+          (bid) => bid.weekNumber === currentWeek.weekNumber
+        );
+        
+        this.lastWeekEvaluationResult.set({
+          success: true,
+          leagueId: currentLeague.id,
+          weekNumber: currentWeek.weekNumber,
+          playersProcessed: 0,
+          decisions: [],
+          processingLog: [],
+          message: weekBids.length === 0 
+            ? 'No bids to evaluate this week' 
+            : `No new bids to evaluate (${weekBids.length} existing bids)`,
+        });
+      } else {
+        this.lastWeekEvaluationResult.set(evaluationResult);
+      }
 
       this.weekAdvancementProgress.set('Carrying over active bids...');
 
       // Carry over non-rejected bids to next week
-      console.log(
-        `[FA Service] Carrying over active bids to week ${
-          currentWeek.weekNumber + 1
-        }`
-      );
       await this.carryOverActiveBids(currentWeek.weekNumber + 1);
 
       this.weekAdvancementProgress.set('Updating player statuses...');
@@ -671,10 +610,6 @@ export class FreeAgencyService {
         status: 'completed',
         updatedAt: new Date(),
       });
-
-      console.log(
-        `[FA Service] Week ${currentWeek.weekNumber} marked as completed`
-      );
 
       this.weekAdvancementProgress.set('Creating next week...');
 
@@ -688,17 +623,13 @@ export class FreeAgencyService {
       // Update current week reference
       this.currentFAWeek.set(nextWeek);
 
-      console.log(
-        `[FA Service] Week ${nextWeek.weekNumber} created successfully:`,
-        {
-          nextWeekId: nextWeek.id,
-          phase: nextWeek.phase,
-          startDate: nextWeek.startDate,
-          endDate: nextWeek.endDate,
-        }
-      );
-
       this.weekAdvancementProgress.set('Week advancement complete!');
+
+      // Always show bid summary after week advancement
+      // Wait a moment for the progress overlay to clear, then show summary
+      setTimeout(() => {
+        this.showBidSummary.set(true);
+      }, 500);
 
       // Reset advancement state after a delay
       setTimeout(() => {
@@ -706,7 +637,6 @@ export class FreeAgencyService {
         this.weekAdvancementProgress.set('');
       }, 3000);
 
-      console.log(`[FA Service] Week advancement completed successfully`);
       return true;
     } catch (error) {
       console.error('Error advancing week:', error);
@@ -724,10 +654,6 @@ export class FreeAgencyService {
     weekNumber: number,
     leagueRules: any
   ): Promise<FAWeek> {
-    console.log(
-      `[FA Service] Creating enhanced FA week ${weekNumber} for league ${leagueId}`
-    );
-
     // Determine phase based on week number and league rules
     const phase = this.determineFAWeekPhase(weekNumber, leagueRules);
 
@@ -747,14 +673,6 @@ export class FreeAgencyService {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-
-    console.log(`[FA Service] Enhanced FA week created:`, {
-      weekId: faWeek.id,
-      phase: faWeek.phase,
-      duration: weekDuration,
-      startDate: faWeek.startDate,
-      endDate: faWeek.endDate,
-    });
 
     // Save to Firestore
     const faWeekRef = doc(this.firestore, 'faWeeks', faWeek.id);
@@ -932,31 +850,23 @@ export class FreeAgencyService {
 
   /**
    * Load available players for FA
+   * Now uses unified PlayerService
    */
   private async loadAvailablePlayers(): Promise<void> {
     try {
-      // Wait for sports data to be loaded
-      await this.sportsDataService.waitForData();
+      const currentLeague = this.leagueService.selectedLeague();
+      if (!currentLeague) {
+        console.warn('[FA Service] No league selected, cannot load available players');
+        return;
+      }
 
-      // Get all active players from sports data service
-      const allPlayers = this.sportsDataService.activePlayers();
-      console.log(
-        '[FA Service] Total active players from sports data:',
-        allPlayers.length
+      // Use PlayerService to get available players
+      const availableEnhancedPlayers = await this.playerService.getAvailablePlayers(
+        currentLeague.id
       );
 
-      // Get all players currently on team rosters
-      const allRosteredPlayers = this.getAllRosteredPlayers();
-      console.log(
-        '[FA Service] Total rostered players:',
-        allRosteredPlayers.length
-      );
-      console.log(
-        '[FA Service] Rostered player IDs:',
-        allRosteredPlayers.map((p) => p.playerId)
-      );
-
-      const availablePlayers: FAWeekPlayer[] = allPlayers
+      // Transform to FAWeekPlayer format
+      const availablePlayers: FAWeekPlayer[] = availableEnhancedPlayers
         .filter((player) => {
           // Filter out players without valid positions
           const hasValidPosition =
@@ -971,23 +881,13 @@ export class FreeAgencyService {
             player.FirstName.trim() !== '' &&
             player.LastName.trim() !== '';
 
-          // Filter out players already on team rosters
-          const isNotRostered = !allRosteredPlayers.some(
-            (rostered) => rostered.playerId === player.PlayerID.toString()
-          );
-
-          if (!isNotRostered) {
-            console.log(
-              `[FA Service] Filtering out rostered player: ${player.FirstName} ${player.LastName} (ID: ${player.PlayerID})`
-            );
-          }
-
-          return hasValidPosition && hasValidName && isNotRostered;
+          return hasValidPosition && hasValidName;
         })
-        .slice(0, 200) // Increased from 50 to 200 for better initial load
+        .slice(0, 200) // Limit to 200 for initial load
         .map((player) => ({
-          id: player.PlayerID.toString(),
+          id: player.PlayerID.toString(), // Keep sportsPlayerId for backward compatibility
           playerId: player.PlayerID,
+          leaguePlayerId: (player as any).leaguePlayerId || undefined, // Add leaguePlayerId if available
           name: `${player.FirstName} ${player.LastName}`,
           position: player.Position,
           age: player.Age,
@@ -997,13 +897,9 @@ export class FreeAgencyService {
           status: 'available',
         }));
 
-      console.log(
-        '[FA Service] Final available players count:',
-        availablePlayers.length
-      );
       this.availablePlayers.set(availablePlayers);
     } catch (error) {
-      console.error('Failed to load available players:', error);
+      console.error('[FA Service] Failed to load available players:', error);
     }
   }
 
@@ -1211,38 +1107,7 @@ export class FreeAgencyService {
    * Get ALL team bids including accepted ones (for display purposes)
    */
   getAllTeamBids(teamId: string): FABid[] {
-    console.log('[FA Service] getAllTeamBids called with teamId:', teamId);
-    console.log(
-      '[FA Service] Current activeBids count:',
-      this.activeBids().length
-    );
-    console.log(
-      '[FA Service] All activeBids teamIds:',
-      this.activeBids().map((b) => ({
-        bidId: b.id,
-        teamId: b.teamId,
-        playerId: b.playerId,
-        status: b.status,
-      }))
-    );
-
     const filtered = this.activeBids().filter((bid) => bid.teamId === teamId);
-    console.log(
-      '[FA Service] Filtered bids for teamId:',
-      teamId,
-      'count:',
-      filtered.length
-    );
-    console.log(
-      '[FA Service] Filtered bid details:',
-      filtered.map((b) => ({
-        bidId: b.id,
-        teamId: b.teamId,
-        playerId: b.playerId,
-        status: b.status,
-      }))
-    );
-
     return filtered;
   }
 
@@ -1270,10 +1135,8 @@ export class FreeAgencyService {
   /**
    * Process weekly player evaluation for all pending bids using LLM
    */
-  async processWeeklyPlayerEvaluation(): Promise<void> {
+  async processWeeklyPlayerEvaluation(): Promise<any> {
     try {
-      console.log('[FA Service] Starting weekly player evaluation with LLM...');
-
       const currentWeek = this.currentFAWeek();
       if (!currentWeek || currentWeek.status !== 'active') {
         throw new Error('No active FA week found');
@@ -1285,17 +1148,16 @@ export class FreeAgencyService {
         throw new Error('No active league found for player evaluation');
       }
 
-      // Check if there are any pending bids
+      // Check if there are any pending or considering bids
+      // "considering" bids from week 1 should be re-evaluated in subsequent weeks
       const pendingBids = this.activeBids().filter(
         (bid) =>
-          bid.status === 'pending' && bid.weekNumber === currentWeek.weekNumber
+          (bid.status === 'pending' || bid.status === 'considering') &&
+          bid.weekNumber === currentWeek.weekNumber
       );
 
-      console.log('[FA Service] Found pending bids:', pendingBids.length);
-
       if (pendingBids.length === 0) {
-        console.log('[FA Service] No pending bids to evaluate');
-        return;
+        return null;
       }
 
       // Call the LLM evaluation function
@@ -1317,11 +1179,6 @@ export class FreeAgencyService {
         }
       >(this.functions, 'evaluateFAWeekBidsLLM');
 
-      console.log('[FA Service] Calling LLM evaluation function...', {
-        leagueId: currentLeague.id,
-        weekNumber: currentWeek.weekNumber,
-      });
-
       this.weekAdvancementProgress.set(
         `Evaluating ${pendingBids.length} bids with AI...`
       );
@@ -1331,21 +1188,11 @@ export class FreeAgencyService {
         weekNumber: currentWeek.weekNumber,
       });
 
-      console.log('[FA Service] LLM evaluation completed:', result.data);
-      console.log(
-        '[FA Service] Full result object:',
-        JSON.stringify(result.data, null, 2)
-      );
-
       if (!result.data.success) {
         const errorMsg = result.data.message || 'LLM evaluation failed';
         console.error('[FA Service] LLM evaluation failed:', errorMsg);
         throw new Error(errorMsg);
       }
-
-      console.log(
-        `[FA Service] Successfully processed ${result.data.playersProcessed} players`
-      );
 
       // Log any processing errors
       if (result.data.processingLog) {
@@ -1358,26 +1205,6 @@ export class FreeAgencyService {
             errors
           );
         }
-      }
-
-      // Log decisions for debugging
-      if (result.data.decisions && result.data.decisions.length > 0) {
-        console.log(
-          '[FA Service] Decisions received:',
-          result.data.decisions.length
-        );
-        result.data.decisions.forEach((decision: any, index: number) => {
-          console.log(`[FA Service] Decision ${index + 1}:`, {
-            playerId: decision.playerId,
-            playerName: decision.playerName,
-            decisionType: decision.decision?.type,
-            acceptedBidId: decision.decision?.acceptedBidId,
-            shortlistedCount: decision.decision?.shortlistedBidIds?.length || 0,
-            rejectedCount: decision.decision?.rejectedBidIds?.length || 0,
-          });
-        });
-      } else {
-        console.warn('[FA Service] No decisions received from LLM function');
       }
 
       // Update FA week status to evaluating
@@ -1424,9 +1251,6 @@ export class FreeAgencyService {
       }
 
       if (!decisions || decisions.length === 0) {
-        console.log(
-          '[FA Service] No decisions to process for contract creation'
-        );
         return;
       }
 
@@ -1443,12 +1267,7 @@ export class FreeAgencyService {
         }
       }
 
-      console.log(
-        `[FA Service] Creating ${contractsToCreate.length} contracts for accepted bids`
-      );
-
       if (contractsToCreate.length === 0) {
-        console.log('[FA Service] No accepted bids to create contracts for');
         return;
       }
 
@@ -2681,6 +2500,8 @@ export class FreeAgencyService {
 
   /**
    * Get all players currently on team rosters
+   * @deprecated Use PlayerService.getRosteredPlayerIds() instead
+   * Kept for backward compatibility
    */
   private getAllRosteredPlayers(): {
     playerId: string;
@@ -2843,14 +2664,16 @@ export class FreeAgencyService {
 
   /**
    * Create a contract from an accepted bid and add to team roster
+   * @param bidId - The bid ID that was accepted
+   * @param leaguePlayerId - The Firestore document ID from leagues/{leagueId}/players/{docId}
    */
   private async createContractFromBid(
     bidId: string,
-    playerId: string
+    leaguePlayerId: string
   ): Promise<void> {
     try {
       console.log(
-        `[FA Service] Creating contract from bid ${bidId} for player ${playerId}`
+        `[FA Service] Creating contract from bid ${bidId} for leaguePlayerId ${leaguePlayerId}`
       );
 
       // Get the accepted bid
@@ -2872,15 +2695,13 @@ export class FreeAgencyService {
         return;
       }
 
-      // Create contract document
-      const contractId = `${
-        currentLeague.leagueId
-      }_contract_${playerId}_${Date.now()}`;
+      // Create contract document with auto-generated ID
+      const contractRef = doc(collection(this.firestore, 'contracts'));
       const contract = {
-        id: contractId,
+        id: contractRef.id, // Use auto-generated doc ID
         leagueId: currentLeague.leagueId,
         teamId: teamId,
-        playerId: playerId,
+        leaguePlayerId: leaguePlayerId, // Use leaguePlayerId (Firestore doc ID) instead of playerId
         originalBidId: bidId,
         contract: bidData.offer,
         status: 'active',
@@ -2890,13 +2711,12 @@ export class FreeAgencyService {
       };
 
       // Save contract to contracts collection
-      const contractRef = doc(this.firestore, 'contracts', contractId);
       await setDoc(contractRef, contract);
 
-      console.log(`[FA Service] Contract created: ${contractId}`);
+      console.log(`[FA Service] Contract created with ID: ${contractRef.id}`);
 
       // Add player to team roster
-      await this.addPlayerToTeamRoster(playerId, teamId, contract);
+      await this.addPlayerToTeamRoster(leaguePlayerId, teamId, contract);
     } catch (error) {
       console.error('Error creating contract from bid:', error);
       throw error;
@@ -2905,15 +2725,18 @@ export class FreeAgencyService {
 
   /**
    * Add a player to the team roster when their bid is accepted
+   * @param leaguePlayerId - The Firestore document ID from leagues/{leagueId}/players/{docId}
+   * @param teamId - The team ID
+   * @param contract - The contract object
    */
   private async addPlayerToTeamRoster(
-    playerId: string,
+    leaguePlayerId: string,
     teamId: string,
     contract: any
   ): Promise<void> {
     try {
       console.log(
-        `[FA Service] Adding player ${playerId} to team roster (team: ${teamId})`
+        `[FA Service] Adding player ${leaguePlayerId} to team roster (team: ${teamId})`
       );
       console.log('[FA Service] Contract details:', contract);
 
@@ -2967,9 +2790,9 @@ export class FreeAgencyService {
 
       console.log('[FA Service] Member document reference:', memberRef.path);
 
-      // Create the roster entry
+      // Create the roster entry using leaguePlayerId
       const rosterEntry = {
-        playerId,
+        leaguePlayerId: leaguePlayerId, // Use leaguePlayerId (Firestore doc ID)
         contractId: contract.id,
         signedAt: new Date(),
         contract: contract.contract,
@@ -2996,7 +2819,7 @@ export class FreeAgencyService {
       });
 
       console.log(
-        `[FA Service] Successfully added player ${playerId} to team ${teamId} roster`
+        `[FA Service] Successfully added player ${leaguePlayerId} to team ${teamId} roster`
       );
       console.log(`[FA Service] Final roster entry:`, rosterEntry);
 
@@ -3007,7 +2830,7 @@ export class FreeAgencyService {
       await this.leagueService.loadLeagueData(currentLeague.leagueId);
     } catch (error) {
       console.error(
-        `[FA Service] Error adding player ${playerId} to roster:`,
+        `[FA Service] Error adding player ${leaguePlayerId} to roster:`,
         error
       );
       console.error('[FA Service] Error details:', {

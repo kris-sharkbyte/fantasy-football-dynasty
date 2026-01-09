@@ -1,0 +1,283 @@
+<div class="function-logs-container p-4">
+  <div class="mb-4">
+    <h2>Function Logs</h2>
+    <p class="text-color-secondary">View and debug Firebase Cloud Function executions</p>
+  </div>
+
+  <!-- Statistics -->
+  <div class="grid mb-4">
+    <div class="col-12 md:col-3">
+      <p-card>
+        <div class="text-center">
+          <div class="text-2xl font-bold">{{ stats().total }}</div>
+          <div class="text-color-secondary">Total Calls</div>
+        </div>
+      </p-card>
+    </div>
+    <div class="col-12 md:col-3">
+      <p-card>
+        <div class="text-center">
+          <div class="text-2xl font-bold text-green-500">{{ stats().success }}</div>
+          <div class="text-color-secondary">Successful</div>
+        </div>
+      </p-card>
+    </div>
+    <div class="col-12 md:col-3">
+      <p-card>
+        <div class="text-center">
+          <div class="text-2xl font-bold text-red-500">{{ stats().error }}</div>
+          <div class="text-color-secondary">Errors</div>
+        </div>
+      </p-card>
+    </div>
+    <div class="col-12 md:col-3">
+      <p-card>
+        <div class="text-center">
+          <div class="text-2xl font-bold">{{ stats().successRate }}%</div>
+          <div class="text-color-secondary">Success Rate</div>
+        </div>
+      </p-card>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <p-card class="mb-4">
+    <div class="grid">
+      <div class="col-12 md:col-4">
+        <label class="block mb-2">Function Name</label>
+        <p-select
+          [options]="functionNameOptions()"
+          [(ngModel)]="functionNameFilter"
+          placeholder="All Functions"
+          [showClear]="true"
+          class="w-full"
+        />
+      </div>
+      <div class="col-12 md:col-3">
+        <label class="block mb-2">Status</label>
+        <p-select
+          [options]="[
+            { label: 'All', value: 'all' },
+            { label: 'Success', value: 'success' },
+            { label: 'Error', value: 'error' },
+            { label: 'Running', value: 'running' }
+          ]"
+          [(ngModel)]="statusFilter"
+          class="w-full"
+        />
+      </div>
+      <div class="col-12 md:col-4">
+        <label class="block mb-2">Date Range</label>
+        <input
+          type="text"
+          pInputText
+          placeholder="Date range filter (coming soon)"
+          class="w-full"
+          disabled
+        />
+      </div>
+      <div class="col-12 md:col-1">
+        <label class="block mb-2">&nbsp;</label>
+        <p-button
+          label="Clear"
+          icon="pi pi-filter-slash"
+          (onClick)="clearFilters()"
+          severity="secondary"
+          class="w-full"
+        />
+      </div>
+    </div>
+  </p-card>
+
+  <!-- Logs Table -->
+  <p-card>
+    <p-table
+      [value]="filteredLogs()"
+      [loading]="isLoading()"
+      [paginator]="true"
+      [rows]="25"
+      [rowsPerPageOptions]="[10, 25, 50, 100]"
+      styleClass="p-datatable-sm"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Function</th>
+          <th>Status</th>
+          <th>Start Time</th>
+          <th>Duration</th>
+          <th>Log Entries</th>
+          <th>Actions</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-log>
+        <tr>
+          <td>{{ log.functionName }}</td>
+          <td>
+            <p-tag
+              [value]="log.status"
+              [severity]="getStatusSeverity(log.status)"
+            />
+          </td>
+          <td>{{ formatDate(log.startTime) }}</td>
+          <td>{{ formatDuration(log.duration) }}</td>
+          <td>{{ log.logs.length }}</td>
+          <td>
+            <p-button
+              icon="pi pi-eye"
+              (onClick)="viewLog(log)"
+              severity="info"
+              [text]="true"
+              size="small"
+            />
+            <p-button
+              icon="pi pi-trash"
+              (onClick)="deleteLog(log.id)"
+              severity="danger"
+              [text]="true"
+              size="small"
+            />
+          </td>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="6" class="text-center p-4">
+            No logs found
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </p-card>
+
+  <!-- Detail Dialog -->
+  <p-dialog
+    [visible]="showDetailDialog()"
+    (visibleChange)="showDetailDialog.set($event)"
+    [modal]="true"
+    [style]="{ width: '90vw', maxWidth: '1200px' }"
+    [closable]="true"
+    header="Function Log Details"
+  >
+    @if (selectedLog()) {
+      <div class="flex justify-content-between align-items-center mb-3">
+        <h3 class="m-0">Log Details</h3>
+        <div class="flex gap-2">
+          <p-button
+            icon="pi pi-copy"
+            label="Copy Overview"
+            (onClick)="copyTabContent('overview')"
+            severity="secondary"
+            [text]="true"
+            size="small"
+          />
+          <p-button
+            icon="pi pi-copy"
+            label="Copy Logs"
+            (onClick)="copyTabContent('logs')"
+            severity="secondary"
+            [text]="true"
+            size="small"
+          />
+          <p-button
+            icon="pi pi-copy"
+            label="Copy Request"
+            (onClick)="copyTabContent('request')"
+            severity="secondary"
+            [text]="true"
+            size="small"
+          />
+          <p-button
+            icon="pi pi-copy"
+            label="Copy Response"
+            (onClick)="copyTabContent('response')"
+            severity="secondary"
+            [text]="true"
+            size="small"
+          />
+        </div>
+      </div>
+      <p-tabs value="overview">
+        <p-tablist>
+          <p-tab value="overview">Overview</p-tab>
+          <p-tab value="logs">Log Entries</p-tab>
+          <p-tab value="request">Request</p-tab>
+          <p-tab value="response">Response</p-tab>
+        </p-tablist>
+        <p-tabpanels>
+          <!-- Overview Tab -->
+          <p-tabpanel value="overview">
+            <div class="grid">
+              <div class="col-12 md:col-6">
+                <p><strong>Function:</strong> {{ selectedLog()!.functionName }}</p>
+                <p><strong>Status:</strong>
+                  <p-tag
+                    [value]="selectedLog()!.status"
+                    [severity]="getStatusSeverity(selectedLog()!.status)"
+                    class="ml-2"
+                  />
+                </p>
+                <p><strong>Start Time:</strong> {{ formatDate(selectedLog()!.startTime) }}</p>
+                <p><strong>End Time:</strong> {{ formatDate(selectedLog()!.endTime) }}</p>
+                <p><strong>Duration:</strong> {{ formatDuration(selectedLog()!.duration) }}</p>
+              </div>
+              <div class="col-12 md:col-6">
+                @if (selectedLog()!.error) {
+                  <p><strong>Error:</strong></p>
+                  <pre class="bg-red-50 p-3 rounded text-red-700">{{ selectedLog()!.error }}</pre>
+                }
+                @if (selectedLog()!.userId) {
+                  <p><strong>User ID:</strong> {{ selectedLog()!.userId }}</p>
+                }
+                @if (selectedLog()!.adminId) {
+                  <p><strong>Admin ID:</strong> {{ selectedLog()!.adminId }}</p>
+                }
+              </div>
+            </div>
+          </p-tabpanel>
+
+          <!-- Log Entries Tab -->
+          <p-tabpanel value="logs">
+            <div class="log-entries">
+              @for (entry of selectedLog()!.logs; track entry.timestamp) {
+                <div class="log-entry mb-2 p-2 border-round" [class]="'log-' + entry.level">
+                  <div class="flex align-items-center gap-2 mb-1">
+                    <p-tag
+                      [value]="entry.level"
+                      [severity]="getLogLevelSeverity(entry.level)"
+                      [rounded]="true"
+                    />
+                    <span class="text-sm text-color-secondary">{{ formatDate(entry.timestamp) }}</span>
+                  </div>
+                  <div class="log-message">{{ entry.message }}</div>
+                  @if (entry.data) {
+                    <pre class="log-data mt-2 p-2 bg-surface-ground border-round text-sm">{{ JSON.stringify(entry.data, null, 2) }}</pre>
+                  }
+                </div>
+              }
+            </div>
+          </p-tabpanel>
+
+          <!-- Request Tab -->
+          <p-tabpanel value="request">
+            @if (selectedLog()!.request) {
+              <pre class="p-3 bg-surface-ground border-round">{{ JSON.stringify(selectedLog()!.request, null, 2) }}</pre>
+            } @else {
+              <p class="text-color-secondary">No request data</p>
+            }
+          </p-tabpanel>
+
+          <!-- Response Tab -->
+          <p-tabpanel value="response">
+            @if (selectedLog()!.response) {
+              <pre class="p-3 bg-surface-ground border-round">{{ JSON.stringify(selectedLog()!.response, null, 2) }}</pre>
+            } @else {
+              <p class="text-color-secondary">No response data</p>
+            }
+          </p-tabpanel>
+        </p-tabpanels>
+      </p-tabs>
+    }
+  </p-dialog>
+
+  <p-toast />
+</div>

@@ -24,6 +24,20 @@ export const selectedLeagueGuard: CanActivateFn = async (route, state) => {
 
   const selectedLeagueId = leagueService.selectedLeagueId();
 
+  // Check route-specific permissions early to determine if we need membership checks
+  const isTeamRoute = state.url.includes('/team');
+  const isPlayersRoute = state.url.includes('/players');
+  const requiresMembershipCheck = isTeamRoute || isPlayersRoute || selectedLeagueId !== leagueId;
+
+  // Ensure memberships are loaded if we need to check membership
+  if (requiresMembershipCheck) {
+    const existingMemberships = leagueMembershipService.userMemberships();
+    if (existingMemberships.length === 0) {
+      console.log('No memberships loaded, loading user memberships...');
+      await leagueMembershipService.loadUserMemberships();
+    }
+  }
+
   // If the route leagueId doesn't match the selectedLeagueId, verify membership
   // This handles refresh scenarios where localStorage has a different leagueId
   if (selectedLeagueId !== leagueId) {
@@ -31,13 +45,6 @@ export const selectedLeagueGuard: CanActivateFn = async (route, state) => {
       'SelectedLeagueGuard: Route leagueId does not match selectedLeagueId, verifying membership...',
       { routeLeagueId: leagueId, selectedLeagueId }
     );
-
-    // Ensure memberships are loaded
-    const existingMemberships = leagueMembershipService.userMemberships();
-    if (existingMemberships.length === 0) {
-      console.log('No memberships loaded, loading user memberships...');
-      await leagueMembershipService.loadUserMemberships();
-    }
 
     // Check if user is a member of the league in the route
     const memberships = leagueMembershipService.userMemberships();
@@ -60,12 +67,9 @@ export const selectedLeagueGuard: CanActivateFn = async (route, state) => {
   }
 
   try {
-    // Check route-specific permissions
-    const isTeamRoute = state.url.includes('/team');
-    const isPlayersRoute = state.url.includes('/players');
-
+    // Check route-specific permissions for team and players routes
     if (isTeamRoute || isPlayersRoute) {
-      // For team and players routes, double-check membership (already verified above if mismatch)
+      // For team and players routes, verify membership
       const memberships = leagueMembershipService.userMemberships();
       const isMember = memberships.some(
         (m) => m.leagueId === leagueId && m.isActive

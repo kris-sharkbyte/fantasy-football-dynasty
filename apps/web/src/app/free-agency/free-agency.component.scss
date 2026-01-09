@@ -6,6 +6,13 @@
 .free-agency-container {
   min-height: 100vh;
   background: var(--surface-ground);
+
+  .fa-header-section {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1rem;
+    padding: 0 1rem;
+  }
 }
 
 .loading-state {

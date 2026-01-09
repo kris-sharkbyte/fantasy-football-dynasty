@@ -174,6 +174,21 @@ export const routes: Routes = [
   },
 
   {
+    path: 'admin',
+    component: AppLayout,
+    canActivate: [AuthGuard, AdminGuard],
+    children: [
+      {
+        path: 'function-logs',
+        loadComponent: () =>
+          import('./admin/function-logs/function-logs.component').then(
+            (m) => m.FunctionLogsComponent
+          ),
+      },
+    ],
+  },
+
+  {
     path: '**',
     redirectTo: '',
   },

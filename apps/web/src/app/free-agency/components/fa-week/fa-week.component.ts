@@ -113,19 +113,16 @@ export class FAWeekComponent implements OnInit {
   // Computed team bids count (reactive to activeBids changes)
   public teamBidsCount = computed(() => {
     const currentUserTeamId = this.leagueService.currentUserTeamId();
-    console.log(
-      '[FA Week] teamBidsCount computed - currentUserTeamId:',
-      currentUserTeamId
-    );
     if (!currentUserTeamId) {
       console.log('[FA Week] No teamId, returning 0');
       return 0;
     }
     const allBids = this.freeAgencyService.getAllTeamBids(currentUserTeamId);
     const count = allBids.filter(
-      (bid) => bid.teamId === currentUserTeamId
+      (bid) =>
+        bid.teamId === currentUserTeamId &&
+        bid.status in ['pending', 'considering', 'shortlisted']
     ).length;
-    console.log('[FA Week] teamBidsCount result:', count);
     return count;
   });
 

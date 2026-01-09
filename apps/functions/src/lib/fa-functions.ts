@@ -113,9 +113,6 @@ async function processPlayerBidsWithDomainLogic(
     });
 
     // TODO: Create actual contract record
-    console.log(
-      `Player ${playerId} accepted bid from team ${bestBid['teamId']}`
-    );
 
     return {
       playerId,
@@ -141,10 +138,6 @@ export const onFABidCreated = onDocumentCreated(
     const leagueId = bid?.['leagueId'];
     const leaguePlayerId = bid?.['leaguePlayerId'];
 
-    console.log(
-      `New FA bid created: ${bidId} for player ${leaguePlayerId} in league ${leagueId}`
-    );
-
     // Update player status to 'bidding' using leaguePlayerId in leagues/{leagueId}/players
     if (leagueId && leaguePlayerId) {
       try {
@@ -158,9 +151,6 @@ export const onFABidCreated = onDocumentCreated(
           status: 'bidding',
           lastUpdated: new Date(),
         });
-        console.log(
-          `[onFABidCreated] Updated player ${leaguePlayerId} status to 'bidding' in league ${leagueId}`
-        );
       } catch (error) {
         console.error(
           `[onFABidCreated] Error updating player status for ${leaguePlayerId} in league ${leagueId}:`,
@@ -186,14 +176,9 @@ export const onFABidUpdated = onDocumentUpdated(
     const after = event.data?.after.data();
 
     if (before && after && before['status'] !== after['status']) {
-      console.log(
-        `FA bid ${after['id']} status changed from ${before['status']} to ${after['status']}`
-      );
-
       // Handle status changes
       if (after['status'] === 'accepted') {
         // TODO: Create contract, update team roster, etc.
-        console.log(`Processing accepted bid for player ${after['playerId']}`);
       } else if (
         after['status'] === 'rejected' ||
         after['status'] === 'cancelled'
@@ -223,9 +208,6 @@ export const onFABidUpdated = onDocumentUpdated(
                 status: 'available',
                 lastUpdated: new Date(),
               });
-              console.log(
-                `[onFABidUpdated] Updated player ${leaguePlayerId} status to 'available' in league ${leagueId}`
-              );
             }
           } catch (error) {
             console.error(
@@ -249,11 +231,6 @@ export const onFABidUpdated = onDocumentUpdated(
 export const onFAWeekCreated = onDocumentCreated(
   'faWeeks/{faWeekId}',
   async (event) => {
-    const faWeek = event.data?.data();
-    console.log(
-      `New FA week created: ${faWeek?.['id']} for league ${faWeek?.['leagueId']}`
-    );
-
     // Additional setup logic can go here
     // e.g., notify teams, set up timers, etc.
   }

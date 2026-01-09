@@ -66,7 +66,7 @@ import { FAWeekHeaderComponent } from '../../free-agency/components/fa-week/comp
         </p-tab>
         <p-tab value="1" (click)="navigateToTab('team')"> My Team </p-tab>
         <p-tab value="2" (click)="navigateToTab('players')"> Players </p-tab>
-        <p-tab value="3" (click)="navigateToTab('draft')"> Draft Room </p-tab>
+        <!-- <p-tab value="3" (click)="navigateToTab('draft')"> Draft Room </p-tab> -->
         <p-tab value="4" (click)="navigateToTab('free-agency')">
           Free Agents
         </p-tab>
@@ -161,7 +161,7 @@ export class LeagueHeaderComponent implements OnInit {
 
     if (currentRoute.includes(`/leagues/${leagueId}/team`)) return 1;
     if (currentRoute.includes(`/leagues/${leagueId}/players`)) return 2;
-    if (currentRoute.includes(`/draft/${leagueId}`)) return 3;
+    // if (currentRoute.includes(`/draft/${leagueId}`)) return 3;
     if (currentRoute.includes(`/leagues/${leagueId}/free-agency`)) return 4;
 
     // Default to league info (0) for league detail page

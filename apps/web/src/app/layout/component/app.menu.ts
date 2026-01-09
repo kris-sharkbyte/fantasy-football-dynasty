@@ -42,6 +42,11 @@ export class AppMenu implements OnInit {
           icon: 'pi pi-fw pi-calendar',
           routerLink: ['/testing/offseason'],
         },
+        {
+          label: 'Function Logs',
+          icon: 'pi pi-fw pi-list',
+          routerLink: ['/admin/function-logs'],
+        },
       ],
     } as MenuItem,
   ];

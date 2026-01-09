@@ -28,14 +28,18 @@
             <label
               [for]="'position-' + option.value"
               class="position-radio-label"
-              [class.position-radio-selected]="selectedPosition() === option.value"
+              [class.position-radio-selected]="
+                selectedPosition() === option.value
+              "
               [style.background-color]="
                 selectedPosition() === option.value
                   ? getPositionFilterColor(option.value)
                   : 'transparent'
               "
               [style.color]="
-                selectedPosition() === option.value ? 'white' : 'var(--text-color)'
+                selectedPosition() === option.value
+                  ? 'white'
+                  : 'var(--text-color)'
               "
               [style.border-color]="getPositionFilterColor(option.value)"
             >
@@ -399,14 +403,18 @@
           <td class="position-cell">
             <p-tag
               [value]="getPositionDisplay(player.Position || player.position)"
-              [styleClass]="getPositionColorClass(player.Position || player.position)"
+              [styleClass]="
+                getPositionColorClass(player.Position || player.position)
+              "
             >
             </p-tag>
           </td>
 
           <!-- Team -->
           <td class="team-cell">
-            <span class="team-name">{{ getTeamDisplay(player.Team || player.nflTeam || player.team) }}</span>
+            <span class="team-name">{{
+              getTeamDisplay(player.Team || player.nflTeam || player.team)
+            }}</span>
           </td>
 
           <!-- Age -->
@@ -515,8 +523,17 @@
               </p-button>
 
               <!-- Bid mode specific actions -->
+              <!-- Show team name if player has contract, otherwise show bid button -->
+              <span
+                *ngIf="isBidMode() && isBidDisabled(player)"
+                class="signed-team-badge"
+                [title]="'Player has an active contract'"
+              >
+                <i class="pi pi-check-circle"></i>
+                {{ getPlayerContractTeamNameSync(player) || 'Signed' }}
+              </span>
               <p-button
-                *ngIf="isBidMode() && config?.onBidClick"
+                *ngIf="isBidMode() && config?.onBidClick && !isBidDisabled(player)"
                 icon="pi pi-plus"
                 label="Bid"
                 size="small"

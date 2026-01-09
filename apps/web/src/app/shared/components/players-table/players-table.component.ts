@@ -38,6 +38,14 @@ import { SportsDataService } from '../../../services/sports-data.service';
 import { LeagueService } from '../../../services/league.service';
 import { TeamService } from '../../../services/team.service';
 import { FreeAgencyService } from '../../../services/free-agency.service';
+import { PlayerService } from '../../../services/player.service';
+import {
+  Firestore,
+  collection,
+  query,
+  where,
+  getDocs,
+} from '@angular/fire/firestore';
 
 export interface PlayerAction {
   label: string;
@@ -105,6 +113,12 @@ export class PlayersTableComponent implements OnInit {
   private readonly leagueService = inject(LeagueService);
   private readonly teamService = inject(TeamService);
   private readonly freeAgencyService = inject(FreeAgencyService);
+  private readonly playerService = inject(PlayerService);
+  private readonly firestore = inject(Firestore);
+  private readonly messageService = inject(MessageService);
+
+  // Cache for contract checks
+  private _playersWithContracts = signal<Set<string>>(new Set());
 
   // Input configuration
   @Input() public config!: PlayersTableConfig;
@@ -140,7 +154,10 @@ export class PlayersTableComponent implements OnInit {
         filtered = filtered.filter((player) => {
           const playerPos = player.Position || (player as any).position;
           // Handle DEF/DST mapping
-          if (selectedPos === 'DEF' && (playerPos === 'DEF' || playerPos === 'DST')) {
+          if (
+            selectedPos === 'DEF' &&
+            (playerPos === 'DEF' || playerPos === 'DST')
+          ) {
             return true;
           }
           return playerPos === selectedPos;
@@ -191,7 +208,10 @@ export class PlayersTableComponent implements OnInit {
         filtered = filtered.filter((player) => {
           const playerPos = player.Position || (player as any).position;
           // Handle DEF/DST mapping
-          if (selectedPos === 'DEF' && (playerPos === 'DEF' || playerPos === 'DST')) {
+          if (
+            selectedPos === 'DEF' &&
+            (playerPos === 'DEF' || playerPos === 'DST')
+          ) {
             return true;
           }
           return playerPos === selectedPos;
@@ -243,7 +263,10 @@ export class PlayersTableComponent implements OnInit {
         filtered = filtered.filter((player) => {
           const playerPos = player.Position || (player as any).position;
           // Handle DEF/DST mapping
-          if (selectedPos === 'DEF' && (playerPos === 'DEF' || playerPos === 'DST')) {
+          if (
+            selectedPos === 'DEF' &&
+            (playerPos === 'DEF' || playerPos === 'DST')
+          ) {
             return true;
           }
           return playerPos === selectedPos;
@@ -386,7 +409,10 @@ export class PlayersTableComponent implements OnInit {
   );
 
   // Position options for radio buttons (fixed order)
-  public positionFilterOptions: Array<{ label: string; value: Position | 'ALL' | 'S' }> = [
+  public positionFilterOptions: Array<{
+    label: string;
+    value: Position | 'ALL' | 'S';
+  }> = [
     { label: 'All', value: 'ALL' },
     { label: 'QB', value: 'QB' },
     { label: 'RB', value: 'RB' },
@@ -491,6 +517,19 @@ export class PlayersTableComponent implements OnInit {
       }
     });
 
+    // Effect: Load contract team names for players with contracts
+    effect(() => {
+      if (this.isBidMode() && this.config?.leagueId) {
+        const players = this._enhancedPlayers();
+        players.forEach((player) => {
+          if (this.isBidDisabled(player)) {
+            // Load team name for players with contracts
+            this.loadContractTeamName(player);
+          }
+        });
+      }
+    });
+
     // Effect: Monitor player minimums changes for debugging // Removed
     // effect(() => { // Removed
     //   const minimums = this._playerMinimums(); // Removed
@@ -531,6 +570,7 @@ export class PlayersTableComponent implements OnInit {
 
   /**
    * Load league players and enhance them with sports data
+   * Now uses unified PlayerService
    */
   private async loadLeaguePlayers(leagueId: string): Promise<void> {
     try {
@@ -540,19 +580,55 @@ export class PlayersTableComponent implements OnInit {
       // Wait for sports data to be loaded
       await this.sportsDataService.waitForData();
 
-      // Get league players from LeagueService
-      const leaguePlayers = await this.leagueService.getLeaguePlayers(leagueId);
+      // Get league players from PlayerService (uses cache)
+      const leaguePlayers = await this.playerService.getLeaguePlayers(leagueId);
       this._leaguePlayers.set(leaguePlayers);
 
-      // Enhance players with sports data
-      await this.enhancePlayersWithSportsData(leaguePlayers);
+      // Preload contracts for this league to populate cache
+      await this.playerService.getPlayersWithContracts(leagueId);
+
+      // Get all active sports players and enhance with league data using PlayerService
+      const allSportsPlayers = this.sportsDataService.activePlayers();
+      const enhancedPlayers = this.playerService.enhancePlayersWithLeagueData(
+        allSportsPlayers,
+        leaguePlayers
+      );
+
+      // Filter to only players that exist in league (have league data)
+      const leaguePlayerIds = new Set(
+        leaguePlayers.map((lp) => {
+          const id = parseInt(lp.sportPlayerID || lp.playerId || '0');
+          return isNaN(id) ? null : id;
+        }).filter((id): id is number => id !== null)
+      );
+
+      const filteredEnhanced = enhancedPlayers.filter((p) =>
+        leaguePlayerIds.has(p.PlayerID)
+      );
+
+      this._enhancedPlayers.set(filteredEnhanced);
     } catch (error) {
-      console.error('Error loading league players:', error);
+      console.error('[Players Table] Error loading league players:', error);
       this.error.set(
         error instanceof Error ? error.message : 'Failed to load league players'
       );
     } finally {
       this.isLoading.set(false);
+    }
+  }
+
+  /**
+   * Load all active contracts for a league and populate the cache
+   * Now uses PlayerService cache
+   */
+  private async loadContractsForLeague(leagueId: string): Promise<void> {
+    try {
+      // Use PlayerService to get players with contracts (uses cache)
+      const playersWithContracts = await this.playerService.getPlayersWithContracts(leagueId);
+      this._playersWithContracts.set(playersWithContracts);
+    } catch (error) {
+      console.error('[Players Table] Error loading contracts:', error);
+      // Don't throw - just log the error, cache will be empty
     }
   }
 
@@ -571,52 +647,14 @@ export class PlayersTableComponent implements OnInit {
 
   /**
    * Enhance league players with sports data by matching PlayerID
+   * @deprecated Now handled by PlayerService.enhancePlayersWithLeagueData()
+   * Kept for backward compatibility if needed
    */
   private async enhancePlayersWithSportsData(
     leaguePlayers: any[]
   ): Promise<void> {
-    try {
-      // Get all active sports players
-      const sportsPlayers = this.sportsDataService.activePlayers();
-
-      // Create a map for quick lookup
-      const sportsPlayersMap = new Map<number, EnhancedSportsPlayer>();
-      sportsPlayers.forEach((player) => {
-        sportsPlayersMap.set(player.PlayerID, player);
-      });
-
-      // Enhance each league player with sports data
-      const enhancedPlayers: EnhancedSportsPlayer[] = leaguePlayers
-        .map((leaguePlayer) => {
-          // Find matching sports player by PlayerID (using sportPlayerID field)
-          const sportPlayerID =
-            leaguePlayer.sportPlayerID || leaguePlayer.playerId;
-          const sportsPlayer = sportsPlayersMap.get(parseInt(sportPlayerID));
-
-          if (!sportsPlayer) {
-            return null;
-          }
-
-          // Create enhanced player by merging both data sources
-          const enhancedPlayer: EnhancedSportsPlayer = {
-            ...sportsPlayer, // Start with sports data
-            // Override with league-specific data where available
-            overall: leaguePlayer.overall || sportsPlayer.overall,
-            // Add league-specific properties
-            ...leaguePlayer,
-            // Preserve the Firestore document ID as leaguePlayerId
-            leaguePlayerId: leaguePlayer.id,
-          };
-
-          return enhancedPlayer;
-        })
-        .filter((player): player is EnhancedSportsPlayer => player !== null);
-
-      this._enhancedPlayers.set(enhancedPlayers);
-    } catch (error) {
-      console.error('Error enhancing players with sports data:', error);
-      this.error.set('Failed to enhance players with sports data');
-    }
+    // This method is now handled in loadLeaguePlayers() using PlayerService
+    // Keeping as no-op for backward compatibility
   }
 
   /**
@@ -907,6 +945,7 @@ export class PlayersTableComponent implements OnInit {
 
   /**
    * Get bid count for a specific player
+   * Excludes accepted and rejected bids - only counts active bids (pending, shortlisted, considering)
    */
   getPlayerBidCount(playerId: string | number): number {
     const id =
@@ -918,7 +957,12 @@ export class PlayersTableComponent implements OnInit {
     }
 
     const activeBids = this._activeBids();
-    const playerBids = activeBids.filter((bid) => bid.playerId === id);
+    const playerBids = activeBids.filter(
+      (bid) =>
+        bid.playerId === id &&
+        bid.status !== 'accepted' &&
+        bid.status !== 'rejected'
+    );
 
     return playerBids.length;
   }
@@ -954,7 +998,6 @@ export class PlayersTableComponent implements OnInit {
     );
 
     if (!player) {
-      console.warn(`Player not found for ID: ${id}`);
       return null;
     }
 
@@ -998,9 +1041,147 @@ export class PlayersTableComponent implements OnInit {
   }
 
   /**
+   * Check if a player has an active contract
+   * Now uses PlayerService
+   */
+  async hasActiveContract(player: EnhancedSportsPlayer): Promise<boolean> {
+    const leagueId = this.config?.leagueId;
+    if (!leagueId) return false;
+
+    // Use PlayerService to check contract
+    return await this.playerService.hasActiveContract(
+      player.PlayerID,
+      leagueId
+    );
+  }
+
+  /**
+   * Check if bid button should be disabled/hidden
+   * Uses PlayerService cache for synchronous check
+   */
+  isBidDisabled(player: EnhancedSportsPlayer): boolean {
+    const leagueId = this.config?.leagueId;
+    if (!leagueId) return false;
+
+    // Check cache synchronously (PlayerService maintains cache)
+    const playersWithContracts = this.playerService.playersWithContractsCache();
+    const cached = playersWithContracts.get(leagueId);
+    
+    if (cached) {
+      // Check if player has contract using leaguePlayerId if available, otherwise sportsPlayerId
+      const leaguePlayerId = player.leaguePlayerId;
+      if (leaguePlayerId && cached.has(leaguePlayerId)) {
+        return true;
+      }
+      // Fallback to sportsPlayerId check
+      if (cached.has(player.PlayerID.toString())) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * Get team name for a player with an active contract
+   * Returns null if player has no contract
+   */
+  async getPlayerContractTeamName(
+    player: EnhancedSportsPlayer
+  ): Promise<string | null> {
+    const leagueId = this.config?.leagueId;
+    if (!leagueId) return null;
+
+    try {
+      // Get contract info
+      const contract = await this.playerService.getPlayerContract(
+        player.PlayerID,
+        leagueId
+      );
+
+      if (!contract) {
+        return null;
+      }
+
+      // Get team name from league members
+      const leagueMembers = this.leagueService.leagueMembers();
+      const teamMember = leagueMembers.find(
+        (member) => member.teamId === contract.teamId
+      );
+
+      return teamMember?.teamName || 'Unknown Team';
+    } catch (error) {
+      console.error('[Players Table] Error getting contract team name:', error);
+      return null;
+    }
+  }
+
+  // Cache for contract team names (keyed by playerId or leaguePlayerId)
+  private _contractTeamNames = signal<Map<string, string>>(new Map());
+
+  /**
+   * Get team name for a player with contract (synchronous, uses cache)
+   */
+  getPlayerContractTeamNameSync(player: EnhancedSportsPlayer): string | null {
+    const leagueId = this.config?.leagueId;
+    if (!leagueId) return null;
+
+    // Check cache first
+    const cache = this._contractTeamNames();
+    // Try leaguePlayerId first, then sportsPlayerId
+    const cacheKey = player.leaguePlayerId || player.PlayerID.toString();
+    if (cache.has(cacheKey)) {
+      return cache.get(cacheKey) || null;
+    }
+
+    // Also check by sportsPlayerId if different
+    if (player.leaguePlayerId && cache.has(player.PlayerID.toString())) {
+      return cache.get(player.PlayerID.toString()) || null;
+    }
+
+    // If not in cache, trigger async load
+    this.loadContractTeamName(player);
+
+    return null;
+  }
+
+  /**
+   * Load contract team name asynchronously and update cache
+   */
+  private async loadContractTeamName(player: EnhancedSportsPlayer): Promise<void> {
+    const teamName = await this.getPlayerContractTeamName(player);
+    if (teamName) {
+      // Cache by both leaguePlayerId and sportsPlayerId for lookup flexibility
+      const leaguePlayerId = player.leaguePlayerId;
+      const sportsPlayerId = player.PlayerID.toString();
+      
+      this._contractTeamNames.update((cache) => {
+        const newCache = new Map(cache);
+        if (leaguePlayerId) {
+          newCache.set(leaguePlayerId, teamName);
+        }
+        newCache.set(sportsPlayerId, teamName);
+        return newCache;
+      });
+    }
+  }
+
+  /**
    * Handle bid button click
    */
-  onBidClick(player: EnhancedSportsPlayer): void {
+  async onBidClick(player: EnhancedSportsPlayer): Promise<void> {
+    // Double-check contract before allowing bid
+    const hasContract = await this.hasActiveContract(player);
+    if (hasContract) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Cannot Bid',
+        detail: 'This player already has an active contract.',
+        life: 3000,
+      });
+      return;
+    }
+
     if (this.config.onBidClick) {
       this.config.onBidClick(player);
     }
@@ -1132,7 +1313,6 @@ export class PlayersTableComponent implements OnInit {
    * Handle trade action for players owned by other teams
    */
   onTradeClick(player: any): void {
-    console.log('[Players Table] Trade clicked for player:', player);
     // TODO: Implement trade functionality
     // This could open a trade dialog or navigate to trade page
   }

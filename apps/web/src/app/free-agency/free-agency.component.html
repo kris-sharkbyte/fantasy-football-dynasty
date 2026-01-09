@@ -1,6 +1,18 @@
 <div class="free-agency-container">
   <app-league-header></app-league-header>
 
+  <!-- Header with Bid Summary Button -->
+  <div class="fa-header-section">
+    <button
+      pButton
+      type="button"
+      icon="pi pi-chart-bar"
+      label="Bid Summary"
+      (click)="openBidSummary()"
+      class="p-button-outlined p-button-secondary"
+    ></button>
+  </div>
+
   <!-- Phase-based rendering -->
   @if (isFAWeekPhase()) {
   <app-fa-week></app-fa-week>

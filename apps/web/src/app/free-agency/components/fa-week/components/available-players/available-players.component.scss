@@ -93,6 +93,22 @@
       font-style: italic;
     }
 
+    .signed-team-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.5rem;
+      background: var(--green-100);
+      color: var(--green-700);
+      border-radius: var(--border-radius);
+      font-size: 0.75rem;
+      font-weight: 500;
+
+      i {
+        color: var(--green-600);
+      }
+    }
+
     .bid-button {
       font-size: 0.75rem;
       padding: 0.25rem 0.5rem;
@@ -201,10 +217,28 @@
         flex-direction: column;
         gap: 1rem;
 
-        .ml-auto {
-          margin-left: 0;
-        }
+      .ml-auto {
+        margin-left: 0;
       }
     }
   }
+}
+
+// Signed status styles
+.signed-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+
+  .signed-tag {
+    margin: 0;
+  }
+
+  .signed-team-name {
+    font-size: 0.75rem;
+    color: var(--text-color-secondary);
+    font-weight: 500;
+  }
+}
 }

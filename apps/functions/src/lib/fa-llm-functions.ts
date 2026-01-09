@@ -1,11 +1,14 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { admin } from './utils/admin';
+import { getSecret } from './utils/secrets';
+import { FunctionCallLogger } from './utils/function-call-logger';
 import OpenAI from 'openai';
 
 const { db } = admin();
 
 // Use Firebase Secret Manager for API key (NEVER hardcode!)
+// In emulator, these will be undefined and we'll fall back to .secret.local via getSecret()
 const openaiApiKey = defineSecret('OPENAI_API_KEY');
 const openaiOrg = defineSecret('OPENAI_ORG');
 
@@ -213,12 +216,18 @@ Your job is to evaluate contract offers for a player based on their personality 
 KEY RULES:
 1. Respect the player's personality weights (moneyPriority, winningPriority, etc.)
 2. Week 1: Be picky but open (85% threshold for acceptance, but use "considering" for offers 70-85%). Week 2: 85% threshold. Week 3: 70%. Week 4: 60%.
-3. Lowball offers (APY < 60% of expectedAPY) should be REJECTED with trust penalty
-4. Only ONE offer can be accepted. Shortlist up to 3 offers for next week.
-5. Generate realistic, personality-appropriate feedback
-6. Check if teams can actually afford their offers (capSpaceAvailable >= offer APY)
-7. Consider market conditions (seller vs buyer market based on league cap health)
-8. ALWAYS include "isLowball": true/false for EVERY bid in bidAnalysis (true if APY < 60% of expectedAPY)
+3. PROGRESSIVE ACCEPTANCE: As weeks progress, players become MORE LIKELY to accept offers, especially high APY offers:
+   - Week 1: Very picky, explore market (85% threshold)
+   - Week 2: Still selective but more open (85% threshold, but accept if APY is significantly above expectedAPY even without guarantees)
+   - Week 3: More accepting (70% threshold, high APY offers should be accepted even if missing guarantees/length)
+   - Week 4: MUST accept best offer above 60% threshold (no more waiting)
+4. HIGH APY ACCEPTANCE RULE: If an offer's APY is 120%+ of expectedAPY, strongly consider accepting even in Week 2-3, even without guarantees. Money talks!
+5. Lowball offers (APY < 60% of expectedAPY) should be REJECTED with trust penalty
+6. Only ONE offer can be accepted. Shortlist up to 3 offers for next week.
+7. Generate realistic, personality-appropriate feedback
+8. Check if teams can actually afford their offers (capSpaceAvailable >= offer APY)
+9. Consider market conditions (seller vs buyer market based on league cap health)
+10. ALWAYS include "isLowball": true/false for EVERY bid in bidAnalysis (true if APY < 60% of expectedAPY)
 
 COUNTER-OFFER HANDLING (CRITICAL):
 - If a bid has status "shortlisted", "considering", or previous feedback, this is a COUNTER-OFFER from a team you already provided feedback to
@@ -245,12 +254,18 @@ PRIVACY RULES FOR TEAM MESSAGES (CRITICAL):
 - Bad: "Team Alpha offered more money"
 - The socialMediaPost is PUBLIC to everyone - keep it vague/fun, no specifics
 
-WEEK 4 SPECIAL RULE (CRITICAL):
-- Week 4 is the FINAL DECISION WEEK - no more shortlisting allowed!
-- If ANY offer scores above 60% threshold, the player MUST accept the HIGHEST scoring one
-- If multiple offers are tied (within 0.02 of each other), pick one randomly
-- Only reject_all if NO offers meet the 60% threshold
-- Week 4 decision.type should NEVER be "shortlisted" - only "accepted" or "rejected_all"
+WEEK 3+ PROGRESSIVE ACCEPTANCE RULES (CRITICAL):
+- Week 2: If an offer has APY >= 120% of expectedAPY, strongly consider accepting even without guarantees/length
+- Week 3: Players are getting anxious - if an offer scores 70%+ OR has APY 120%+ of expectedAPY, ACCEPT it (don't shortlist!)
+- Week 4: FINAL DECISION WEEK - no more shortlisting allowed!
+  - If ANY offer scores above 60% threshold, the player MUST accept the HIGHEST scoring one
+  - If multiple offers are tied (within 0.02 of each other), pick one randomly
+  - Only reject_all if NO offers meet the 60% threshold
+  - Week 4 decision.type should NEVER be "shortlisted" - only "accepted" or "rejected_all"
+- HIGH APY OVERRIDE (CRITICAL): 
+  - If an offer has APY >= 120% of expectedAPY and it's Week 2+, the player should ACCEPT (not shortlist) even if missing guarantees/length
+  - Money talks! High APY compensates for missing guarantees/length in later weeks
+  - Only shortlist if there's a significantly better offer (10%+ higher score) from another team
 
 DECISION FLOW:
 - Calculate weighted score for each bid using personality weights
@@ -338,38 +353,62 @@ export const evaluateFAWeekBidsLLM = onCall(
     memory: '512MiB',
   },
   async (request) => {
+    const fnLog = new FunctionCallLogger('evaluateFAWeekBidsLLM');
+    let finalResponse: any = null;
+
     try {
       const { leagueId, weekNumber } = request.data;
 
+      // Start logging
+      await fnLog.start({
+        request: { leagueId, weekNumber },
+        metadata: { function: 'evaluateFAWeekBidsLLM' },
+      });
+
+      fnLog.info('Starting LLM evaluation', { leagueId, weekNumber });
+
       if (!leagueId || weekNumber === undefined) {
-        throw new HttpsError(
+        const error = new HttpsError(
           'invalid-argument',
           'Missing leagueId or weekNumber'
         );
+        fnLog.error('Validation failed', { leagueId, weekNumber });
+        await fnLog.fail(error, { success: false, message: error.message });
+        throw error;
       }
 
       // Get API key - works for both emulator and production
-      const apiKey = openaiApiKey.value() || process.env['OPENAI_API_KEY'];
-      const organization = openaiOrg.value() || process.env['OPENAI_ORG'];
+      // getSecret() handles loading from .secret.local in emulator or Secret Manager in production
+      const apiKey = getSecret(openaiApiKey.value(), 'OPENAI_API_KEY');
+      const organization = getSecret(openaiOrg.value(), 'OPENAI_ORG');
 
       if (!apiKey) {
-        throw new HttpsError(
+        const error = new HttpsError(
           'failed-precondition',
-          'OPENAI_API_KEY not configured. Set it via Firebase Secret Manager or .secret.local file.'
+          'OPENAI_API_KEY not configured. Set it via Firebase Secret Manager (production) or .secret.local file (emulator).'
         );
+        fnLog.error('API key not configured');
+        await fnLog.fail(error, { success: false, message: error.message });
+        throw error;
       }
+
+      fnLog.debug('OpenAI API key configured', { hasOrg: !!organization });
 
       const openai = new OpenAI({
         apiKey,
         organization: organization || undefined,
       });
 
-      console.log(
-        `[FA-LLM] Starting evaluation for league ${leagueId}, week ${weekNumber}`
-      );
+      fnLog.info('Starting evaluation', { leagueId, weekNumber });
 
       // 1. Gather all pending and considering bids for this week
       // "considering" bids from week 1 should be re-evaluated in subsequent weeks
+      fnLog.debug('Querying for bids', {
+        leagueId,
+        weekNumber,
+        statuses: ['pending', 'considering'],
+      });
+
       const bidsSnapshot = await db
         .collection('faBids')
         .where('leagueId', '==', leagueId)
@@ -377,27 +416,86 @@ export const evaluateFAWeekBidsLLM = onCall(
         .where('status', 'in', ['pending', 'considering'])
         .get();
 
+      fnLog.info('Bids query completed', {
+        totalBids: bidsSnapshot.docs.length,
+        isEmpty: bidsSnapshot.empty,
+      });
+
       if (bidsSnapshot.empty) {
-        return {
+        finalResponse = {
           success: true,
           message: 'No pending bids to evaluate',
           decisions: [],
+          playersProcessed: 0,
         };
+        fnLog.info('No bids to evaluate', { weekNumber });
+        await fnLog.success(finalResponse);
+        return finalResponse;
       }
 
-      console.log(`[FA-LLM] Found ${bidsSnapshot.docs.length} pending bids`);
+      fnLog.info('Found bids to evaluate', { count: bidsSnapshot.docs.length });
 
-      // 2. Group bids by player
-      const bidsByPlayer = groupBidsByPlayer(bidsSnapshot.docs);
+      // 2. Filter out bids for players with active contracts
+      fnLog.debug('Filtering bids for players with contracts');
+      const playersWithContracts = await getPlayersWithContracts(leagueId);
+      fnLog.info('Players with contracts', {
+        count: playersWithContracts.size,
+        playerIds: Array.from(playersWithContracts),
+      });
+
+      const validBidDocs = bidsSnapshot.docs.filter((doc) => {
+        const bidData = doc.data();
+        const playerId = String(bidData['playerId'] || '');
+        return !playersWithContracts.has(playerId);
+      });
+
+      if (validBidDocs.length === 0) {
+        finalResponse = {
+          success: true,
+          message: 'No valid bids to evaluate (all players have contracts)',
+          decisions: [],
+          playersProcessed: 0,
+        };
+        fnLog.info('No valid bids (all players have contracts)', {
+          totalBids: bidsSnapshot.docs.length,
+          filteredBids: validBidDocs.length,
+        });
+        await fnLog.success(finalResponse);
+        return finalResponse;
+      }
+
+      fnLog.info('Filtered bids (removed players with contracts)', {
+        originalCount: bidsSnapshot.docs.length,
+        validCount: validBidDocs.length,
+        removed: bidsSnapshot.docs.length - validBidDocs.length,
+      });
+
+      // 3. Group bids by player
+      fnLog.debug('Grouping bids by player');
+      const bidsByPlayer = groupBidsByPlayer(validBidDocs);
       const playerIds = Object.keys(bidsByPlayer);
-      console.log(`[FA-LLM] Processing ${playerIds.length} players with bids`);
+      fnLog.info('Bids grouped by player', {
+        totalPlayers: playerIds.length,
+        playersWithBids: playerIds.map((id) => ({
+          playerId: id,
+          bidCount: bidsByPlayer[id].length,
+        })),
+      });
 
       // 3. Build league and market context
+      fnLog.info('Building league and market context');
       const leagueContext = await buildLeagueContext(leagueId);
       const marketContext = await buildMarketContext(leagueId, weekNumber);
       const teamTrustHistory = await getTeamTrustHistory(leagueId);
+      fnLog.debug('Context built', {
+        teamsCount: Object.keys(leagueContext.teams).length,
+        marketContextKeys: Object.keys(marketContext),
+      });
 
-      // 4. Process each player
+      // 5. Process each player with LLM
+      fnLog.info('Starting LLM evaluation for players', {
+        count: playerIds.length,
+      });
       const results: LLMOutput[] = [];
       const processingLog: Array<{
         playerId: string;
@@ -409,15 +507,19 @@ export const evaluateFAWeekBidsLLM = onCall(
       // Process in batches of 3 for rate limiting
       for (let i = 0; i < playerIds.length; i += 3) {
         const batch = playerIds.slice(i, i + 3);
-        console.log(
-          `[FA-LLM] Processing batch ${Math.floor(i / 3) + 1}: ${batch.join(
-            ', '
-          )}`
-        );
+        fnLog.info(`Processing batch ${Math.floor(i / 3) + 1}`, {
+          batchNumber: Math.floor(i / 3) + 1,
+          totalBatches: Math.ceil(playerIds.length / 3),
+          playerIds: batch,
+        });
 
         const batchResults = await Promise.all(
           batch.map(async (playerId) => {
             try {
+              fnLog.debug(`Evaluating player ${playerId}`, {
+                bidCount: bidsByPlayer[playerId].length,
+              });
+
               const result = await evaluatePlayerWithLLM(
                 openai,
                 leagueContext,
@@ -426,17 +528,26 @@ export const evaluateFAWeekBidsLLM = onCall(
                 bidsByPlayer[playerId],
                 teamTrustHistory
               );
+
               processingLog.push({
                 playerId,
                 playerName: result.playerName,
                 status: 'success',
               });
+
+              fnLog.debug('Player evaluation completed', {
+                playerId,
+                decisionType: result.decision.type,
+                acceptedBidId: result.decision.acceptedBidId,
+              });
+
               return result;
-            } catch (error) {
-              console.error(
-                `[FA-LLM] Error processing player ${playerId}:`,
-                error
-              );
+            } catch (error: any) {
+              fnLog.error(`Error processing player ${playerId}`, {
+                error: error.message,
+                stack: error.stack,
+              });
+
               processingLog.push({
                 playerId,
                 playerName: 'Unknown',
@@ -451,15 +562,30 @@ export const evaluateFAWeekBidsLLM = onCall(
         results.push(...batchResults.filter((r): r is LLMOutput => r !== null));
       }
 
-      // 5. Process results and update Firestore
+      fnLog.info('LLM evaluation completed', {
+        totalDecisions: results.length,
+        accepted: results.filter((d) => d.decision.type === 'accepted').length,
+        shortlisted: results.filter((d) => d.decision.type === 'shortlisted')
+          .length,
+        rejected: results.filter((d) => d.decision.type === 'rejected_all')
+          .length,
+      });
+
+      // 6. Process results and update Firestore
+      fnLog.info('Processing decisions and updating Firestore');
       const updateResults = await processDecisions(
         leagueId,
         weekNumber,
         results
       );
 
-      // 6. Return detailed results
-      return {
+      fnLog.info('Decisions processed', {
+        updated: updateResults.updated,
+        errors: updateResults.errors.length,
+      });
+
+      // 7. Return detailed results
+      finalResponse = {
         success: true,
         leagueId,
         weekNumber,
@@ -468,19 +594,58 @@ export const evaluateFAWeekBidsLLM = onCall(
         processingLog,
         updateResults,
       };
-    } catch (error) {
-      console.error('[FA-LLM] Fatal error:', error);
-      throw new HttpsError(
-        'internal',
-        `Failed to process FA week evaluation: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`
-      );
+
+      await fnLog.success(finalResponse);
+      return finalResponse;
+    } catch (error: any) {
+      fnLog.error('Exception caught', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack,
+      });
+
+      finalResponse = {
+        success: false,
+        message: error.message || 'LLM evaluation failed',
+        error: error.message,
+      };
+
+      await fnLog.fail(error, finalResponse);
+      throw error;
+    } finally {
+      await fnLog.ensureCompleted();
     }
   }
 );
 
 // ===== HELPER FUNCTIONS =====
+
+/**
+ * Get set of player IDs that have active contracts
+ */
+async function getPlayersWithContracts(leagueId: string): Promise<Set<string>> {
+  try {
+    const contractsSnapshot = await db
+      .collection('contracts')
+      .where('leagueId', '==', leagueId)
+      .where('status', '==', 'active')
+      .get();
+
+    const playerIds = new Set<string>();
+    contractsSnapshot.forEach((doc) => {
+      const data = doc.data();
+      const playerId = String(data['playerId'] || '');
+      if (playerId) {
+        playerIds.add(playerId);
+      }
+    });
+
+    return playerIds;
+  } catch (error) {
+    console.error('[FA-LLM] Error getting players with contracts:', error);
+    return new Set<string>(); // Return empty set on error to avoid blocking evaluation
+  }
+}
 
 function groupBidsByPlayer(
   docs: FirebaseFirestore.QueryDocumentSnapshot[]
@@ -772,7 +937,8 @@ async function evaluatePlayerWithLLM(
         status: bidData['status'] || 'pending',
         previousFeedback: bidData['feedback'] || undefined,
         previousTeamMessage: bidData['teamMessage'] || undefined,
-        evaluatedAt: bidData['evaluatedAt']?.toDate?.()?.toISOString() || undefined,
+        evaluatedAt:
+          bidData['evaluatedAt']?.toDate?.()?.toISOString() || undefined,
         isLowball: bidData['isLowball'] || false,
       };
     })
@@ -798,10 +964,6 @@ async function evaluatePlayerWithLLM(
     teamTrustHistory,
   };
 
-  console.log(
-    `[FA-LLM] Calling OpenAI for player ${player.name} with ${bids.length} bids`
-  );
-
   // Call OpenAI
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -818,8 +980,6 @@ async function evaluatePlayerWithLLM(
   if (!content) {
     throw new Error('Empty response from OpenAI');
   }
-
-  console.log(`[FA-LLM] Received response for player ${player.name}`);
 
   const result = JSON.parse(content) as LLMOutput;
 
@@ -886,20 +1046,18 @@ async function processDecisions(
   let updated = 0;
   const errors: string[] = [];
 
-  console.log(
-    `[FA-LLM] Processing ${decisions.length} decisions for league ${leagueId}, week ${weekNumber}`
-  );
-
   for (const decision of decisions) {
     try {
-      console.log(
-        `[FA-LLM] Processing decision for player ${decision.playerId}:`,
-        {
-          acceptedBidId: decision.decision.acceptedBidId,
-          shortlistedCount: decision.decision.shortlistedBidIds.length,
-          rejectedCount: decision.decision.rejectedBidIds.length,
-        }
-      );
+      // Ensure bidAnalysis exists before accessing it
+      if (!decision.bidAnalysis || !Array.isArray(decision.bidAnalysis)) {
+        console.warn(
+          `[FA-LLM] Missing or invalid bidAnalysis for player ${decision.playerId}`
+        );
+        errors.push(
+          `Missing bidAnalysis for player ${decision.playerId}`
+        );
+        continue;
+      }
 
       // Update accepted bid
       if (decision.decision.acceptedBidId) {
@@ -920,9 +1078,6 @@ async function processDecisions(
             decision.feedback.publicStatement,
         });
         updated++;
-        console.log(
-          `[FA-LLM] Updated bid ${decision.decision.acceptedBidId} to accepted`
-        );
 
         // Update player status (players are stored in leagues/{leagueId}/players subcollection)
         const playerRef = db
@@ -947,7 +1102,7 @@ async function processDecisions(
       }
 
       // Update shortlisted bids
-      for (const bidId of decision.decision.shortlistedBidIds) {
+      for (const bidId of decision.decision.shortlistedBidIds || []) {
         const bidRef = db.collection('faBids').doc(bidId);
         const bidAnalysis = decision.bidAnalysis.find((b) => b.bidId === bidId);
         const teamId = bidAnalysis?.teamId || '';
@@ -960,11 +1115,10 @@ async function processDecisions(
             'Considering your offer...',
         });
         updated++;
-        console.log(`[FA-LLM] Updated bid ${bidId} to shortlisted`);
       }
 
       // Update rejected bids
-      for (const bidId of decision.decision.rejectedBidIds) {
+      for (const bidId of decision.decision.rejectedBidIds || []) {
         const bidRef = db.collection('faBids').doc(bidId);
         const bidAnalysis = decision.bidAnalysis.find((b) => b.bidId === bidId);
         const teamId = bidAnalysis?.teamId || '';
@@ -978,11 +1132,11 @@ async function processDecisions(
           isLowball: bidAnalysis?.isLowball || false,
         });
         updated++;
-        console.log(`[FA-LLM] Updated bid ${bidId} to rejected`);
       }
 
       // Update "considering" bids (week 1 only - offers that are close but not quite there)
       // These are bids that scored 70-85% in week 1 - they stay active but aren't shortlisted
+      // Check bidAnalysis array for bids with decision === 'considering'
       for (const bidAnalysisItem of decision.bidAnalysis) {
         if (bidAnalysisItem.decision === 'considering') {
           const bidRef = db.collection('faBids').doc(bidAnalysisItem.bidId);
@@ -997,9 +1151,6 @@ async function processDecisions(
             isLowball: bidAnalysisItem.isLowball || false,
           });
           updated++;
-          console.log(
-            `[FA-LLM] Updated bid ${bidAnalysisItem.bidId} to considering`
-          );
         }
       }
 
@@ -1028,9 +1179,6 @@ async function processDecisions(
           weekNumber,
           context: 'free-agency',
         });
-        console.log(
-          `[FA-LLM] Saved social media post for player ${decision.playerId}`
-        );
       }
 
       // Update trust history for lowball offers
@@ -1062,11 +1210,7 @@ async function processDecisions(
   }
 
   try {
-    console.log(`[FA-LLM] Committing batch with ${updated} updates...`);
     await batch.commit();
-    console.log(
-      `[FA-LLM] Batch committed successfully. Updated ${updated} bids.`
-    );
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error(`[FA-LLM] Batch commit error:`, errorMsg);
@@ -1638,8 +1782,8 @@ export const simulateFAWeekEvaluation = onCall(
     memory: '512MiB',
   },
   async (request) => {
-    const apiKey = openaiApiKey.value() || process.env['OPENAI_API_KEY'];
-    const organization = openaiOrg.value() || process.env['OPENAI_ORG'];
+    const apiKey = getSecret(openaiApiKey.value(), 'OPENAI_API_KEY');
+    const organization = getSecret(openaiOrg.value(), 'OPENAI_ORG');
 
     // Debug logging
     console.log(

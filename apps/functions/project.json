@@ -19,6 +19,11 @@
             "input": "apps/functions",
             "glob": "package.json",
             "output": "."
+          },
+          {
+            "input": "apps/functions",
+            "glob": "**/.secret.local",
+            "output": "."
           }
         ]
       },

@@ -1,5 +1,6 @@
 import { Component, inject, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ButtonModule } from 'primeng/button';
 import { FreeAgencyService } from '../services/free-agency.service';
 import { LeagueService } from '../services/league.service';
 import { LeagueHeaderComponent } from '../leagues/components/league-header.component';
@@ -11,6 +12,7 @@ import { OpenFAComponent } from './components/open-fa';
   standalone: true,
   imports: [
     CommonModule,
+    ButtonModule,
     LeagueHeaderComponent,
     FAWeekComponent,
     OpenFAComponent,
@@ -37,5 +39,12 @@ export class FreeAgencyComponent {
         this.freeAgencyService.loadCurrentFAWeek();
       }
     });
+  }
+
+  /**
+   * Open the bid summary dialog (now handled by salary-cap component)
+   */
+  openBidSummary(): void {
+    this.freeAgencyService.showBidSummary.set(true);
   }
 }
