@@ -1257,7 +1257,15 @@ export class LeagueService {
 
       const contractsSnapshot = await getDocs(contractsQuery);
       
+      console.log('[League Service] getTeamPlayersFromContracts query results:', {
+        leagueId,
+        teamId,
+        contractsFound: contractsSnapshot.size,
+        contractIds: contractsSnapshot.docs.map(d => d.id),
+      });
+      
       if (contractsSnapshot.empty) {
+        console.warn('[League Service] No contracts found for team:', { leagueId, teamId });
         return [];
       }
 
@@ -1289,8 +1297,46 @@ export class LeagueService {
           return;
         }
 
-        // Find the player data
+        // Handle nested contract structure (contract offer may be in 'contract' field)
+        // Contracts from FA bids have: { contract: ContractOffer, ... }
+        // Contracts may also have flat structure with startYear/endYear at top level
+        const contractOffer = contractData['contract'] || contractData;
+        
+        // Determine contract years and dates
+        const years = contractOffer['years'] || 1;
+        const signedAt = contractData['signedAt']?.toDate() || contractData['createdAt']?.toDate();
+        const signedYear = signedAt ? signedAt.getFullYear() : new Date().getFullYear();
+        const startYear = contractData['startYear'] || contractOffer['startYear'] || signedYear;
+        const endYear = contractData['endYear'] || contractOffer['endYear'] || (startYear + years - 1);
+        
+        // Handle baseSalary - may be in contractOffer or at top level
+        let baseSalary = contractData['baseSalary'] || contractOffer['baseSalary'] || {};
+        
+        // If baseSalary is not a Record but we have APY, convert it
+        if (typeof baseSalary !== 'object' || Object.keys(baseSalary).length === 0) {
+          const apy = contractOffer['apy'] || contractData['apy'] || 0;
+          if (apy > 0) {
+            baseSalary = {};
+            for (let i = 0; i < years; i++) {
+              baseSalary[startYear + i] = apy;
+            }
+          }
+        }
+
+        // Find the player data by leaguePlayerId
         const player = leaguePlayersMap.get(playerId.toString());
+        
+        console.log('[League Service] Contract processing:', {
+          contractId: contractDoc.id,
+          playerId,
+          foundPlayer: !!player,
+          contractData: {
+            hasContractField: !!contractData['contract'],
+            hasStartYear: !!contractData['startYear'],
+            hasBaseSalary: !!contractData['baseSalary'],
+            status: contractData['status'],
+          }
+        });
         
         if (player) {
           // Enhance player with contract info
@@ -1298,18 +1344,36 @@ export class LeagueService {
             ...player,
             contractId: contractDoc.id,
             contract: {
-              startYear: contractData['startYear'],
-              endYear: contractData['endYear'],
-              baseSalary: contractData['baseSalary'],
-              signingBonus: contractData['signingBonus'],
-              guarantees: contractData['guarantees'] || [],
-              noTradeClause: contractData['noTradeClause'] || false,
+              startYear: startYear,
+              endYear: endYear,
+              baseSalary: baseSalary,
+              signingBonus: contractOffer['signingBonus'] || contractData['signingBonus'] || 0,
+              guarantees: contractOffer['guarantees'] || contractData['guarantees'] || [],
+              noTradeClause: contractOffer['noTradeClause'] || contractData['noTradeClause'] || false,
             },
           });
         } else {
           console.warn(
-            `[League Service] Player not found for contract ${contractDoc.id}, playerId: ${playerId}`
+            `[League Service] Player not found for contract ${contractDoc.id}, playerId: ${playerId}. ` +
+            `Available player IDs in map (first 10): ${Array.from(leaguePlayersMap.keys()).slice(0, 10).join(', ')}`
           );
+          // Still add the contract even if player not found, so we can see it in cap management
+          // We'll use minimal player data
+          teamPlayers.push({
+            id: playerId,
+            leaguePlayerId: playerId,
+            name: `Player ${playerId}`,
+            position: 'RB',
+            contractId: contractDoc.id,
+            contract: {
+              startYear: startYear,
+              endYear: endYear,
+              baseSalary: baseSalary,
+              signingBonus: contractOffer['signingBonus'] || contractData['signingBonus'] || 0,
+              guarantees: contractOffer['guarantees'] || contractData['guarantees'] || [],
+              noTradeClause: contractOffer['noTradeClause'] || contractData['noTradeClause'] || false,
+            },
+          });
         }
       });
 

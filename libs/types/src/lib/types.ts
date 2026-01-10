@@ -185,6 +185,7 @@ export interface Guarantee {
 
 export interface CapLedger {
   id: string;
+  leagueId: string;
   teamId: string;
   leagueYear: number;
   capIn: number;

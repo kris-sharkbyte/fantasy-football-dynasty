@@ -1,0 +1,494 @@
+<div class="cap-management-container">
+  <!-- Loading State -->
+  <div *ngIf="isLoading()" class="flex justify-center items-center py-12">
+    <p-progressSpinner></p-progressSpinner>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!isLoading()" class="space-y-6">
+    <!-- Phase 1: Overview Dashboard -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Total Salary Cap -->
+      <p-card styleClass="shadow-lg">
+        <div class="text-center">
+          <div class="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-2">
+            {{ formatCurrency(salaryCap()) }}
+          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Total Salary Cap</div>
+        </div>
+      </p-card>
+
+      <!-- Available Cap Space -->
+      <p-card styleClass="shadow-lg">
+        <div class="text-center">
+          <div
+            class="text-2xl font-bold mb-2"
+            [ngClass]="
+              availableCapSpace() >= 0
+                ? 'text-green-600 dark:text-green-400'
+                : 'text-red-600 dark:text-red-400'
+            "
+          >
+            {{ formatCurrency(availableCapSpace()) }}
+          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Available Cap Space</div>
+        </div>
+      </p-card>
+
+      <!-- Committed Cap -->
+      <p-card styleClass="shadow-lg">
+        <div class="text-center">
+          <div class="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-2">
+            {{ formatCurrency(committedCap()) }}
+          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Committed Cap</div>
+        </div>
+      </p-card>
+
+      <!-- Dead Money -->
+      <p-card styleClass="shadow-lg">
+        <div class="text-center">
+          <div class="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-2">
+            {{ formatCurrency(deadMoney()) }}
+          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Dead Money</div>
+        </div>
+      </p-card>
+    </div>
+
+    <!-- Cap Utilization Progress Bar -->
+    <p-card styleClass="shadow-lg">
+      <div class="space-y-2">
+        <div class="flex justify-between items-center">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            Cap Utilization
+          </span>
+          <span class="text-sm font-bold text-gray-900 dark:text-white">
+            {{ formatPercentage(capUtilization()) }}
+          </span>
+        </div>
+        <p-progressBar
+          [value]="capUtilization()"
+          [showValue]="false"
+          [styleClass]="
+            capUtilization() > 90
+              ? 'p-progressbar-danger'
+              : capUtilization() > 75
+                ? 'p-progressbar-warning'
+                : 'p-progressbar-success'
+          "
+        ></p-progressBar>
+        <div class="flex justify-between text-xs text-gray-500">
+          <span>Committed: {{ formatCurrency(committedCap()) }}</span>
+          <span>Dead Money: {{ formatCurrency(deadMoney()) }}</span>
+        </div>
+      </div>
+    </p-card>
+
+    <!-- Year Selector -->
+    <p-card styleClass="shadow-lg">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+          Cap Year
+        </h3>
+        <p-select
+          [options]="yearOptions()"
+          [(ngModel)]="selectedYearValue"
+          optionLabel="label"
+          optionValue="value"
+          (onChange)="onYearChange($event)"
+          placeholder="Select Year"
+          styleClass="w-32"
+        ></p-select>
+      </div>
+    </p-card>
+
+    <!-- Main Tabs -->
+    <p-tabs value="0" styleClass="shadow-lg">
+      <p-tablist>
+        <p-tab value="0" leftIcon="pi pi-file">Active Contracts</p-tab>
+        <p-tab value="1" leftIcon="pi pi-calendar">Multi-Year Projection</p-tab>
+        <p-tab value="2" leftIcon="pi pi-exclamation-triangle">Dead Money</p-tab>
+        <p-tab value="3" leftIcon="pi pi-clock">Expiring Contracts</p-tab>
+        <p-tab value="4" leftIcon="pi pi-chart-pie">Position Allocation</p-tab>
+      </p-tablist>
+
+      <p-tabpanels>
+        <!-- Phase 1: Active Contracts Tab -->
+        <p-tabpanel value="0">
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                Active Contracts ({{ activeContracts().length }})
+              </h3>
+              <span class="text-sm text-gray-600 dark:text-gray-400">
+                Total: {{ formatCurrency(committedCap()) }}
+              </span>
+            </div>
+
+            <p-table
+              [value]="activeContracts()"
+              [paginator]="true"
+              [rows]="25"
+              styleClass="p-datatable-sm"
+              [tableStyle]="{ 'min-width': '50rem' }"
+            >
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>Player</th>
+                  <th>Position</th>
+                  <th>Base Salary</th>
+                  <th>Signing Bonus</th>
+                  <th>Cap Hit</th>
+                  <th>Years Left</th>
+                  <th>Total Value</th>
+                  <th>Actions</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-contract>
+                <tr>
+                  <td>{{ contract.playerName }}</td>
+                  <td>
+                    <p-tag [value]="contract.position" [severity]="'info'"></p-tag>
+                  </td>
+                  <td>{{ formatCurrency(contract.baseSalary) }}</td>
+                  <td>{{ formatCurrency(contract.proratedBonus) }}</td>
+                  <td class="font-semibold">{{ formatCurrency(contract.capHit) }}</td>
+                  <td>{{ contract.yearsRemaining }}</td>
+                  <td>{{ formatCurrency(contract.totalValue) }}</td>
+                  <td>
+                    <div class="flex gap-2">
+                      <p-button
+                        icon="pi pi-trash"
+                        [text]="true"
+                        [rounded]="true"
+                        severity="danger"
+                        size="small"
+                        pTooltip="Calculate Cut Impact"
+                        (onClick)="openCalculator('cut', contract)"
+                      ></p-button>
+                      <p-button
+                        icon="pi pi-exchange"
+                        [text]="true"
+                        [rounded]="true"
+                        severity="secondary"
+                        size="small"
+                        pTooltip="Calculate Trade Impact"
+                        (onClick)="openCalculator('trade', contract)"
+                      ></p-button>
+                    </div>
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr>
+                  <td colspan="8" class="text-center py-8 text-gray-500">
+                    No active contracts
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </div>
+        </p-tabpanel>
+
+        <!-- Multi-Year Projection Tab -->
+        <p-tabpanel value="1">
+          <div class="space-y-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Multi-Year Cap Projection
+            </h3>
+
+            <p-table
+              [value]="yearOptions()"
+              styleClass="p-datatable-sm"
+            >
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>Year</th>
+                  <th>Salary Cap</th>
+                  <th>Committed</th>
+                  <th>Dead Money</th>
+                  <th>Available</th>
+                  <th>Utilization</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-yearOption>
+                <tr>
+                  <td class="font-semibold">{{ yearOption.value }}</td>
+                  <td>{{ formatCurrency(yearProjection()(yearOption.value).salaryCap) }}</td>
+                  <td>{{ formatCurrency(yearProjection()(yearOption.value).committed) }}</td>
+                  <td>{{ formatCurrency(yearProjection()(yearOption.value).deadMoney) }}</td>
+                  <td
+                    [ngClass]="
+                      yearProjection()(yearOption.value).available >= 0
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-red-600 dark:text-red-400'
+                    "
+                  >
+                    {{ formatCurrency(yearProjection()(yearOption.value).available) }}
+                  </td>
+                  <td>
+                    <span
+                      [ngClass]="
+                        yearProjection()(yearOption.value).utilization > 90
+                          ? 'text-red-600'
+                          : yearProjection()(yearOption.value).utilization > 75
+                            ? 'text-orange-600'
+                            : 'text-green-600'
+                      "
+                    >
+                      {{ formatPercentage(yearProjection()(yearOption.value).utilization) }}
+                    </span>
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </div>
+        </p-tabpanel>
+
+        <!-- Phase 2: Dead Money Tab -->
+        <p-tabpanel value="2">
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                Dead Money Breakdown
+              </h3>
+              <span class="text-sm text-gray-600 dark:text-gray-400">
+                Total: {{ formatCurrency(deadMoney()) }}
+              </span>
+            </div>
+
+            <p-table
+              [value]="deadMoneyEntries()"
+              [paginator]="true"
+              [rows]="25"
+              styleClass="p-datatable-sm"
+            >
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>Player</th>
+                  <th>Position</th>
+                  <th>Dead Money ({{ selectedYear() }})</th>
+                  <th>Dead Money ({{ selectedYear() + 1 }})</th>
+                  <th>Total</th>
+                  <th>Reason</th>
+                  <th>Type</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-entry>
+                <tr>
+                  <td>{{ entry.playerName }}</td>
+                  <td>
+                    <p-tag [value]="entry.position" [severity]="'info'"></p-tag>
+                  </td>
+                  <td class="text-red-600 dark:text-red-400">
+                    {{ formatCurrency(entry.deadMoneyThisYear) }}
+                  </td>
+                  <td class="text-orange-600 dark:text-orange-400">
+                    {{ formatCurrency(entry.deadMoneyNextYear) }}
+                  </td>
+                  <td class="font-semibold">
+                    {{
+                      formatCurrency(
+                        entry.deadMoneyThisYear + entry.deadMoneyNextYear
+                      )
+                    }}
+                  </td>
+                  <td>{{ entry.reason }}</td>
+                  <td>
+                    <p-tag
+                      [value]="entry.refType"
+                      [severity]="entry.refType === 'cut' ? 'danger' : 'warning'"
+                    ></p-tag>
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr>
+                  <td colspan="7" class="text-center py-8 text-gray-500">
+                    No dead money entries
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </div>
+        </p-tabpanel>
+
+        <!-- Phase 2: Expiring Contracts Tab -->
+        <p-tabpanel value="3">
+          <div class="space-y-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Upcoming Contract Expirations
+            </h3>
+
+            <p-table
+              [value]="expiringContracts()"
+              [paginator]="true"
+              [rows]="25"
+              styleClass="p-datatable-sm"
+            >
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>Player</th>
+                  <th>Position</th>
+                  <th>Expires</th>
+                  <th>Years Remaining</th>
+                  <th>Current Cap Hit</th>
+                  <th>Cap Space Freed</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-contract>
+                <tr>
+                  <td>{{ contract.playerName }}</td>
+                  <td>
+                    <p-tag [value]="contract.position" [severity]="'info'"></p-tag>
+                  </td>
+                  <td class="font-semibold">{{ contract.endYear }}</td>
+                  <td>{{ contract.yearsRemaining }}</td>
+                  <td>{{ formatCurrency(contract.currentCapHit) }}</td>
+                  <td class="text-green-600 dark:text-green-400 font-semibold">
+                    {{ formatCurrency(contract.currentCapHit) }}
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr>
+                  <td colspan="6" class="text-center py-8 text-gray-500">
+                    No expiring contracts in the next 2 years
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </div>
+        </p-tabpanel>
+
+        <!-- Phase 3: Position Allocation Tab -->
+        <p-tabpanel value="4">
+          <div class="space-y-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Cap Allocation by Position
+            </h3>
+
+            <p-table
+              [value]="positionCapAllocation()"
+              styleClass="p-datatable-sm"
+            >
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>Position</th>
+                  <th>Players</th>
+                  <th>Total Cap</th>
+                  <th>Percentage</th>
+                  <th>Visual</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-allocation>
+                <tr>
+                  <td>
+                    <p-tag [value]="allocation.position" [severity]="'info'"></p-tag>
+                  </td>
+                  <td>{{ allocation.playerCount }}</td>
+                  <td class="font-semibold">
+                    {{ formatCurrency(allocation.totalCap) }}
+                  </td>
+                  <td>{{ formatPercentage(allocation.percentage) }}</td>
+                  <td>
+                    <p-progressBar
+                      [value]="allocation.percentage"
+                      [showValue]="false"
+                      styleClass="w-32"
+                    ></p-progressBar>
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </div>
+        </p-tabpanel>
+      </p-tabpanels>
+    </p-tabs>
+  </div>
+
+  <!-- Phase 3: Cap Calculator Dialog -->
+  <p-dialog
+    [(visible)]="showCalculatorDialogValue"
+    [modal]="true"
+    [style]="{ width: '600px' }"
+    [closable]="true"
+    (onHide)="closeCalculator()"
+  >
+    <ng-template pTemplate="header">
+      <span class="text-xl font-semibold">
+        Cap Impact Calculator -
+        {{ calculatorAction() === 'cut' ? 'Cut Player' : calculatorAction() === 'trade' ? 'Trade Player' : 'Restructure Contract' }}
+      </span>
+    </ng-template>
+
+    <div *ngIf="calculatorContract()" class="space-y-4">
+      <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+        <div class="font-semibold text-lg mb-2">
+          {{ calculatorContract()?.playerName }}
+        </div>
+        <div class="text-sm text-gray-600 dark:text-gray-400">
+          Current Cap Hit: {{ formatCurrency(calculateCapHit(calculatorContract()!, selectedYear())) }}
+        </div>
+      </div>
+
+      <div *ngIf="calculatorAction() === 'cut' || calculatorAction() === 'trade'">
+        <div class="flex items-center gap-2 mb-4">
+          <p-checkbox
+            [(ngModel)]="calculatorPreJune1Value"
+            (onChange)="onPreJune1Change()"
+            [binary]="true"
+            inputId="preJune1"
+          ></p-checkbox>
+          <label for="preJune1" class="text-sm">
+            Pre-June 1 Cut/Trade
+          </label>
+        </div>
+
+        <div *ngIf="calculatorDeadMoney()" class="space-y-2">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                Dead Money ({{ selectedYear() }})
+              </div>
+              <div class="text-xl font-semibold text-red-600 dark:text-red-400">
+                {{ formatCurrency(calculatorDeadMoney()!.currentYear) }}
+              </div>
+            </div>
+            <div>
+              <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                Dead Money ({{ selectedYear() + 1 }})
+              </div>
+              <div class="text-xl font-semibold text-orange-600 dark:text-orange-400">
+                {{ formatCurrency(calculatorDeadMoney()!.nextYear) }}
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-4 border-t">
+            <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">
+              Cap Savings ({{ selectedYear() }})
+            </div>
+            <div
+              class="text-2xl font-bold"
+              [ngClass]="
+                calculatorCapSavings() >= 0
+                  ? 'text-green-600 dark:text-green-400'
+                  : 'text-red-600 dark:text-red-400'
+              "
+            >
+              {{ formatCurrency(calculatorCapSavings()) }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="calculatorAction() === 'restructure'">
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          Restructure functionality coming soon. This would allow converting base salary to signing bonus to reduce current year cap hit.
+        </p>
+      </div>
+    </div>
+  </p-dialog>
+</div>

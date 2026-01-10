@@ -1,0 +1,23 @@
+.cap-management-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+::ng-deep {
+  .p-progressbar {
+    height: 1rem;
+  }
+
+  .p-datatable-sm {
+    .p-datatable-thead > tr > th {
+      padding: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .p-datatable-tbody > tr > td {
+      padding: 0.5rem;
+      font-size: 0.875rem;
+    }
+  }
+}

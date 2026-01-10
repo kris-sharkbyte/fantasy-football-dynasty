@@ -14,6 +14,7 @@ import {
   PlayersTableConfig,
 } from '../../shared/components/players-table/players-table.component';
 import { LeagueHeaderComponent } from '../components/league-header.component';
+import { CapManagementComponent } from './components/cap-management/cap-management.component';
 
 @Component({
   selector: 'app-team',
@@ -27,6 +28,7 @@ import { LeagueHeaderComponent } from '../components/league-header.component';
     MessageModule,
     PlayersTableComponent,
     LeagueHeaderComponent,
+    CapManagementComponent,
   ],
   templateUrl: './team.component.html',
   styleUrls: ['./team.component.scss'],
